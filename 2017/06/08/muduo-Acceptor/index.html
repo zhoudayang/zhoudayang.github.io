@@ -75,7 +75,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="muduo,C++,Linux," />
 
 
 
@@ -92,6 +92,7 @@
 
 
 <meta name="description" content="运行流程Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。 上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN. 特殊">
+<meta name="keywords" content="muduo,C++,Linux">
 <meta property="og:type" content="article">
 <meta property="og:title" content="muduo Acceptor">
 <meta property="og:url" content="http://zhoudayang.github.io/2017/06/08/muduo-Acceptor/index.html">
@@ -370,6 +371,16 @@
 
     <footer class="post-footer">
       
+        <div class="post-tags">
+          
+            <a href="/tags/muduo/" rel="tag"># muduo</a>
+          
+            <a href="/tags/C/" rel="tag"># C++</a>
+          
+            <a href="/tags/Linux/" rel="tag"># Linux</a>
+          
+        </div>
+      
 
       
       
@@ -453,6 +464,15 @@
 
           
 
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
           
 
         </nav>
