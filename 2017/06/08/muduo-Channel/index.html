@@ -75,7 +75,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="Linux, C++, Lua, Python, Golang" />
+  <meta name="keywords" content="muduo,C++,Linux," />
 
 
 
@@ -91,15 +91,17 @@
 
 
 
-<meta name="description" content="乐观的终生学习者">
-<meta property="og:type" content="website">
-<meta property="og:title" content="zhouyang&#39;s blog">
-<meta property="og:url" content="http://zhoudayang.github.io/index.html">
+<meta name="description" content="实现简介channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回调函数。整个Channel类的实现非常简单明了。 重点:tie可能出现这种情况，我们设置的回调函数是">
+<meta name="keywords" content="muduo,C++,Linux">
+<meta property="og:type" content="article">
+<meta property="og:title" content="muduo Channel">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/08/muduo-Channel/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="乐观的终生学习者">
+<meta property="og:description" content="实现简介channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回调函数。整个Channel类的实现非常简单明了。 重点:tie可能出现这种情况，我们设置的回调函数是">
+<meta property="og:updated_time" content="2017-06-08T10:28:58.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="zhouyang&#39;s blog">
-<meta name="twitter:description" content="乐观的终生学习者">
+<meta name="twitter:title" content="muduo Channel">
+<meta name="twitter:description" content="实现简介channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回调函数。整个Channel类的实现非常简单明了。 重点:tie可能出现这种情况，我们设置的回调函数是">
 
 
 
@@ -127,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/08/muduo-Channel/"/>
 
 
 
 
 
-  <title>zhouyang's blog</title>
+  <title>muduo Channel | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -159,9 +161,7 @@
     
   
 
-  <div class="container sidebar-position-left 
-   page-home 
- ">
+  <div class="container sidebar-position-left page-post-detail ">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -292,9 +292,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-  <section id="posts" class="posts-expand">
+
+  <div id="posts" class="posts-expand">
     
-      
 
   
 
@@ -320,9 +320,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/06/08/muduo-Channel/" itemprop="url">muduo Channel</a></h1>
+          <h1 class="post-title" itemprop="name headline">muduo Channel</h1>
         
 
         <div class="post-meta">
@@ -354,123 +352,10 @@
           
 
           
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          实现简介channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2017/06/08/muduo-Channel/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/muduo-Buffer/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Zhou Yang">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="zhouyang's blog">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/06/08/muduo-Buffer/" itemprop="url">muduo Buffer</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T18:23:50+08:00">
-                2017-06-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
           
 
           
@@ -487,409 +372,81 @@
       
 
       
+        <h4 id="实现简介"><a href="#实现简介" class="headerlink" title="实现简介"></a>实现简介</h4><p>channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回调函数。整个Channel类的实现非常简单明了。</p>
+<h4 id="重点-tie"><a href="#重点-tie" class="headerlink" title="重点:tie"></a>重点:tie</h4><p>可能出现这种情况，我们设置的回调函数是某个类的成员函数，此类对象使用shared_ptr进行管理。如果在回调函数之中对此shared_ptr进行了reset或者release处理，那么此回调函数就会立即失效，因为类对象被回收了。对于这种特殊情况，可以使用<code>std::weak_ptr&lt;void&gt; tie</code>来存放该shared_ptr的弱引用（使用弱引用是为了避免增加shared_ptr的引用计数，导致对象一直无法得以析构。每次进行事件处理的时候，若之前设置了tie，那么首先tie进行提升，保证回调函数处理期间此shared_ptr管理的对象不会被析构。</p>
+<p>tie这一措施是为了TcpConnectionPtr而设计了，如果在某个回调函数之中，reset了此TcpConnectionPtr, 那么TcpConnection的其他回调函数就会失效。所以在处理这些事件期间，需要提升此TcpConnectionPtr的引用计数，阻止TcpConnectionPtr被析构。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> Channel::tie(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">shared_ptr</span>&lt;<span class="keyword">void</span>&gt;&amp; obj)</div><div class="line">&#123;</div><div class="line">  tie_ = obj;</div><div class="line">  tied_ = <span class="literal">true</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Channel::handleEvent(Timestamp receiveTime)</div><div class="line">&#123;</div><div class="line">  <span class="built_in">std</span>::<span class="built_in">shared_ptr</span>&lt;<span class="keyword">void</span>&gt; guard;</div><div class="line">  <span class="keyword">if</span> (tied_)</div><div class="line">  &#123;</div><div class="line">    guard = tie_.lock();</div><div class="line">    <span class="keyword">if</span> (guard)</div><div class="line">    &#123;</div><div class="line">      handleEventWithGuard(receiveTime);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    handleEventWithGuard(receiveTime);</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Channel::handleEventWithGuard(Timestamp receiveTime)</div><div class="line">&#123;</div><div class="line">  eventHandling_ = <span class="literal">true</span>;</div><div class="line">  LOG_TRACE &lt;&lt; reventsToString();</div><div class="line">  <span class="keyword">if</span> ((revents_ &amp; POLLHUP) &amp;&amp; !(revents_ &amp; POLLIN))</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">if</span> (logHup_)</div><div class="line">    &#123;</div><div class="line">      LOG_WARN &lt;&lt; <span class="string">"fd = "</span> &lt;&lt; fd_ &lt;&lt; <span class="string">" Channel::handle_event() POLLHUP"</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">if</span> (closeCallback_) closeCallback_();</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (revents_ &amp; POLLNVAL)</div><div class="line">  &#123;</div><div class="line">    LOG_WARN &lt;&lt; <span class="string">"fd = "</span> &lt;&lt; fd_ &lt;&lt; <span class="string">" Channel::handle_event() POLLNVAL"</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (revents_ &amp; (POLLERR | POLLNVAL))</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">if</span> (errorCallback_) errorCallback_();</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">if</span> (revents_ &amp; (POLLIN | POLLPRI | POLLRDHUP))</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">if</span> (readCallback_) readCallback_(receiveTime);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">if</span> (revents_ &amp; POLLOUT)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">if</span> (writeCallback_) writeCallback_();</div><div class="line">  &#125;</div><div class="line">  eventHandling_ = <span class="literal">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
         
-          
-          实现原理在muduo之中，使用std::vector来存放网络中传输的数据，包括从要发送给对方的数据以及从对方接收的数据。在Buffer之中，预留了 prependable 的缓存，可以在buffer之中加入前缀而无需移动整个buffer。整个buffer分为prependable, readabl
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2017/06/08/muduo-Buffer/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
+
+      
+    </div>
+
+    <div>
+      
         
+
       
     </div>
 
     <div>
       
-    </div>
+        
 
-    <div>
-      
-    </div>
-
-    <div>
       
     </div>
 
     <footer class="post-footer">
       
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/auto关键字/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Zhou Yang">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="zhouyang's blog">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/06/08/auto关键字/" itemprop="url">auto关键字</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T12:29:49+08:00">
-                2017-06-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
+        <div class="post-tags">
           
-
+            <a href="/tags/muduo/" rel="tag"># muduo</a>
           
-            
+            <a href="/tags/C/" rel="tag"># C++</a>
           
-
+            <a href="/tags/Linux/" rel="tag"># Linux</a>
           
-          
-
-          
-
-          
-
-          
-
         </div>
-      </header>
-    
+      
 
-    <div class="post-body" itemprop="articleBody">
-
+      
       
       
 
       
-        
-          
-          5. 优先使用auto而非显示类型声明在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。
-123456789template&lt;typename It&gt;void dwim(It b, It e)&#123;  while(b 
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2017/06/08/auto关键字/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/08/muduo-Buffer/" rel="next" title="muduo Buffer">
+                <i class="fa fa-chevron-left"></i> muduo Buffer
+              </a>
+            
           </div>
-          <!--/noindex-->
-        
-      
-    </div>
 
-    <div>
-      
-    </div>
+          <span class="post-nav-divider"></span>
 
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/C++类型推导/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Zhou Yang">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="zhouyang's blog">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/06/08/C++类型推导/" itemprop="url">C++类型推导</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
+          <div class="post-nav-prev post-nav-item">
             
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T12:19:57+08:00">
-                2017-06-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
+          </div>
         </div>
-      </header>
-    
-
-    <div class="post-body" itemprop="articleBody">
-
-      
       
 
       
-        
-          
-          1. 理解模板类型推导1. expr是T&amp;123456template&lt;typename T&gt;void f(T &amp; param);// 我们声明如下变量int x = 27;const int cx = x;const int&amp; rx = x;
-函数调用时，推导出
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2017/06/08/C++类型推导/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
       
     </footer>
   </article>
 
 
-    
-      
 
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/muduo-Acceptor/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Zhou Yang">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="zhouyang's blog">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/06/08/muduo-Acceptor/" itemprop="url">muduo Acceptor</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T00:11:57+08:00">
-                2017-06-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          运行流程Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。
-上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2017/06/08/muduo-Acceptor/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
+    <div class="post-spread">
       
     </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
-  </section>
-
-  
+  </div>
 
 
           </div>
@@ -897,6 +454,12 @@
 
 
           
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
 
         </div>
         
@@ -916,8 +479,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview sidebar-panel sidebar-panel-active">
+      <section class="site-overview sidebar-panel">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
           <img class="site-author-image" itemprop="image"
                src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
@@ -999,6 +571,22 @@
 
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#实现简介"><span class="nav-text">实现简介</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#重点-tie"><span class="nav-text">重点:tie</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -1127,10 +715,10 @@
 
 
   
-    <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
 <script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
 
-  
+
 
   
 
@@ -1165,6 +753,17 @@
 
 
 
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
   
 
 
