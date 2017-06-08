@@ -1,0 +1,822 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="modern effective C++," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="1. 理解模板类型推导1. expr是T&amp;amp;123456template&amp;lt;typename T&amp;gt;void f(T &amp;amp; param);// 我们声明如下变量int x = 27;const int cx = x;const int&amp;amp; rx = x; 函数调用时，推导出的Param和T的类型如下： 123f(x);  // T is int, param&apos;s type">
+<meta name="keywords" content="modern effective C++">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++类型推导">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/08/C++类型推导/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="1. 理解模板类型推导1. expr是T&amp;amp;123456template&amp;lt;typename T&amp;gt;void f(T &amp;amp; param);// 我们声明如下变量int x = 27;const int cx = x;const int&amp;amp; rx = x; 函数调用时，推导出的Param和T的类型如下： 123f(x);  // T is int, param&apos;s type">
+<meta property="og:updated_time" content="2017-06-08T04:19:57.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="C++类型推导">
+<meta name="twitter:description" content="1. 理解模板类型推导1. expr是T&amp;amp;123456template&amp;lt;typename T&amp;gt;void f(T &amp;amp; param);// 我们声明如下变量int x = 27;const int cx = x;const int&amp;amp; rx = x; 函数调用时，推导出的Param和T的类型如下： 123f(x);  // T is int, param&apos;s type">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/08/C++类型推导/"/>
+
+
+
+
+
+  <title>C++类型推导 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/C++类型推导/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">C++类型推导</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T12:19:57+08:00">
+                2017-06-08
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h3 id="1-理解模板类型推导"><a href="#1-理解模板类型推导" class="headerlink" title="1. 理解模板类型推导"></a>1. 理解模板类型推导</h3><h4 id="1-expr是T-amp"><a href="#1-expr是T-amp" class="headerlink" title="1. expr是T&amp;"></a>1. expr是T&amp;</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">f</span><span class="params">(T &amp; param)</span></span>;</div><div class="line"><span class="comment">// 我们声明如下变量</span></div><div class="line"><span class="keyword">int</span> x = <span class="number">27</span>;</div><div class="line"><span class="keyword">const</span> <span class="keyword">int</span> cx = x;</div><div class="line"><span class="keyword">const</span> <span class="keyword">int</span>&amp; rx = x;</div></pre></td></tr></table></figure>
+<p>函数调用时，推导出的Param和T的类型如下：</p>
+<figure class="highlight nimrod"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">f(x);  // T <span class="keyword">is</span> <span class="built_in">int</span>, param's <span class="keyword">type</span> <span class="keyword">is</span> <span class="built_in">int</span>&amp;</div><div class="line">f(cx); // T <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>, param's <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>&amp;</div><div class="line">f(rx); // T <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>, param's <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>&amp;</div></pre></td></tr></table></figure>
+<p>需要特别注明的是，通过T&amp;的方式传入数组，数组的大小信息不会丢失。</p>
+<figure class="highlight nimrod"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;typename T&gt;</div><div class="line"><span class="built_in">void</span> f(T&amp; param);</div><div class="line"><span class="built_in">int</span> arr[<span class="number">10</span>];</div><div class="line">f(arr); // T <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>[<span class="number">10</span>], param <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>(&amp;)[<span class="number">10</span>]</div></pre></td></tr></table></figure>
+<p><strong>在类型推导期间，数组和函数将退化为指针类型，除非他们是被初始化为引用。</strong></p>
+<h4 id="2-expr是const-T-amp"><a href="#2-expr是const-T-amp" class="headerlink" title="2. expr是const T&amp;"></a>2. expr是const T&amp;</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">f</span><span class="params">(<span class="keyword">const</span> T&amp; param)</span></span>;</div><div class="line"></div><div class="line"><span class="keyword">int</span> x = <span class="number">27</span>;</div><div class="line"><span class="keyword">const</span> <span class="keyword">int</span> cx = x;</div><div class="line"><span class="keyword">const</span> <span class="keyword">int</span>&amp; rx = x;</div></pre></td></tr></table></figure>
+<p>在进行类型推导的时候，rx的引用性被忽略了。</p>
+<figure class="highlight nimrod"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">f(x);  // T <span class="keyword">is</span> <span class="built_in">int</span>, param's <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>&amp;</div><div class="line">f(cx); // T <span class="keyword">is</span> <span class="built_in">int</span>, param's <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>&amp;</div><div class="line">f(rx); // T <span class="keyword">is</span> <span class="built_in">int</span>, param's <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>&amp;</div></pre></td></tr></table></figure>
+<h4 id="3-param是一个指针类型"><a href="#3-param是一个指针类型" class="headerlink" title="3. param是一个指针类型"></a>3. param是一个指针类型</h4><figure class="highlight nimrod"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;typename T&gt;</div><div class="line"><span class="built_in">void</span> f(T* param); // param <span class="keyword">is</span> now a <span class="built_in">pointer</span></div><div class="line"></div><div class="line"><span class="built_in">int</span> x = <span class="number">27</span>;</div><div class="line"><span class="keyword">const</span> <span class="built_in">int</span>* px = &amp;x;</div><div class="line">f(&amp;x); // T <span class="keyword">is</span> <span class="built_in">int</span>, param's <span class="keyword">type</span> <span class="keyword">is</span> <span class="built_in">int</span> *</div><div class="line">f(px); // T <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>, param's <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span> *</div></pre></td></tr></table></figure>
+<h4 id="4-param是universial-reference"><a href="#4-param是universial-reference" class="headerlink" title="4. param是universial reference"></a>4. param是universial reference</h4><figure class="highlight nimrod"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;typename T&gt;</div><div class="line"><span class="built_in">void</span> f(T&amp;&amp; param); // param <span class="keyword">is</span> now a universal reference</div><div class="line"></div><div class="line"><span class="built_in">int</span> x = <span class="number">27</span>;</div><div class="line"><span class="keyword">const</span> <span class="built_in">int</span> cx = x;</div><div class="line"><span class="keyword">const</span> <span class="built_in">int</span> rx = x;</div><div class="line"></div><div class="line">f(x);  // x <span class="keyword">is</span> lvalue, so T <span class="keyword">is</span> <span class="built_in">int</span>&amp;, param's <span class="keyword">type</span> <span class="keyword">is</span> also <span class="built_in">int</span>&amp;</div><div class="line">f(cx); // cx <span class="keyword">is</span> lvalue, so T <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>&amp;, param's <span class="keyword">type</span> <span class="keyword">is</span> also <span class="keyword">const</span> <span class="built_in">int</span>&amp;</div><div class="line">f(rx); // rx <span class="keyword">is</span> lvalue, so T <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span>&amp;, param's <span class="keyword">type</span> <span class="keyword">is</span> also <span class="keyword">const</span> <span class="built_in">int</span>&amp;</div><div class="line">f(<span class="number">27</span>); // <span class="number">27</span> <span class="keyword">is</span> rvalue, so T <span class="keyword">is</span> <span class="built_in">int</span>, param's typs <span class="keyword">is</span> <span class="built_in">int</span>&amp;&amp;</div></pre></td></tr></table></figure>
+<h4 id="5-param-既不是指针也不是引用"><a href="#5-param-既不是指针也不是引用" class="headerlink" title="5. param 既不是指针也不是引用"></a>5. param 既不是指针也不是引用</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">f</span><span class="params">(T param)</span></span>;</div></pre></td></tr></table></figure>
+<p>当ParamType既不是指针也不是引用的时候，我们按照值传递的方式进行处理。<br>需要举出一个有用的例子：<br><figure class="highlight nimrod"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;typename T&gt;</div><div class="line"><span class="built_in">void</span> f(T param);</div><div class="line"><span class="keyword">const</span> <span class="built_in">char</span>* <span class="keyword">const</span> <span class="keyword">ptr</span> = <span class="string">"hello world\n"</span>;</div><div class="line">f(<span class="keyword">ptr</span>); // param's <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">char</span>*</div></pre></td></tr></table></figure></p>
+<h3 id="2-理解auto自动类型推导"><a href="#2-理解auto自动类型推导" class="headerlink" title="2. 理解auto自动类型推导"></a>2. 理解auto自动类型推导</h3><p>auto 类型对象推导通常和模板类型推导是相同的。<br>例子：<br><figure class="highlight nimrod"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">const</span> <span class="built_in">char</span> name[] = <span class="string">"zhouyang"</span>;</div><div class="line"><span class="built_in">auto</span> arr1 = name; // arr1's <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">char</span>*</div><div class="line"><span class="built_in">auto</span>&amp; arr2 = name; // arr2's <span class="keyword">type</span> <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">char</span>(&amp;)[<span class="number">9</span>]</div><div class="line"><span class="built_in">void</span> someFunc(<span class="built_in">int</span>, double); // someFunc <span class="keyword">is</span> a function</div><div class="line"><span class="built_in">auto</span> func1 = someFunc; // func1's <span class="keyword">type</span> <span class="keyword">is</span> <span class="built_in">void</span>(*)(<span class="built_in">int</span>, double)</div><div class="line"><span class="built_in">auto</span>&amp; func2 = someFunc; // func2's <span class="keyword">type</span> <span class="keyword">is</span> <span class="built_in">void</span>(&amp;)(<span class="built_in">int</span>, double)</div></pre></td></tr></table></figure></p>
+<p>唯一的例外是：使用auto和大括号进行初始化时，自动推导为std::initializer_list。并且，对于使用括号进行的初始化，模板类型推导会失败。</p>
+<h3 id="3-理解decltype"><a href="#3-理解decltype" class="headerlink" title="3. 理解decltype"></a>3. 理解decltype</h3><p>decltype 一般情况下总是返回变量名或者表达式的类型而不做任何的修改。<br><figure class="highlight nimrod"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">const</span> <span class="built_in">int</span> i = <span class="number">0</span>; // decltype(i) <span class="keyword">is</span> <span class="keyword">const</span> <span class="built_in">int</span></div><div class="line"><span class="built_in">bool</span> f(<span class="keyword">const</span> <span class="type">Widget</span>&amp; w) // decltype(w) <span class="keyword">is</span> <span class="keyword">const</span> <span class="type">Widget</span>&amp;</div><div class="line"><span class="type">Widget</span> W; // decltype(w) <span class="keyword">is</span> <span class="type">Widget</span></div></pre></td></tr></table></figure></p>
+<p>在C++14中，提供了decltype(auto)的支持，它从初始化式子中推导类型，使用的是decltype的推导规则。<br><figure class="highlight ada"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">Widget w;</div><div class="line">cosnt Widget&amp; cw = w;</div><div class="line">auto myWidget1 = cw; // myWidget1<span class="symbol">'s</span> <span class="keyword">type</span> <span class="type">is </span>Widget</div><div class="line">decltype(auto) myWidget2 = cw; // decltype <span class="keyword">type</span> <span class="type">deduction:</span></div><div class="line">                               // myWidget2<span class="symbol">'s</span> <span class="keyword">type</span> <span class="type">is </span>const Widget&amp;</div><div class="line">// 注：可以在模板中使用</div></pre></td></tr></table></figure></p>
+<p>特例:<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></div><div class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> <span class="built_in">std</span>;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">int</span> temp = <span class="number">10</span>;</div><div class="line"></div><div class="line">  <span class="keyword">decltype</span>((temp)) temp1 = temp; <span class="comment">// temp1's type is int&amp; </span></div><div class="line">  temp1 = <span class="number">1</span>;</div><div class="line">  <span class="built_in">cout</span>&lt;&lt; temp &lt;&lt; <span class="built_in">endl</span>;</div><div class="line">  </div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div><div class="line"><span class="comment">//输出 : 1</span></div></pre></td></tr></table></figure></p>
+<h3 id="4-了解如何查看推导出的类型"><a href="#4-了解如何查看推导出的类型" class="headerlink" title="4. 了解如何查看推导出的类型"></a>4. 了解如何查看推导出的类型</h3><p>可以利用编译器诊断来完成。我们想要知道被推导出的类型，可以首先声明一个类模板，但是不定义它。那么编译器的出错信息会包含推导的类型信息。<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">TD</span>;</span></div></pre></td></tr></table></figure></p>
+<p>通过编译器内置的宏定义，可以输出函数类型<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;vector&gt;</span></span></div><div class="line"></div><div class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> <span class="built_in">std</span>;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">test_func</span><span class="params">(<span class="keyword">int</span>)</span></span></div><div class="line">&#123;</div><div class="line"><span class="meta">#<span class="meta-keyword">if</span> defined(__GNUC__)</span></div><div class="line">  <span class="built_in">cout</span> &lt;&lt; __PRETTY_FUNCTION__ &lt;&lt; <span class="built_in">endl</span>;</div><div class="line"><span class="meta">#<span class="meta-keyword">elif</span> defined(_MSC_VER)</span></div><div class="line">  <span class="built_in">cout</span> &lt;&lt; __FUNCSIG__ &lt;&lt; <span class="built_in">endl</span>;</div><div class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  test_func(<span class="number">10</span>);</div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/modern-effective-C/" rel="tag"># modern effective C++</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/08/muduo-Acceptor/" rel="next" title="muduo Acceptor">
+                <i class="fa fa-chevron-left"></i> muduo Acceptor
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/06/08/auto关键字/" rel="prev" title="auto关键字">
+                auto关键字 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">4</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-理解模板类型推导"><span class="nav-number">1.</span> <span class="nav-text">1. 理解模板类型推导</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-expr是T-amp"><span class="nav-number">1.1.</span> <span class="nav-text">1. expr是T&</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-expr是const-T-amp"><span class="nav-number">1.2.</span> <span class="nav-text">2. expr是const T&</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-param是一个指针类型"><span class="nav-number">1.3.</span> <span class="nav-text">3. param是一个指针类型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-param是universial-reference"><span class="nav-number">1.4.</span> <span class="nav-text">4. param是universial reference</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-param-既不是指针也不是引用"><span class="nav-number">1.5.</span> <span class="nav-text">5. param 既不是指针也不是引用</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-理解auto自动类型推导"><span class="nav-number">2.</span> <span class="nav-text">2. 理解auto自动类型推导</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-理解decltype"><span class="nav-number">3.</span> <span class="nav-text">3. 理解decltype</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-了解如何查看推导出的类型"><span class="nav-number">4.</span> <span class="nav-text">4. 了解如何查看推导出的类型</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

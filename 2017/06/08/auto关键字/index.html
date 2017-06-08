@@ -75,7 +75,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="muduo,C++,Linux," />
+  <meta name="keywords" content="modern effective C++," />
 
 
 
@@ -91,17 +91,17 @@
 
 
 
-<meta name="description" content="运行流程Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。 上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN. 特殊">
-<meta name="keywords" content="muduo,C++,Linux">
+<meta name="description" content="5. 优先使用auto而非显示类型声明在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。 123456789template&amp;lt;typename It&amp;gt;void dwim(It b, It e)&amp;#123;  while(b != e)&amp;#123;    typename std::iterator_traits&amp;lt;It">
+<meta name="keywords" content="modern effective C++">
 <meta property="og:type" content="article">
-<meta property="og:title" content="muduo Acceptor">
-<meta property="og:url" content="http://zhoudayang.github.io/2017/06/08/muduo-Acceptor/index.html">
+<meta property="og:title" content="auto关键字">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/08/auto关键字/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="运行流程Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。 上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN. 特殊">
-<meta property="og:updated_time" content="2017-06-07T16:11:57.000Z">
+<meta property="og:description" content="5. 优先使用auto而非显示类型声明在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。 123456789template&amp;lt;typename It&amp;gt;void dwim(It b, It e)&amp;#123;  while(b != e)&amp;#123;    typename std::iterator_traits&amp;lt;It">
+<meta property="og:updated_time" content="2017-06-08T04:29:49.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="muduo Acceptor">
-<meta name="twitter:description" content="运行流程Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。 上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN. 特殊">
+<meta name="twitter:title" content="auto关键字">
+<meta name="twitter:description" content="5. 优先使用auto而非显示类型声明在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。 123456789template&amp;lt;typename It&amp;gt;void dwim(It b, It e)&amp;#123;  while(b != e)&amp;#123;    typename std::iterator_traits&amp;lt;It">
 
 
 
@@ -129,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/08/muduo-Acceptor/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/08/auto关键字/"/>
 
 
 
 
 
-  <title>muduo Acceptor | zhouyang's blog</title>
+  <title>auto关键字 | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -303,7 +303,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/muduo-Acceptor/">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/auto关键字/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Zhou Yang">
@@ -320,7 +320,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">muduo Acceptor</h1>
+          <h1 class="post-title" itemprop="name headline">auto关键字</h1>
         
 
         <div class="post-meta">
@@ -332,7 +332,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T00:11:57+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T12:29:49+08:00">
                 2017-06-08
               </time>
             
@@ -372,16 +372,16 @@
       
 
       
-        <h4 id="运行流程"><a href="#运行流程" class="headerlink" title="运行流程"></a>运行流程</h4><p>Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。</p>
-<p>上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN.</p>
-<h4 id="特殊处理"><a href="#特殊处理" class="headerlink" title="特殊处理"></a>特殊处理</h4><p>在接受连接的时候，可能会出现这种问题：描述符用完了，这会导致accpet失败，并且返回<em>ENFILE</em>错误。但是并没有拒绝这一连接，连接仍然会在连接队列之中，这导致了下一次eventLoop中仍然会触发监听描述符的可读事件，这会导致busy loop。</p>
-<ul>
-<li>一种比较简单的解决方式是程序遇到这个问题，直接忽略，直到这种情况消失，但是这种解决方式会导致busy waiting。</li>
-<li>另一种解决思路是记录除了EAGAIN或者EWOULDBLOCK其他任何错误，告诉用户出现了某种错误，并且停止监听描述符的可读事件，减少CPU的使用。</li>
-<li>在libevent中，采用的是如下解决方式。首先打开/dev/null, 保留一个文件描述符，当accept出现ENFILE或者EMFILE错误的时候，关闭/dev/null，然后再次accept，并且close掉accept产生的fd，再次打开/dev/null，这是一种比较优雅的方式来拒绝客户端的连接。</li>
-<li>最后一种比较sb的方式是遇到accept的这种错误，直接拒绝并且退出。这种方式比较容易受到Dos攻击。</li>
-</ul>
-<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">void Acceptor::handleRead()</div><div class="line">&#123;</div><div class="line">  loop_-&gt;assertInLoopThread();</div><div class="line">  InetAddress peerAddr;</div><div class="line">  <span class="comment">//FIXME loop until no more</span></div><div class="line">  int connfd = acceptSocket_.accept(&amp;peerAddr);</div><div class="line">  <span class="keyword">if</span> (connfd &gt;= <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="comment">// string hostport = peerAddr.toIpPort();</span></div><div class="line">    <span class="comment">// LOG_TRACE &lt;&lt; "Accepts of " &lt;&lt; hostport;</span></div><div class="line">    <span class="keyword">if</span> (newConnectionCallback_)</div><div class="line">    &#123;</div><div class="line">      newConnectionCallback_(connfd, peerAddr);</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span></div><div class="line">    &#123;</div><div class="line">      sockets::close(connfd);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    LOG_SYSERR &lt;&lt; <span class="string">"in Acceptor::handleRead"</span>;</div><div class="line">    <span class="comment">// Read the section named "The special problem of</span></div><div class="line">    <span class="comment">// accept()ing when you can't" in libev's doc.</span></div><div class="line">    <span class="comment">// By Marc Lehmann, author of libev.</span></div><div class="line">    <span class="keyword">if</span> (errno == EMFILE)</div><div class="line">    &#123;</div><div class="line">      ::close(idleFd_);</div><div class="line">      idleFd_ = ::accept(acceptSocket_.fd(), <span class="keyword">NULL</span>, <span class="keyword">NULL</span>);</div><div class="line">      ::close(idleFd_);</div><div class="line">      idleFd_ = ::open(<span class="string">"/dev/null"</span>, O_RDONLY | O_CLOEXEC);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+        <h3 id="5-优先使用auto而非显示类型声明"><a href="#5-优先使用auto而非显示类型声明" class="headerlink" title="5. 优先使用auto而非显示类型声明"></a>5. 优先使用auto而非显示类型声明</h3><p>在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> It&gt;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">dwim</span><span class="params">(It b, It e)</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(b != e)&#123;</div><div class="line">    <span class="keyword">typename</span> <span class="built_in">std</span>::iterator_traits&lt;It&gt;::value_type</div><div class="line">    currValue = *b;</div><div class="line">      ...</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>使用auto关键字</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="symbol">template</span>&lt;typename <span class="keyword">It&gt;</span></div><div class="line"><span class="symbol">void</span> dwim(<span class="keyword">It </span><span class="keyword">b, </span><span class="keyword">It </span>e)</div><div class="line">&#123;</div><div class="line">  <span class="meta">while</span>(<span class="keyword">b </span>!= e)&#123;</div><div class="line">    auto currValue = *<span class="keyword">b;</span></div><div class="line">      ...</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在C++14中，lambda函数的参数都可以使用auto来定义。<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">auto</span> derefLess =                            <span class="comment">// C++14 comparison</span></div><div class="line">  [](<span class="keyword">const</span> <span class="keyword">auto</span>&amp; p1,                          <span class="comment">// function for</span></div><div class="line">     <span class="keyword">const</span> <span class="keyword">auto</span>&amp; p2)                          <span class="comment">// values pointed</span></div><div class="line">  &#123; <span class="keyword">return</span> *p1 &lt; *p2; &#125;;</div></pre></td></tr></table></figure></p>
+<p>使用auto生命类型还可以将我们从类型截断的问题中解放出来：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="keyword">int</span>&gt; arrs;</div><div class="line"><span class="keyword">auto</span> size = arrs.size();</div></pre></td></tr></table></figure></p>
+<p>在C++中，<code>unordered_map</code>的key的类型是const类型的，所以即便采取如下方式遍历<code>unordered_map</code>容器，仍然会产生临时对象：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">std</span>::<span class="built_in">unordered_map</span>&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="keyword">int</span>&gt; m;</div><div class="line">   ...</div><div class="line"></div><div class="line"><span class="keyword">for</span> (<span class="keyword">const</span> <span class="built_in">std</span>::pair&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="keyword">int</span>&gt;&amp; p : m)</div><div class="line">&#123;</div><div class="line">   ...                  <span class="comment">// do something with p</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>但是借助auto，我们不仅使声明更加简洁，还避开了此问题：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">std</span>::<span class="built_in">unordered_map</span>&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="keyword">int</span>&gt; m;</div><div class="line">   ...</div><div class="line"></div><div class="line"><span class="keyword">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; p : m)</div><div class="line">&#123;</div><div class="line">   ...                  <span class="comment">// do something with p</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h3 id="6-当auto推导出非预期类型时应当使用显示的类型初始化"><a href="#6-当auto推导出非预期类型时应当使用显示的类型初始化" class="headerlink" title="6. 当auto推导出非预期类型时应当使用显示的类型初始化"></a>6. 当auto推导出非预期类型时应当使用显示的类型初始化</h3><p>在C++中，因为标准不允许返回对bit的引用，所以对于<code>vector&lt;bool&gt;</code>标准库进行了特化处理，其<code>[]</code>运算符返回的是<code>std::vector&lt;bool&gt;::reference</code>类型的临时对象。对临时对象的修改会被其同步到vector中，因而这样使用auto关键字是不合规的。<br><figure class="highlight gcode"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">Widget w;</div><div class="line">…</div><div class="line">auto highPriority = features<span class="comment">(w)</span>[<span class="number">5</span>];         <span class="comment">// w是不是个高优先级的？</span></div><div class="line">…</div><div class="line">processWidget<span class="comment">(w, highPriority)</span>;             <span class="comment">// 配合优先级处理w</span></div></pre></td></tr></table></figure></p>
+<p>在这种情况下，我们只需显示指出<code>highPriority</code>的类型为bool即可规避此问题。</p>
 
       
     </div>
@@ -411,11 +411,7 @@
       
         <div class="post-tags">
           
-            <a href="/tags/muduo/" rel="tag"># muduo</a>
-          
-            <a href="/tags/C/" rel="tag"># C++</a>
-          
-            <a href="/tags/Linux/" rel="tag"># Linux</a>
+            <a href="/tags/modern-effective-C/" rel="tag"># modern effective C++</a>
           
         </div>
       
@@ -428,15 +424,15 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
+              <a href="/2017/06/08/C++类型推导/" rel="next" title="C++类型推导">
+                <i class="fa fa-chevron-left"></i> C++类型推导
+              </a>
+            
           </div>
 
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/06/08/C++类型推导/" rel="prev" title="C++类型推导">
-                C++类型推导 <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -587,7 +583,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#运行流程"><span class="nav-number">1.</span> <span class="nav-text">运行流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#特殊处理"><span class="nav-number">2.</span> <span class="nav-text">特殊处理</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-优先使用auto而非显示类型声明"><span class="nav-number">1.</span> <span class="nav-text">5. 优先使用auto而非显示类型声明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-当auto推导出非预期类型时应当使用显示的类型初始化"><span class="nav-number">2.</span> <span class="nav-text">6. 当auto推导出非预期类型时应当使用显示的类型初始化</span></a></li></ol></div>
             
 
           </div>
