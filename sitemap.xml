@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://zhoudayang.github.io/2017/06/08/muduo-Buffer/</loc>
+    
+    <lastmod>2017-06-08T10:23:50.000Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>http://zhoudayang.github.io/2017/06/08/auto%E5%85%B3%E9%94%AE%E5%AD%97/</loc>
     
     <lastmod>2017-06-08T04:29:49.000Z</lastmod>

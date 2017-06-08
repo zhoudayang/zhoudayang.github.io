@@ -91,17 +91,17 @@
 
 
 
-<meta name="description" content="运行流程Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。 上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN. 特殊">
+<meta name="description" content="实现原理在muduo之中，使用std::vector来存放网络中传输的数据，包括从要发送给对方的数据以及从对方接收的数据。在Buffer之中，预留了 prependable 的缓存，可以在buffer之中加入前缀而无需移动整个buffer。整个buffer分为prependable, readable, writable bytes. Buffer 的布局可以参考下图。 12345678910//">
 <meta name="keywords" content="muduo,C++,Linux">
 <meta property="og:type" content="article">
-<meta property="og:title" content="muduo Acceptor">
-<meta property="og:url" content="http://zhoudayang.github.io/2017/06/08/muduo-Acceptor/index.html">
+<meta property="og:title" content="muduo Buffer">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/08/muduo-Buffer/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="运行流程Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。 上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN. 特殊">
-<meta property="og:updated_time" content="2017-06-07T16:11:57.000Z">
+<meta property="og:description" content="实现原理在muduo之中，使用std::vector来存放网络中传输的数据，包括从要发送给对方的数据以及从对方接收的数据。在Buffer之中，预留了 prependable 的缓存，可以在buffer之中加入前缀而无需移动整个buffer。整个buffer分为prependable, readable, writable bytes. Buffer 的布局可以参考下图。 12345678910//">
+<meta property="og:updated_time" content="2017-06-08T10:23:50.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="muduo Acceptor">
-<meta name="twitter:description" content="运行流程Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。 上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN. 特殊">
+<meta name="twitter:title" content="muduo Buffer">
+<meta name="twitter:description" content="实现原理在muduo之中，使用std::vector来存放网络中传输的数据，包括从要发送给对方的数据以及从对方接收的数据。在Buffer之中，预留了 prependable 的缓存，可以在buffer之中加入前缀而无需移动整个buffer。整个buffer分为prependable, readable, writable bytes. Buffer 的布局可以参考下图。 12345678910//">
 
 
 
@@ -129,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/08/muduo-Acceptor/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/08/muduo-Buffer/"/>
 
 
 
 
 
-  <title>muduo Acceptor | zhouyang's blog</title>
+  <title>muduo Buffer | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -303,7 +303,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/muduo-Acceptor/">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/muduo-Buffer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Zhou Yang">
@@ -320,7 +320,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">muduo Acceptor</h1>
+          <h1 class="post-title" itemprop="name headline">muduo Buffer</h1>
         
 
         <div class="post-meta">
@@ -332,7 +332,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T00:11:57+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T18:23:50+08:00">
                 2017-06-08
               </time>
             
@@ -372,17 +372,12 @@
       
 
       
-        <h4 id="运行流程"><a href="#运行流程" class="headerlink" title="运行流程"></a>运行流程</h4><p>Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。</p>
-<p>上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN.</p>
-<h4 id="特殊处理"><a href="#特殊处理" class="headerlink" title="特殊处理"></a>特殊处理</h4><p>在接受连接的时候，可能会出现这种问题：描述符用完了，这会导致accpet失败，并且返回<em>ENFILE</em>错误。但是并没有拒绝这一连接，连接仍然会在连接队列之中，这导致了下一次eventLoop中仍然会触发监听描述符的可读事件，这会导致busy loop。</p>
-<ul>
-<li>一种比较简单的解决方式是程序遇到这个问题，直接忽略，直到这种情况消失，但是这种解决方式会导致busy waiting。</li>
-<li>另一种解决思路是记录除了EAGAIN或者EWOULDBLOCK其他任何错误，告诉用户出现了某种错误，并且停止监听描述符的可读事件，减少CPU的使用。</li>
-<li>在libevent中，采用的是如下解决方式。首先打开/dev/null, 保留一个文件描述符，当accept出现ENFILE或者EMFILE错误的时候，关闭/dev/null，然后再次accept，并且close掉accept产生的fd，再次打开/dev/null，这是一种比较优雅的方式来拒绝客户端的连接。</li>
-<li>最后一种比较sb的方式是遇到accept的这种错误，直接拒绝并且退出。这种方式比较容易受到Dos攻击。</li>
-</ul>
-<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">void Acceptor::handleRead()</div><div class="line">&#123;</div><div class="line">  loop_-&gt;assertInLoopThread();</div><div class="line">  InetAddress peerAddr;</div><div class="line">  <span class="comment">//FIXME loop until no more</span></div><div class="line">  int connfd = acceptSocket_.accept(&amp;peerAddr);</div><div class="line">  <span class="keyword">if</span> (connfd &gt;= <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="comment">// string hostport = peerAddr.toIpPort();</span></div><div class="line">    <span class="comment">// LOG_TRACE &lt;&lt; "Accepts of " &lt;&lt; hostport;</span></div><div class="line">    <span class="keyword">if</span> (newConnectionCallback_)</div><div class="line">    &#123;</div><div class="line">      newConnectionCallback_(connfd, peerAddr);</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span></div><div class="line">    &#123;</div><div class="line">      sockets::close(connfd);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    LOG_SYSERR &lt;&lt; <span class="string">"in Acceptor::handleRead"</span>;</div><div class="line">    <span class="comment">// Read the section named "The special problem of</span></div><div class="line">    <span class="comment">// accept()ing when you can't" in libev's doc.</span></div><div class="line">    <span class="comment">// By Marc Lehmann, author of libev.</span></div><div class="line">    <span class="keyword">if</span> (errno == EMFILE)</div><div class="line">    &#123;</div><div class="line">      ::close(idleFd_);</div><div class="line">      idleFd_ = ::accept(acceptSocket_.fd(), <span class="keyword">NULL</span>, <span class="keyword">NULL</span>);</div><div class="line">      ::close(idleFd_);</div><div class="line">      idleFd_ = ::open(<span class="string">"/dev/null"</span>, O_RDONLY | O_CLOEXEC);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-
+        <h4 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h4><p>在muduo之中，使用std::vector来存放网络中传输的数据，包括从要发送给对方的数据以及从对方接收的数据。在Buffer之中，预留了 prependable 的缓存，可以在buffer之中加入前缀而无需移动整个buffer。整个buffer分为prependable, readable, writable bytes. Buffer 的布局可以参考下图。</p>
+<figure class="highlight jboss-cli"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="string">///</span> A buffer class modeled after org.jboss.netty.buffer.ChannelBuffer</div><div class="line"><span class="string">///</span></div><div class="line"><span class="string">///</span> @code</div><div class="line"><span class="string">///</span> +<span class="params">-------------------</span>+<span class="params">------------------</span>+<span class="params">------------------</span>+</div><div class="line"><span class="string">///</span> | prependable bytes |  readable bytes  |  writable bytes  |</div><div class="line"><span class="string">///</span> |                   |     <span class="params">(CONTENT)</span>    |                  |</div><div class="line"><span class="string">///</span> +<span class="params">-------------------</span>+<span class="params">------------------</span>+<span class="params">------------------</span>+</div><div class="line"><span class="string">///</span> |                   |                  |                  |</div><div class="line"><span class="string">///</span> 0      &lt;=      readerIndex   &lt;=   writerIndex    &lt;=     size</div><div class="line"><span class="string">///</span> @endcode&gt;&gt;&gt;</div></pre></td></tr></table></figure>
+<p>Buffer的作用非常之大，将用户程序从繁琐的Buffer相关读写操作之中解放了出来。</p>
+<h4 id="重点"><a href="#重点" class="headerlink" title="重点"></a>重点</h4><p>在muduo的Buffer之中，对read进行了特殊处理。因为从socket读，会调用read，涉及到一次上下文切换，为了减少系统调用的开销，read的调用次数是越少越好，因而需要尽可能预先分配更大的用户空间缓存。另一方面，如果对于每个连接都分配过多的缓存，那么会造成因为内存容量有限而造成支持的并发连接数目有限的问题。这二者之间存在矛盾。</p>
+<p>在muduo之中，使用分配在堆栈上的缓存区域以及readv系统调用，将读取的数据优先存入buffer之中，超过限制才存放在堆栈上分配的缓存之中，最后再统一汇总到buffer之中。离开readFd函数之后，堆栈上分配的读取缓存会被自动回收。具体可以参考以下代码:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">ssize_t</span> Buffer::readFd(<span class="keyword">int</span> fd, <span class="keyword">int</span>* savedErrno)</div><div class="line">&#123;</div><div class="line">  <span class="comment">// saved an ioctl()/FIONREAD call to tell how much to read</span></div><div class="line">  <span class="keyword">char</span> extrabuf[<span class="number">65536</span>];</div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">iovec</span> <span class="title">vec</span>[2];</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">size_t</span> writable = writableBytes();</div><div class="line">  vec[<span class="number">0</span>].iov_base = begin()+writerIndex_;</div><div class="line">  vec[<span class="number">0</span>].iov_len = writable;</div><div class="line">  vec[<span class="number">1</span>].iov_base = extrabuf;</div><div class="line">  vec[<span class="number">1</span>].iov_len = <span class="keyword">sizeof</span> extrabuf;</div><div class="line">  <span class="comment">// when there is enough space in this buffer, don't read into extrabuf.</span></div><div class="line">  <span class="comment">// when extrabuf is used, we read 128k-1 bytes at most.</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">int</span> iovcnt = (writable &lt; <span class="keyword">sizeof</span> extrabuf) ? <span class="number">2</span> : <span class="number">1</span>;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">ssize_t</span> n = sockets::readv(fd, vec, iovcnt);</div><div class="line">  <span class="keyword">if</span> (n &lt; <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    *savedErrno = errno;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span> <span class="keyword">if</span> (implicit_cast&lt;<span class="keyword">size_t</span>&gt;(n) &lt;= writable)</div><div class="line">  &#123;</div><div class="line">    writerIndex_ += n;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    writerIndex_ = buffer_.size();</div><div class="line">    append(extrabuf, n - writable);</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// if (n == writable + sizeof extrabuf)</span></div><div class="line">  <span class="comment">// &#123;</span></div><div class="line">  <span class="comment">//   goto line_30;</span></div><div class="line">  <span class="comment">// &#125;</span></div><div class="line">  <span class="keyword">return</span> n;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
       
     </div>
 
@@ -428,15 +423,15 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
+              <a href="/2017/06/08/auto关键字/" rel="next" title="auto关键字">
+                <i class="fa fa-chevron-left"></i> auto关键字
+              </a>
+            
           </div>
 
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/06/08/C++类型推导/" rel="prev" title="C++类型推导">
-                C++类型推导 <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -587,7 +582,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#运行流程"><span class="nav-text">运行流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#特殊处理"><span class="nav-text">特殊处理</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#实现原理"><span class="nav-text">实现原理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#重点"><span class="nav-text">重点</span></a></li></ol></div>
             
 
           </div>
