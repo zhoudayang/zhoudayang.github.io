@@ -91,16 +91,16 @@
 
 
 
-<meta name="description" content="leveldb 实现文档文件leveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它">
+<meta name="description" content="leveldb 实现文档Filesleveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB">
 <meta property="og:type" content="article">
 <meta property="og:title" content="leveldb 实现文档">
 <meta property="og:url" content="http://zhoudayang.github.io/2017/06/09/leveldb-实现文档/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="leveldb 实现文档文件leveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它">
+<meta property="og:description" content="leveldb 实现文档Filesleveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB">
 <meta property="og:updated_time" content="2017-06-09T07:17:06.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="leveldb 实现文档">
-<meta name="twitter:description" content="leveldb 实现文档文件leveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它">
+<meta name="twitter:description" content="leveldb 实现文档Filesleveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB">
 
 
 
@@ -393,7 +393,7 @@
       
 
       
-        <h1 id="leveldb-实现文档"><a href="#leveldb-实现文档" class="headerlink" title="leveldb 实现文档"></a>leveldb 实现文档</h1><h2 id="文件"><a href="#文件" class="headerlink" title="文件"></a>文件</h2><p>leveldb的实现和一个单点的<a href="http://research.google.com/archive/bigtable.html" target="_blank" rel="external">Bigtable tablet(section 5.2)</a>相似。但是内部文件的组成有所不同，下面会进行解释。</p>
+        <h1 id="leveldb-实现文档"><a href="#leveldb-实现文档" class="headerlink" title="leveldb 实现文档"></a>leveldb 实现文档</h1><h2 id="Files"><a href="#Files" class="headerlink" title="Files"></a>Files</h2><p>leveldb的实现和一个单点的<a href="http://research.google.com/archive/bigtable.html" target="_blank" rel="external">Bigtable tablet(section 5.2)</a>相似。但是内部文件的组成有所不同，下面会进行解释。</p>
 <p>每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型：</p>
 <h3 id="Log-files"><a href="#Log-files" class="headerlink" title="Log files"></a>Log files</h3><p>一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它会被转换为一个<code>sorted table</code>，并且会创建一个新的log文件记录未来的更新。</p>
 <p>当前log文件的副本被保存在内存中(<code>memtable</code>)。每次读都会检索这一副本，所以读操作能反映所有已经记录日志的更新。</p>
@@ -664,7 +664,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-实现文档"><span class="nav-text">leveldb 实现文档</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#文件"><span class="nav-text">文件</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Log-files"><span class="nav-text">Log files</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Sorted-tables"><span class="nav-text">Sorted tables</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Manifset"><span class="nav-text">Manifset</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Current"><span class="nav-text">Current</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Info-logs"><span class="nav-text">Info logs</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Others"><span class="nav-text">Others</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#level0"><span class="nav-text">level0</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Compactions"><span class="nav-text">Compactions</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Timing"><span class="nav-text">Timing</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Number-of-files"><span class="nav-text">Number of files</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Recovery"><span class="nav-text">Recovery</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Garbage-collection-of-file"><span class="nav-text">Garbage collection of file</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-实现文档"><span class="nav-text">leveldb 实现文档</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Files"><span class="nav-text">Files</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Log-files"><span class="nav-text">Log files</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Sorted-tables"><span class="nav-text">Sorted tables</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Manifset"><span class="nav-text">Manifset</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Current"><span class="nav-text">Current</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Info-logs"><span class="nav-text">Info logs</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Others"><span class="nav-text">Others</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#level0"><span class="nav-text">level0</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Compactions"><span class="nav-text">Compactions</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Timing"><span class="nav-text">Timing</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Number-of-files"><span class="nav-text">Number of files</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Recovery"><span class="nav-text">Recovery</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Garbage-collection-of-file"><span class="nav-text">Garbage collection of file</span></a></li></ol></li></ol></div>
             
 
           </div>
