@@ -1,0 +1,889 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Linux, C++, Lua, Python, Golang" />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="leveldb 实现文档文件leveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb 实现文档">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/09/leveldb-实现文档/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="leveldb 实现文档文件leveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它">
+<meta property="og:updated_time" content="2017-06-09T07:17:06.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb 实现文档">
+<meta name="twitter:description" content="leveldb 实现文档文件leveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/09/leveldb-实现文档/"/>
+
+
+
+
+
+  <title>leveldb 实现文档 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/09/leveldb-实现文档/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb 实现文档</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-09T15:17:06+08:00">
+                2017-06-09
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="leveldb-实现文档"><a href="#leveldb-实现文档" class="headerlink" title="leveldb 实现文档"></a>leveldb 实现文档</h1><h2 id="文件"><a href="#文件" class="headerlink" title="文件"></a>文件</h2><p>leveldb的实现和一个单点的<a href="http://research.google.com/archive/bigtable.html" target="_blank" rel="external">Bigtable tablet(section 5.2)</a>相似。但是内部文件的组成有所不同，下面会进行解释。</p>
+<p>每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型：</p>
+<h3 id="Log-files"><a href="#Log-files" class="headerlink" title="Log files"></a>Log files</h3><p>一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它会被转换为一个<code>sorted table</code>，并且会创建一个新的log文件记录未来的更新。</p>
+<p>当前log文件的副本被保存在内存中(<code>memtable</code>)。每次读都会检索这一副本，所以读操作能反映所有已经记录日志的更新。</p>
+<h3 id="Sorted-tables"><a href="#Sorted-tables" class="headerlink" title="Sorted tables"></a>Sorted tables</h3><p>一个sorted table（*.ldb）保存了按照key排序的entry序列。每一个entry可能是key和对应的value，或者key和对应的删除标记。（在旧版本的sorted tables中，删除标记用于覆盖过期的value）。</p>
+<p>sorted tables组成的集合被组织成为level序列。从一个log文件中生成的sorted table被放置在一个特殊的 <strong>young level</strong>之中（也被称为level-0）。当 <strong>young files</strong> 的数目超出阈值（当前设置为4），所有的 <strong>young files</strong> 和key区间重叠的level-1文件合并生成一系列新的level-1文件（我们创建的新的level-1文件的大小是2MB）。</p>
+<p><strong>young level</strong> 文件可能包含重叠区间的key。但是其他level的文件都有唯一的没有重叠的key区间范围。对于 &gt;= 1的level值L，当level-L级别的文件大小超过（10^L）MB时（例如，level-1达到10MB, level-2达到100MB，···），一个level-L文件和所有key区间重叠的level-(L+1)文件合并为level-(L+1)的一系列新文件。这些合并操作使用块读取和写入操作，将新的更新从<code>young level</code> 逐步迁移到最大的level，减少了昂贵的寻道操作。</p>
+<h3 id="Manifset"><a href="#Manifset" class="headerlink" title="Manifset"></a>Manifset</h3><p>一个MANIFEST文件列出了组成每个level的sorted tables文件集合，对应key的范围，其他重要的元数据。一个新的MANIFEST文件（会在文件名中植入新的number）会在数据库重新打开时创建。MANIFEST是日志文件，服务状态的更新（新增或者移除文件）会追加到这一log文件。</p>
+<h3 id="Current"><a href="#Current" class="headerlink" title="Current"></a>Current</h3><p>CURRENT是一个简单的文本文件，其中包含了最新的MANIFEST文件的名字。</p>
+<h3 id="Info-logs"><a href="#Info-logs" class="headerlink" title="Info logs"></a>Info logs</h3><p>日志信息被写入命名为LOG或者Log.old的文件。</p>
+<h3 id="Others"><a href="#Others" class="headerlink" title="Others"></a>Others</h3><p>其他文件各种用途的文件，用途如名称所述，例如LOCK， *.dbtmp。</p>
+<h2 id="level0"><a href="#level0" class="headerlink" title="level0"></a>level0</h2><p>当log文件增长到某个值（默认是1MB）时：</p>
+<p>创建新的memtable和log文件，将未来的更新写入新的文件。</p>
+<p>在后台：</p>
+<ol>
+<li>将之前memtable的内容写入到sstable</li>
+<li>丢弃memtable</li>
+<li>删除旧的log和memtable文件，将新的sstable文件加入<strong>young level</strong>。</li>
+</ol>
+<h2 id="Compactions"><a href="#Compactions" class="headerlink" title="Compactions"></a>Compactions</h2><p>当level L的文件大小超出限制之后，我们会在后台线程之中进行压缩合并。合并操作选取level-L中的一个文件和下一个level-(L+1)中key区间重叠的所有文件进行。注意到，如果level-L文件key区间只和level-(L+1)文件部分重叠，那么level-(L+1)文件会作为合并操作的输入，并且在合并操作完成之后被丢弃。例外：因为level-0文件比较特殊（level-0文件可能彼此之间互相重叠），我们对于从level-0到level-1的合并操作特殊对待：一个level-0级别的合并操作会选取所有key区间重叠的level-0文件进行，因而选取的level-0文件数量可能超过1。</p>
+<p>一个合并压缩操作合并选取的文件内容，产生一个level-(L+1)序列的文件。在当前输出文件大小到达目标大小（2MB），我们会创建新的level-(L+1)文件。我们在当前输出文件的大小增长到和超过10个level-(L+2)级别的文件重叠时，也会产生新的输出文件。最后一条规则确保之后对于level-(L+1)文件的合并操作不会涉及到level-(L+2)中的过多的文件。</p>
+<p>旧的文件会被丢弃，新的文件会被记录以更新当前服务状态。</p>
+<p>对于一个特定level来说，合并操作会在key区间轮转进行。更详细地说，对于每一个level L，我们记录上一次level-L合并操作最后的key，下次level L的合并操作将会选取第一个大于这个key的文件开始（如果没有这样的文件，就从key区间的开头位置开始）。</p>
+<p>合并操作会丢弃覆盖的值。若更高level的文件key的区间没有包含标记为删除的key，也会将其删除。</p>
+<h3 id="Timing"><a href="#Timing" class="headerlink" title="Timing"></a>Timing</h3><p>Level-0的合并操作会读取至多4个1MB大小的level-0文件，在最坏的情况下会读取所有的level-1文件（10MB）。因此，我们会读14MB，写14MB。</p>
+<p>除了特殊的level-0合并操作，我们会从level-L选取一个2MB的文件。在最坏的情况下，这一文件会和level-(L+1)的中12个level-L文件大小的，level-(L+1)文件key区间重合（10因为level-(L+1) 比level-L的文件大小大10倍，剩余2因为level-L的文件大小和level-L+1的文件大小通常不对齐而增加的界限)。所以合并操作会读取26MB，写入26MB。假设硬盘的IO速度为100MB/s(现代设备的速度)，最坏的合并操作需要大约0.5秒。</p>
+<p>若我们限制后台写入的速度，比如说全速100MB/s的10%，一个合并操作可能花费5秒。如果用户写入的速度是10MB/s，我们需要创建很多level-0文件（~50个，用于存放5*10MB）。由于每次读操作会合并过多的文件，这会显著增加读的开销。</p>
+<p>解决方式：</p>
+<ol>
+<li>为了减小这一问题，当level-0文件数量很大时，我们可能需要增加生成新的log文件的阈值。然而，缺点是这个阈值越大，我们需要更多的内存来存放对应的memtable。</li>
+<li>当level-0文件数量上涨时，我们可能需要人为减小写入速度。</li>
+<li>减小大幅度merge的开销。可能大多数level-0文件都是未经压缩存放在cache中，我们只需要O(N)复杂度的合并操作。</li>
+</ol>
+<h3 id="Number-of-files"><a href="#Number-of-files" class="headerlink" title="Number of files"></a>Number of files</h3><p>不再总是创建2MB的文件，更大level的文件有更大的大小能减小文件总数，虽然以合并操作更加突发为代价。另外，我们能将文件集合存放在不同的路径下。</p>
+<p>2001年2月4日，一个在ext3文件系统下的实验演示了对于目录下不同数量，相同大小（100K）文件的打开操作的时间开销：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">Files in directory</th>
+<th style="text-align:right">Microseconds to open a file</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">1000</td>
+<td style="text-align:right">9</td>
+</tr>
+<tr>
+<td style="text-align:right">10000</td>
+<td style="text-align:right">10</td>
+</tr>
+<tr>
+<td style="text-align:right">100000</td>
+<td style="text-align:right">16</td>
+</tr>
+</tbody>
+</table>
+<p>所以对于现代文件系统，分片没有必要？</p>
+<h2 id="Recovery"><a href="#Recovery" class="headerlink" title="Recovery"></a>Recovery</h2><ul>
+<li>读取CURRENT找到最新提交的MANIFEST文件的名称</li>
+<li>读取MANIFEST文件</li>
+<li>清除无效文件</li>
+<li>我们可以打开所有的sstables文件，但是可能晚点打开会更好…</li>
+<li>将log文件转换为新的level-0 sstable文件</li>
+<li>将更新新写入新的log文件（以恢复后的序列）</li>
+</ul>
+<h2 id="Garbage-collection-of-file"><a href="#Garbage-collection-of-file" class="headerlink" title="Garbage collection of file"></a>Garbage collection of file</h2><p><code>DeleteObsoleteFiles()</code>在每次合并和恢复操作的最后会被调用。他会查找database中用到的所有文件，删除不是当前log文件的所有log文件，删除没被任何层引用并且不是有效合并操作输出的所有table文件。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/08/muduo-Channel/" rel="next" title="muduo Channel">
+                <i class="fa fa-chevron-left"></i> muduo Channel
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">6</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">1</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">4</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-实现文档"><span class="nav-text">leveldb 实现文档</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#文件"><span class="nav-text">文件</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Log-files"><span class="nav-text">Log files</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Sorted-tables"><span class="nav-text">Sorted tables</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Manifset"><span class="nav-text">Manifset</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Current"><span class="nav-text">Current</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Info-logs"><span class="nav-text">Info logs</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Others"><span class="nav-text">Others</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#level0"><span class="nav-text">level0</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Compactions"><span class="nav-text">Compactions</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Timing"><span class="nav-text">Timing</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Number-of-files"><span class="nav-text">Number of files</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Recovery"><span class="nav-text">Recovery</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Garbage-collection-of-file"><span class="nav-text">Garbage collection of file</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
