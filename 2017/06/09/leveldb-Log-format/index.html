@@ -75,7 +75,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="Linux, C++, Lua, Python, Golang" />
+  <meta name="keywords" content="leveldb," />
 
 
 
@@ -91,16 +91,17 @@
 
 
 
-<meta name="description" content="关于我华南理工大学渣硕一枚，对Linux操作系统，后台开发，C++，数据库，分布式系统，游戏开发，Golang，lua，Python有兴趣。">
-<meta property="og:type" content="website">
-<meta property="og:title" content="about">
-<meta property="og:url" content="http://zhoudayang.github.io/about/index.html">
+<meta name="description" content="leveldb Log format日志文件内容是一系列32KB大小的block序列。唯一的例外是文件的末尾可能包含一个不完整的block。 每一个block包含一个记录序列： 123456block := record* trailer? record :=   checksum: uint32     // crc32c of type and data[] ; little-endian">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb Log format">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/09/leveldb-Log-format/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="关于我华南理工大学渣硕一枚，对Linux操作系统，后台开发，C++，数据库，分布式系统，游戏开发，Golang，lua，Python有兴趣。">
-<meta property="og:updated_time" content="2017-06-07T17:12:42.000Z">
+<meta property="og:description" content="leveldb Log format日志文件内容是一系列32KB大小的block序列。唯一的例外是文件的末尾可能包含一个不完整的block。 每一个block包含一个记录序列： 123456block := record* trailer? record :=   checksum: uint32     // crc32c of type and data[] ; little-endian">
+<meta property="og:updated_time" content="2017-06-09T08:11:02.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="about">
-<meta name="twitter:description" content="关于我华南理工大学渣硕一枚，对Linux操作系统，后台开发，C++，数据库，分布式系统，游戏开发，Golang，lua，Python有兴趣。">
+<meta name="twitter:title" content="leveldb Log format">
+<meta name="twitter:description" content="leveldb Log format日志文件内容是一系列32KB大小的block序列。唯一的例外是文件的末尾可能包含一个不完整的block。 每一个block包含一个记录序列： 123456block := record* trailer? record :=   checksum: uint32     // crc32c of type and data[] ; little-endian">
 
 
 
@@ -128,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/about/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/09/leveldb-Log-format/"/>
 
 
 
 
 
-  <title>about | zhouyang's blog</title>
+  <title>leveldb Log format | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -293,19 +294,174 @@
             
 
   <div id="posts" class="posts-expand">
-  <header class="post-header">
+    
 
-	<h1 class="post-title" itemprop="name headline">about</h1>
+  
 
+  
+  
+  
 
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/09/leveldb-Log-format/">
 
-</header>
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
 
     
-    
-      <h3 id="关于我"><a href="#关于我" class="headerlink" title="关于我"></a>关于我</h3><p>华南理工大学渣硕一枚，对Linux操作系统，后台开发，C++，数据库，分布式系统，游戏开发，Golang，lua，Python有兴趣。</p>
+      <header class="post-header">
 
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb Log format</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-09T16:11:02+08:00">
+                2017-06-09
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
     
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="leveldb-Log-format"><a href="#leveldb-Log-format" class="headerlink" title="leveldb Log format"></a>leveldb Log format</h1><p>日志文件内容是一系列32KB大小的block序列。唯一的例外是文件的末尾可能包含一个不完整的block。</p>
+<p>每一个block包含一个记录序列：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">block := record* trailer?</div><div class="line"> record :=</div><div class="line">   checksum: <span class="keyword">uint32</span>     <span class="comment">// crc32c of type and data[] ; little-endian</span></div><div class="line">   length: <span class="keyword">uint16</span>       <span class="comment">// little-endian</span></div><div class="line">   <span class="keyword">type</span>: <span class="keyword">uint8</span>          <span class="comment">// One of FULL, FIRST, MIDDLE, LAST</span></div><div class="line">   data: <span class="keyword">uint8</span>[length]</div></pre></td></tr></table></figure>
+<p>一条记录不会在一个block的最后6 byte处开始（因为放不下）。所有剩余的bytes组成trailer，需要包含全0的bytes，并且必须被读者跳过。</p>
+<p>例外：若当前block恰好剩余7bytes，增加一个新的非0长度的record，写者必须将第一条记录（包含长度为0的用户数据）填充之前block剩余的7bytes，将用户数据写入之后的block之中。</p>
+<p>在未来可能会增加新的类型。 一些读者可能会跳过不理解的记录类型，其他的可能会报告他跳过了一些值。</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="attr">FULL</span> == <span class="number">1</span></div><div class="line"><span class="attr">FIRST</span> == <span class="number">2</span></div><div class="line"><span class="attr">MIDDLE</span> == <span class="number">3</span></div><div class="line"><span class="attr">LAST</span> == <span class="number">4</span></div></pre></td></tr></table></figure>
+<p>FULL record包含完整的用户记录。</p>
+<p>FIRST, MIDDLE, LAST 用于标志分片的用户记录（一般由于block边界）。FIRST是用户记录第一个分片的类型，LAST是用户记录最后一个分片的类型，MIDDLE是所有的用户记录中间分片的类型。</p>
+<p>例子： 一个用户记录序列：</p>
+<figure class="highlight applescript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">A: <span class="built_in">length</span> <span class="number">1000</span></div><div class="line">B: <span class="built_in">length</span> <span class="number">97270</span></div><div class="line">C: <span class="built_in">length</span> <span class="number">8000</span></div></pre></td></tr></table></figure>
+<p><strong>A</strong> 会是第一个block的FULL记录。</p>
+<p><strong>B</strong> 会被分为3个分段：第一段占据第一块剩余部分，第二段占据第二个block的全部，第三段占据第三个block的前面的绝大部分。第三个block会剩余6bytes空间，会被空余当做trailer。</p>
+<p><strong>C</strong> 会在第4个block中存放一条FULL记录。</p>
+<hr>
+<h2 id="Some-benefits-over-the-recordio-format"><a href="#Some-benefits-over-the-recordio-format" class="headerlink" title="Some benefits over the recordio format:"></a>Some benefits over the recordio format:</h2><ol>
+<li>重新同步时不需要任何启发式查找 - 只需要到下一个block边界并进行扫描。 如果有错误，跳过去处理下一个block。附加的好处是，当一个log文件的部分内容被嵌入另一个log文件作为record时，我们不会陷入疑惑。</li>
+<li>在大致的边界上进行分割（例如，mapreduce）非常简单：找到下一个块的边界，跳过record直到我们找到一条FULL或者FIRST类型的记录。</li>
+<li>对于大的records，我们不需要额外的缓存。</li>
+</ol>
+<h2 id="Some-downside-compared-to-recordio-format"><a href="#Some-downside-compared-to-recordio-format" class="headerlink" title="Some downside compared to recordio format:"></a>Some downside compared to recordio format:</h2><ol>
+<li>不会对小的record进行打包。可以通过增加新的记录类型来解决。所以这是当前实现的缺陷，不是这一format的缺点。</li>
+<li>没有压缩。 这个也可以通过增加新的记录类型来解决。</li>
+</ol>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/09/leveldb-实现文档/" rel="next" title="leveldb 实现文档">
+                <i class="fa fa-chevron-left"></i> leveldb 实现文档
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
   </div>
 
 
@@ -314,6 +470,12 @@
 
 
           
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
 
         </div>
         
@@ -435,7 +597,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#关于我"><span class="nav-text">关于我</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-Log-format"><span class="nav-text">leveldb Log format</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Some-benefits-over-the-recordio-format"><span class="nav-text">Some benefits over the recordio format:</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Some-downside-compared-to-recordio-format"><span class="nav-text">Some downside compared to recordio format:</span></a></li></ol></li></ol></div>
             
 
           </div>
@@ -569,10 +731,10 @@
 
 
   
-    <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
 <script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
 
-  
+
 
   
 
@@ -607,6 +769,17 @@
 
 
 
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
   
 
 
