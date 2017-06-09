@@ -91,17 +91,17 @@
 
 
 
-<meta name="description" content="leveldb File format&amp;lt;beginning_of_file&amp;gt; [data block 1] [data block 2] ... [data block N] [meta block 1] ... [meta block K] [metaindex block] [index block] [Footer]        (fixed size; starts at f">
+<meta name="description" content="leveldb File format123456789101112&amp;lt;beginning_of_file&amp;gt;[data block 1][data block 2]...[data block N][meta block 1]...[meta block K][metaindex block][index block][Footer]        (fixed size; starts">
 <meta name="keywords" content="leveldb">
 <meta property="og:type" content="article">
 <meta property="og:title" content="leveldb File format">
 <meta property="og:url" content="http://zhoudayang.github.io/2017/06/09/leveldb-File-format/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="leveldb File format&amp;lt;beginning_of_file&amp;gt; [data block 1] [data block 2] ... [data block N] [meta block 1] ... [meta block K] [metaindex block] [index block] [Footer]        (fixed size; starts at f">
+<meta property="og:description" content="leveldb File format123456789101112&amp;lt;beginning_of_file&amp;gt;[data block 1][data block 2]...[data block N][meta block 1]...[meta block K][metaindex block][index block][Footer]        (fixed size; starts">
 <meta property="og:updated_time" content="2017-06-09T08:58:23.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="leveldb File format">
-<meta name="twitter:description" content="leveldb File format&amp;lt;beginning_of_file&amp;gt; [data block 1] [data block 2] ... [data block N] [meta block 1] ... [meta block K] [metaindex block] [index block] [Footer]        (fixed size; starts at f">
+<meta name="twitter:description" content="leveldb File format123456789101112&amp;lt;beginning_of_file&amp;gt;[data block 1][data block 2]...[data block N][meta block 1]...[meta block K][metaindex block][index block][Footer]        (fixed size; starts">
 
 
 
@@ -372,68 +372,28 @@
       
 
       
-        <h1 id="leveldb-File-format"><a href="#leveldb-File-format" class="headerlink" title="leveldb File format"></a>leveldb File format</h1><pre><code>&lt;beginning_of_file&gt;
-[data block 1]
-[data block 2]
-...
-[data block N]
-[meta block 1]
-...
-[meta block K]
-[metaindex block]
-[index block]
-[Footer]        (fixed size; starts at file_size - sizeof(Footer))
-&lt;end_of_file&gt;
-</code></pre><p>The file contains internal pointers.  Each such pointer is called<br>a BlockHandle and contains the following information:</p>
-<pre><code>offset:   varint64
-size:     varint64
-</code></pre><p>See <a href="https://developers.google.com/protocol-buffers/docs/encoding#varints" target="_blank" rel="external">varints</a><br>for an explanation of varint64 format.</p>
+        <h1 id="leveldb-File-format"><a href="#leveldb-File-format" class="headerlink" title="leveldb File format"></a>leveldb File format</h1><figure class="highlight armasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">&lt;<span class="keyword">beginning_of_file&gt;</span></div><div class="line">[<span class="meta">data</span> <span class="keyword">block </span><span class="number">1</span>]</div><div class="line">[<span class="meta">data</span> <span class="keyword">block </span><span class="number">2</span>]</div><div class="line"><span class="symbol">...</span></div><div class="line">[<span class="meta">data</span> <span class="keyword">block </span>N]</div><div class="line">[meta <span class="keyword">block </span><span class="number">1</span>]</div><div class="line"><span class="symbol">...</span></div><div class="line">[meta <span class="keyword">block </span>K]</div><div class="line">[metaindex <span class="keyword">block]</span></div><div class="line">[index <span class="keyword">block]</span></div><div class="line">[Footer]        (fixed size<span class="comment">; starts at file_size - sizeof(Footer))</span></div><div class="line">&lt;end_of_file&gt;</div></pre></td></tr></table></figure>
+<p>文件之中包含内部指针。每一个这样的指针被称为BlockHandle，包含下述信息。</p>
+<figure class="highlight avrasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="symbol">offset:</span> varint64</div><div class="line"><span class="symbol">size:</span>   varint64</div></pre></td></tr></table></figure>
+<p>varint的解释可以查看<a href="https://developers.google.com/protocol-buffers/docs/encoding#varints" target="_blank" rel="external">varints</a>。</p>
 <ol>
-<li><p>The sequence of key/value pairs in the file are stored in sorted<br>order and partitioned into a sequence of data blocks.  These blocks<br>come one after at the beginning of the file.  Each data block<br>is formatted according to the code in <code>block_builder.cc</code>, and then<br>optionally compressed.</p>
-</li>
-<li><p>After the data blocks we store a bunch of meta blocks.  The<br>supported meta block types are described below.  More meta block types<br>may be added in the future.  Each meta block is again formatted using<br><code>block_builder.cc</code> and then optionally compressed.</p>
-</li>
-<li><p>A “metaindex” block.  It contains one entry for every other meta<br>block where the key is the name of the meta block and the value is a<br>BlockHandle pointing to that meta block.</p>
-</li>
-<li><p>An “index” block.  This block contains one entry per data block,<br>where the key is a string &gt;= last key in that data block and before<br>the first key in the successive data block.  The value is the<br>BlockHandle for the data block.</p>
-</li>
-<li><p>At the very end of the file is a fixed length footer that contains<br>the BlockHandle of the metaindex and index blocks as well as a magic number.</p>
-<pre><code>metaindex_handle: char[p];     // Block handle for metaindex
-index_handle:     char[q];     // Block handle for index
-padding:          char[40-p-q];// zeroed bytes to make fixed length
-                               // (40==2*BlockHandle::kMaxEncodedLength)
-magic:            fixed64;     // == 0xdb4775248b80fb57 (little-endian)
-</code></pre></li>
+<li>文件中的键值对按照顺序进行存储，并被分割成为数据块序列。这些数据块在文件中从前到后依次排列。每一个数据块按照<code>block_builder.cc</code>中的代码进行格式化，然后进行可选的压缩。</li>
+<li>在数据块之后，我们存储了一串元数据块。支持的meta块类型会在下文描述。未来可能会增加新的meta块类型。每一个meta块也是使用<code>block_builder.cc</code>中的代码进行格式化，然后进行可选的压缩。</li>
+<li>一个命名为”metaindex”的块。对于其他的meta块每个块记录一个entry，key是meta块的名称，value是指向对应meta块的BlockHandle。</li>
+<li>一个名为”index”的块。这个块对于每个数据块记录一个entry，key是大于对应数据块最后一个key，并且小于紧接着的下一个数据块的第一个key的字符串。value是数据块的BlockHandle。</li>
+<li>每个文件的末尾是一个固定长度的footer，包含metaindex和index块的BlockHandle，以及一个魔数。</li>
 </ol>
-<h2 id="“filter”-Meta-Block"><a href="#“filter”-Meta-Block" class="headerlink" title="“filter” Meta Block"></a>“filter” Meta Block</h2><p>If a <code>FilterPolicy</code> was specified when the database was opened, a<br>filter block is stored in each table.  The “metaindex” block contains<br>an entry that maps from <code>filter.&lt;N&gt;</code> to the BlockHandle for the filter<br>block where <code>&lt;N&gt;</code> is the string returned by the filter policy’s<br><code>Name()</code> method.</p>
-<p>The filter block stores a sequence of filters, where filter i contains<br>the output of <code>FilterPolicy::CreateFilter()</code> on all keys that are stored<br>in a block whose file offset falls within the range</p>
-<pre><code>[ i*base ... (i+1)*base-1 ]
-</code></pre><p>Currently, “base” is 2KB.  So for example, if blocks X and Y start in<br>the range <code>[ 0KB .. 2KB-1 ]</code>, all of the keys in X and Y will be<br>converted to a filter by calling <code>FilterPolicy::CreateFilter()</code>, and the<br>resulting filter will be stored as the first filter in the filter<br>block.</p>
-<p>The filter block is formatted as follows:</p>
-<pre><code>[filter 0]
-[filter 1]
-[filter 2]
-...
-[filter N-1]
-
-[offset of filter 0]                  : 4 bytes
-[offset of filter 1]                  : 4 bytes
-[offset of filter 2]                  : 4 bytes
-...
-[offset of filter N-1]                : 4 bytes
-
-[offset of beginning of offset array] : 4 bytes
-lg(base)                              : 1 byte
-</code></pre><p>The offset array at the end of the filter block allows efficient<br>mapping from a data block offset to the corresponding filter.</p>
-<h2 id="“stats”-Meta-Block"><a href="#“stats”-Meta-Block" class="headerlink" title="“stats” Meta Block"></a>“stats” Meta Block</h2><p>This meta block contains a bunch of stats.  The key is the name<br>of the statistic.  The value contains the statistic.</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="string">metaindex_handle:</span> <span class="keyword">char</span>[p];     <span class="comment">// Block handle for metaindex</span></div><div class="line"><span class="string">index_handle:</span>     <span class="keyword">char</span>[q];     <span class="comment">// Block handle for index</span></div><div class="line"><span class="string">padding:</span>          <span class="keyword">char</span>[<span class="number">40</span>-p-q];<span class="comment">// zeroed bytes to make fixed length</span></div><div class="line">                               <span class="comment">// (40==2*BlockHandle::kMaxEncodedLength)</span></div><div class="line"><span class="string">magic:</span>            fixed64;     <span class="comment">// == 0xdb4775248b80fb57 (little-endian)</span></div></pre></td></tr></table></figure>
+<h2 id="“filter”-Meta-Block"><a href="#“filter”-Meta-Block" class="headerlink" title="“filter” Meta Block"></a>“filter” Meta Block</h2><p>若数据库打开时指定了<code>FilterPolicy</code>，每个table会存储一个filter块。”metaindex”块包含一条entry，记录从<code>filter.&lt;N&gt;</code>到filter块的BlockHandle的映射。其中<code>&lt;N&gt;</code>是filter policy的<code>Name()</code>方法返回的字符串。</p>
+<p>filter块存储了filters序列，其中filter i包含<code>FilterPolicy::CreateFilter()</code>所有key的输出，这些key在文件中偏移的范围在范围：</p>
+<figure class="highlight clojure"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">[ i*base ... (<span class="name">i+1</span>)*base-1 ]</div></pre></td></tr></table></figure>
+<p>当前，”base”是2KB，举例来说，若块x和y在文件中的偏移范围是<code>[0KB .. 2KB-1]</code>，所有x和y的将会调用<code>FilterPolicy::CreateFilter()</code>转换成filter，生成的filter是第一个filter block。</p>
+<p>第一个filter块的格式如下所示：</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">[filter 0]</div><div class="line">[filter 1]</div><div class="line">[filter 2]</div><div class="line"><span class="built_in">..</span>.</div><div class="line">[filter N-1]</div><div class="line"></div><div class="line">[offset of<span class="built_in"> filter </span>0]                  : 4 bytes</div><div class="line">[offset of<span class="built_in"> filter </span>1]                  : 4 bytes</div><div class="line">[offset of<span class="built_in"> filter </span>2]                  : 4 bytes</div><div class="line"><span class="built_in">..</span>.</div><div class="line">[offset of<span class="built_in"> filter </span>N-1]                : 4 bytes</div><div class="line"></div><div class="line">[offset of beginning of offset array] : 4 bytes</div><div class="line">lg(base)                              : 1 byte</div></pre></td></tr></table></figure>
+<p>filter块末尾的offset array 允许从data block偏移到对应filter的有效映射。</p>
+<h2 id="“Stats”-Meta-Block"><a href="#“Stats”-Meta-Block" class="headerlink" title="“Stats” Meta Block"></a>“Stats” Meta Block</h2><p>这一meta块包含一串统计信息。key是统计名称，value是统计值。</p>
 <p>TODO(postrelease): record following stats.</p>
-<pre><code>data size
-index size
-key size (uncompressed)
-value size (uncompressed)
-number of entries
-number of data blocks
-</code></pre>
+<figure class="highlight fortran"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">data</span> <span class="built_in">size</span></div><div class="line"><span class="built_in">index</span> <span class="built_in">size</span></div><div class="line">key <span class="built_in">size</span> (uncompressed)</div><div class="line"><span class="keyword">value</span> <span class="built_in">size</span> (uncompressed)</div><div class="line"><span class="keyword">number</span> of entries</div><div class="line"><span class="keyword">number</span> of <span class="keyword">data</span> blocks</div></pre></td></tr></table></figure>
       
     </div>
 
@@ -634,7 +594,7 @@ number of data blocks
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-File-format"><span class="nav-text">leveldb File format</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#“filter”-Meta-Block"><span class="nav-text">“filter” Meta Block</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#“stats”-Meta-Block"><span class="nav-text">“stats” Meta Block</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-File-format"><span class="nav-text">leveldb File format</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#“filter”-Meta-Block"><span class="nav-text">“filter” Meta Block</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#“Stats”-Meta-Block"><span class="nav-text">“Stats” Meta Block</span></a></li></ol></li></ol></div>
             
 
           </div>
