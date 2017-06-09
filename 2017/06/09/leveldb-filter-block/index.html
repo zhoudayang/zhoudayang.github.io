@@ -1,0 +1,816 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="leveldb filter_block解析filter meta block 文件格式首先借助leveldb文档leveldb File format可以确定filter meta block内部的格式如下所示： 1234567891011121314[filter 0][filter 1][filter 2][filter 3][filter 4]...[filter N-1][offset">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb filter_block">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/09/leveldb-filter-block/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="leveldb filter_block解析filter meta block 文件格式首先借助leveldb文档leveldb File format可以确定filter meta block内部的格式如下所示： 1234567891011121314[filter 0][filter 1][filter 2][filter 3][filter 4]...[filter N-1][offset">
+<meta property="og:updated_time" content="2017-06-09T14:13:16.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb filter_block">
+<meta name="twitter:description" content="leveldb filter_block解析filter meta block 文件格式首先借助leveldb文档leveldb File format可以确定filter meta block内部的格式如下所示： 1234567891011121314[filter 0][filter 1][filter 2][filter 3][filter 4]...[filter N-1][offset">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/09/leveldb-filter-block/"/>
+
+
+
+
+
+  <title>leveldb filter_block | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/09/leveldb-filter-block/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb filter_block</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-09T22:13:16+08:00">
+                2017-06-09
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="leveldb-filter-block解析"><a href="#leveldb-filter-block解析" class="headerlink" title="leveldb filter_block解析"></a>leveldb filter_block解析</h1><h2 id="filter-meta-block-文件格式"><a href="#filter-meta-block-文件格式" class="headerlink" title="filter meta block 文件格式"></a>filter meta block 文件格式</h2><p>首先借助leveldb文档leveldb File format可以确定filter meta block内部的格式如下所示：</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">[filter 0]</div><div class="line">[filter 1]</div><div class="line">[filter 2]</div><div class="line">[filter 3]</div><div class="line">[filter 4]</div><div class="line"><span class="built_in">..</span>.</div><div class="line">[filter N-1]</div><div class="line">[offset of<span class="built_in"> filter </span>0]                  : 4 bytes</div><div class="line">[offset of<span class="built_in"> filter </span>1]                  : 4 bytes</div><div class="line">[offset of<span class="built_in"> filter </span>2]                  : 4 bytes</div><div class="line"><span class="built_in">..</span>.</div><div class="line">[offset of<span class="built_in"> filter </span>N-1]                : 4 bytes</div><div class="line">[offset of beginning of offset array] : 4 bytes</div><div class="line">lg(base)                              : 1 byte</div></pre></td></tr></table></figure>
+<p>借助源码和文档，我对filter meta block的格式有了深刻的理解。每一个filter对应负责一个block offset范围内的key的组织。对于第i个filter，它所管理的key在文件中的偏移范围是<code>[i * base ... (i+1) * base - 1]</code>。在leveldb中，base默认被设置为2KB，也就是说每2KB长度的偏移位置对应一个独立的filter。</p>
+<p>每一个key借助hash函数(maybe, 看filter策略具体实现)产生一个滤值，一个filter可能会有多个这样的滤值。所有filter的滤值最后从前到后依次保存在filter meta block之中。然后再存放每一个filter对应滤值的偏移位置。根据当前filter和下一个filter的offset值就可以确定当前filter对应滤值在filter meta block中偏移值的范围。紧接着存放滤值数组最后一个元素在block中的偏移位置，它实际上也帮助标定了最后一个filter对应滤值offset范围的下界，通过它我们还能知道整个块中filter的数量。filter meta block的最后存放的是log(base)的值，由它我们能知道每个filter所能管理的文件偏移大小限制。</p>
+<h2 id="FilterBlockBuilder"><a href="#FilterBlockBuilder" class="headerlink" title="FilterBlockBuilder"></a>FilterBlockBuilder</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// A FilterBlockBuilder is used to construct all of the filters for a</span></div><div class="line"><span class="comment">// particular Table.  It generates a single string which is stored as</span></div><div class="line"><span class="comment">// a special block in the Table.</span></div><div class="line"><span class="comment">//</span></div><div class="line"><span class="comment">// The sequence of calls to FilterBlockBuilder must match the regexp:</span></div><div class="line"><span class="comment">//      (StartBlock AddKey*)* Finish</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">FilterBlockBuilder</span> &#123;</span></div><div class="line"> <span class="keyword">public</span>:</div><div class="line">  <span class="function"><span class="keyword">explicit</span> <span class="title">FilterBlockBuilder</span><span class="params">(<span class="keyword">const</span> FilterPolicy*)</span></span>;</div><div class="line"></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">StartBlock</span><span class="params">(<span class="keyword">uint64_t</span> block_offset)</span></span>;</div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">AddKey</span><span class="params">(<span class="keyword">const</span> Slice&amp; key)</span></span>;</div><div class="line">  <span class="function">Slice <span class="title">Finish</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">GenerateFilter</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">  <span class="keyword">const</span> FilterPolicy* policy_;   <span class="comment">// 过滤策略</span></div><div class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> keys_;              <span class="comment">// 存放所有的key</span></div><div class="line">  <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="keyword">size_t</span>&gt; start_;     <span class="comment">// 存放每一个key在keys_的下标范围</span></div><div class="line">  <span class="comment">// 存放最终的结果</span></div><div class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> result_;            <span class="comment">// Filter data computed so far</span></div><div class="line">  <span class="comment">// 用于记录每个filter产生的滤值的临时容器</span></div><div class="line">  <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;Slice&gt; tmp_keys_;   <span class="comment">// policy_-&gt;CreateFilter() argument</span></div><div class="line">  <span class="comment">// 记录每个filter的offset开始位置</span></div><div class="line">  <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="keyword">uint32_t</span>&gt; filter_offsets_;</div><div class="line"></div><div class="line">  <span class="comment">// No copying allowed</span></div><div class="line">  FilterBlockBuilder(<span class="keyword">const</span> FilterBlockBuilder&amp;);</div><div class="line">  <span class="keyword">void</span> <span class="keyword">operator</span>=(<span class="keyword">const</span> FilterBlockBuilder&amp;);</div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<p>FilterBlockBuilder对象在构造的时候需要指定FilterPolicy，它要用其来生成滤值。在对偏移为block_offset的文件进行操作前，首先需要调用StartBlock。此方法确定输入的偏移值对应哪一个filter，并且将filter_index更小的filter的滤值写入result_。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> FilterBlockBuilder::StartBlock(<span class="keyword">uint64_t</span> block_offset) &#123;</div><div class="line">  <span class="comment">// kFilterBase的大小为2048</span></div><div class="line">  <span class="keyword">uint64_t</span> filter_index = (block_offset / kFilterBase);</div><div class="line">  assert(filter_index &gt;= filter_offsets_.size());</div><div class="line">  <span class="keyword">while</span> (filter_index &gt; filter_offsets_.size()) &#123;</div><div class="line">    <span class="comment">// 若filter_index 的值更大，将之前的filter对应的滤值加入result_</span></div><div class="line">    GenerateFilter();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>请注意，要按照偏移的先后顺序调用StartBlock和AddKey方法，这样才能保证filter meta block内部顺序和实际偏移一致。</p>
+<p>GenerateFilter方法将当前filter所管理的key按照输入的Filter策略转换为滤值，并且记录当前filter对应的滤值在block中偏移的开始位置。<br><figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 产生新的filter</span></div><div class="line"><span class="keyword">void</span> FilterBlockBuilder::GenerateFilter() &#123;</div><div class="line">  <span class="comment">// 对应key的数目</span></div><div class="line">  <span class="keyword">const</span> size_t num_keys = start_.<span class="built_in">size</span>();</div><div class="line">  <span class="built_in">if</span> (num_keys == <span class="number">0</span>) &#123;</div><div class="line">    <span class="comment">// Fast path if there are no keys for this filter</span></div><div class="line">    <span class="comment">// 记录此filter的偏移位置</span></div><div class="line">    filter_offsets_.push_back(result_.<span class="built_in">size</span>());</div><div class="line">    <span class="built_in">return</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Make list of keys from flattened key structure</span></div><div class="line">  start_.push_back(keys_.<span class="built_in">size</span>());  <span class="comment">// Simplify length computation</span></div><div class="line">  tmp_keys_.resize(num_keys);</div><div class="line">  <span class="built_in">for</span> (size_t i = <span class="number">0</span>; i &lt; num_keys; i++) &#123;</div><div class="line">    <span class="comment">// 每个key的开头位置</span></div><div class="line">    <span class="keyword">const</span> <span class="keyword">char</span>* base = keys_.data() + start_[i];</div><div class="line">    <span class="comment">// 每个key的长度</span></div><div class="line">    size_t length = start_[i+<span class="number">1</span>] - start_[i];</div><div class="line">    tmp_keys_[i] = Slice(base, length);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Generate filter for current set of keys and append to result_.</span></div><div class="line">  <span class="comment">// 记录此filter的偏移起始位置</span></div><div class="line">  filter_offsets_.push_back(result_.<span class="built_in">size</span>());</div><div class="line">  <span class="comment">// 创建filter，输入key对应的数组，数组大小，存放结果的result</span></div><div class="line">  <span class="comment">// result存放key对应的hash值</span></div><div class="line">  policy_-&gt;CreateFilter(&amp;tmp_keys_[<span class="number">0</span>], <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(num_keys), &amp;result_);</div><div class="line"></div><div class="line">  tmp_keys_.<span class="built_in">clear</span>();</div><div class="line">  keys_.<span class="built_in">clear</span>();</div><div class="line">  start_.<span class="built_in">clear</span>();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>在加入新的key时，会在start_中记录新的key在keys_中的开始位置，然后将其append到keys_之中，这样之后借助keys_和start_t就能重构所有输入的key。<br><figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> FilterBlockBuilder::AddKey(<span class="keyword">const</span> Slice&amp; <span class="built_in">key</span>) &#123;</div><div class="line">  Slice k = <span class="built_in">key</span>;</div><div class="line">  start_.push_back(keys_.<span class="built_in">size</span>());</div><div class="line">  keys_.<span class="built_in">append</span>(k.data(), k.<span class="built_in">size</span>());</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>Finish函数的操作很容易理解，他首先记录所有filter对应滤值的offset范围，注意要补充记录最后一个filter的滤值offset下界。当然也要按照文件格式记录log(base)值。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">Slice FilterBlockBuilder::Finish() &#123;</div><div class="line">  <span class="keyword">if</span> (!start_.empty()) &#123;</div><div class="line">    GenerateFilter();</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Append array of per-filter offsets</span></div><div class="line">  <span class="comment">// 这是第一个hash值开始位置对应的偏移，将这个值记住</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> array_offset = result_.size();</div><div class="line">  <span class="comment">// 存放filter对应的offset开头位置</span></div><div class="line">  <span class="keyword">for</span> (<span class="keyword">size_t</span> i = <span class="number">0</span>; i &lt; filter_offsets_.size(); i++) &#123;</div><div class="line">    PutFixed32(&amp;result_, filter_offsets_[i]);</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 存放最后一个filter offset的下界</span></div><div class="line">  PutFixed32(&amp;result_, array_offset);</div><div class="line">  <span class="comment">// 存放kFilterBaseLg的大小</span></div><div class="line">  result_.push_back(kFilterBaseLg);  <span class="comment">// Save encoding parameter in result</span></div><div class="line">  <span class="keyword">return</span> Slice(result_);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="FilterBlockReader"><a href="#FilterBlockReader" class="headerlink" title="FilterBlockReader"></a>FilterBlockReader</h2><p>相比FilterBlockBuilder，FilterBLockReader可以理解为它的逆过程。</p>
+<figure class="highlight smali"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">class FilterBlockReader &#123;</div><div class="line"><span class="keyword"> public</span>:</div><div class="line"> // REQUIRES: <span class="string">"contents"</span><span class="built_in"> and </span>*policy must stay live while *this is live.</div><div class="line">  FilterBlockReader(const FilterPolicy* policy,<span class="built_in"> const </span>Slice&amp; contents);</div><div class="line">  bool KeyMayMatch(uint64_t block_offset,<span class="built_in"> const </span>Slice&amp; key);</div><div class="line"></div><div class="line"><span class="keyword"> private</span>:</div><div class="line"> <span class="built_in"> const </span>FilterPolicy* policy_;</div><div class="line"> <span class="built_in"> const </span>char* data_;    // Pointer to filter data (at block-start)</div><div class="line">                         // 指向第一个filter offset的开始处</div><div class="line"> <span class="built_in"> const </span>char* offset_;  // Pointer to beginning of offset<span class="built_in"> array </span>(at block-end)</div><div class="line">  // filter的数目</div><div class="line">  size_t num_;          // Number of entries in offset<span class="built_in"> array</span></div><div class="line">  size_t base_lg_;      // Encoding parameter (see kFilterBaseLg in .cc file)</div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<p>在构造函数中，Reader根据文件格式获取base的log值，filter的数目，第一个filter的偏移的开始位置。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">FilterBlockReader::FilterBlockReader(<span class="keyword">const</span> FilterPolicy* policy,</div><div class="line">                                     <span class="keyword">const</span> Slice&amp; contents)</div><div class="line">    : policy_(policy),</div><div class="line">      data_(<span class="literal">NULL</span>),</div><div class="line">      offset_(<span class="literal">NULL</span>),</div><div class="line">      num_(<span class="number">0</span>),</div><div class="line">      base_lg_(<span class="number">0</span>) &#123;</div><div class="line">  <span class="keyword">size_t</span> n = contents.size();</div><div class="line">  <span class="keyword">if</span> (n &lt; <span class="number">5</span>) <span class="keyword">return</span>;  <span class="comment">// 1 byte for base_lg_ and 4 for start of offset array</span></div><div class="line">  <span class="comment">// 取出base_lg_的值</span></div><div class="line">  base_lg_ = contents[n<span class="number">-1</span>];</div><div class="line">  <span class="keyword">uint32_t</span> last_word = DecodeFixed32(contents.data() + n - <span class="number">5</span>);</div><div class="line">  <span class="comment">// offset数组的最后元素的位置不可能超出n-5，否则无法容纳</span></div><div class="line">  <span class="keyword">if</span> (last_word &gt; n - <span class="number">5</span>) <span class="keyword">return</span>;</div><div class="line">  data_ = contents.data();</div><div class="line">  <span class="comment">// 指向第一个filter记录offset的位置</span></div><div class="line">  offset_ = data_ + last_word;</div><div class="line">  <span class="comment">// filter的数量</span></div><div class="line">  num_ = (n - <span class="number">5</span> - last_word) / <span class="number">4</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>至于对key的匹配判断，对于输入的block_offset，计算出它属于哪一个filter。然后取出此filter的所有滤值，和key按照filter策略计算得到的滤纸进行匹配，相同说明可能匹配，否则不能匹配。对于计算得到的filter的index值大于block中filter的数量的情况，也被认为是匹配，即错误被当做潜在的匹配。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">bool</span> FilterBlockReader::KeyMayMatch(<span class="keyword">uint64_t</span> block_offset, <span class="keyword">const</span> Slice&amp; key) &#123;</div><div class="line">  <span class="keyword">uint64_t</span> index = block_offset &gt;&gt; base_lg_;</div><div class="line">  <span class="keyword">if</span> (index &lt; num_) &#123;</div><div class="line">    <span class="comment">// hash 值开始位置对应的偏移</span></div><div class="line">    <span class="keyword">uint32_t</span> start = DecodeFixed32(offset_ + index*<span class="number">4</span>);</div><div class="line">    <span class="comment">// hash 键值结束位置对应的偏移</span></div><div class="line">    <span class="comment">// 实质上是下一个filter的offset开始位置</span></div><div class="line">    <span class="keyword">uint32_t</span> limit = DecodeFixed32(offset_ + index*<span class="number">4</span> + <span class="number">4</span>);</div><div class="line">    <span class="keyword">if</span> (start &lt;= limit &amp;&amp; limit &lt;= <span class="keyword">static_cast</span>&lt;<span class="keyword">size_t</span>&gt;(offset_ - data_)) &#123;</div><div class="line">      Slice filter = Slice(data_ + start, limit - start);</div><div class="line">      <span class="keyword">return</span> policy_-&gt;KeyMayMatch(key, filter);</div><div class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (start == limit) &#123;</div><div class="line">      <span class="comment">// Empty filters do not match any keys</span></div><div class="line">      <span class="keyword">return</span> <span class="literal">false</span>;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> <span class="literal">true</span>;  <span class="comment">// Errors are treated as potential matches</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/09/leveldb-File-format/" rel="next" title="leveldb File format">
+                <i class="fa fa-chevron-left"></i> leveldb File format
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">9</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-filter-block解析"><span class="nav-text">leveldb filter_block解析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#filter-meta-block-文件格式"><span class="nav-text">filter meta block 文件格式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#FilterBlockBuilder"><span class="nav-text">FilterBlockBuilder</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#FilterBlockReader"><span class="nav-text">FilterBlockReader</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
