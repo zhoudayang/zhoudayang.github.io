@@ -91,17 +91,17 @@
 
 
 
-<meta name="description" content="leveldb 实现文档Filesleveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB">
+<meta name="description" content="leveldb File format&amp;lt;beginning_of_file&amp;gt; [data block 1] [data block 2] ... [data block N] [meta block 1] ... [meta block K] [metaindex block] [index block] [Footer]        (fixed size; starts at f">
 <meta name="keywords" content="leveldb">
 <meta property="og:type" content="article">
-<meta property="og:title" content="leveldb 实现文档">
-<meta property="og:url" content="http://zhoudayang.github.io/2017/06/09/leveldb-实现文档/index.html">
+<meta property="og:title" content="leveldb File format">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/09/leveldb-File-format/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="leveldb 实现文档Filesleveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB">
-<meta property="og:updated_time" content="2017-06-09T07:17:06.000Z">
+<meta property="og:description" content="leveldb File format&amp;lt;beginning_of_file&amp;gt; [data block 1] [data block 2] ... [data block N] [meta block 1] ... [meta block K] [metaindex block] [index block] [Footer]        (fixed size; starts at f">
+<meta property="og:updated_time" content="2017-06-09T08:58:23.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="leveldb 实现文档">
-<meta name="twitter:description" content="leveldb 实现文档Filesleveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型： Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB">
+<meta name="twitter:title" content="leveldb File format">
+<meta name="twitter:description" content="leveldb File format&amp;lt;beginning_of_file&amp;gt; [data block 1] [data block 2] ... [data block N] [meta block 1] ... [meta block K] [metaindex block] [index block] [Footer]        (fixed size; starts at f">
 
 
 
@@ -129,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/09/leveldb-实现文档/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/09/leveldb-File-format/"/>
 
 
 
 
 
-  <title>leveldb 实现文档 | zhouyang's blog</title>
+  <title>leveldb File format | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -303,7 +303,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/09/leveldb-实现文档/">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/09/leveldb-File-format/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Zhou Yang">
@@ -320,7 +320,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">leveldb 实现文档</h1>
+          <h1 class="post-title" itemprop="name headline">leveldb File format</h1>
         
 
         <div class="post-meta">
@@ -332,7 +332,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-09T15:17:06+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-09T16:58:23+08:00">
                 2017-06-09
               </time>
             
@@ -372,74 +372,68 @@
       
 
       
-        <h1 id="leveldb-实现文档"><a href="#leveldb-实现文档" class="headerlink" title="leveldb 实现文档"></a>leveldb 实现文档</h1><h2 id="Files"><a href="#Files" class="headerlink" title="Files"></a>Files</h2><p>leveldb的实现和一个单点的<a href="http://research.google.com/archive/bigtable.html" target="_blank" rel="external">Bigtable tablet(section 5.2)</a>相似。但是内部文件的组成有所不同，下面会进行解释。</p>
-<p>每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型：</p>
-<h3 id="Log-files"><a href="#Log-files" class="headerlink" title="Log files"></a>Log files</h3><p>一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它会被转换为一个<code>sorted table</code>，并且会创建一个新的log文件记录未来的更新。</p>
-<p>当前log文件的副本被保存在内存中(<code>memtable</code>)。每次读都会检索这一副本，所以读操作能反映所有已经记录日志的更新。</p>
-<h3 id="Sorted-tables"><a href="#Sorted-tables" class="headerlink" title="Sorted tables"></a>Sorted tables</h3><p>一个sorted table（*.ldb）保存了按照key排序的entry序列。每一个entry可能是key和对应的value，或者key和对应的删除标记。（在旧版本的sorted tables中，删除标记用于覆盖过期的value）。</p>
-<p>sorted tables组成的集合被组织成为level序列。从一个log文件中生成的sorted table被放置在一个特殊的 <strong>young level</strong>之中（也被称为level-0）。当 <strong>young files</strong> 的数目超出阈值（当前设置为4），所有的 <strong>young files</strong> 和key区间重叠的level-1文件合并生成一系列新的level-1文件（我们创建的新的level-1文件的大小是2MB）。</p>
-<p><strong>young level</strong> 文件可能包含重叠区间的key。但是其他level的文件都有唯一的没有重叠的key区间范围。对于 &gt;= 1的level值L，当level-L级别的文件大小超过（10^L）MB时（例如，level-1达到10MB, level-2达到100MB，···），一个level-L文件和所有key区间重叠的level-(L+1)文件合并为level-(L+1)的一系列新文件。这些合并操作使用块读取和写入操作，将新的更新从<code>young level</code> 逐步迁移到最大的level，减少了昂贵的寻道操作。</p>
-<h3 id="Manifset"><a href="#Manifset" class="headerlink" title="Manifset"></a>Manifset</h3><p>一个MANIFEST文件列出了组成每个level的sorted tables文件集合，对应key的范围，其他重要的元数据。一个新的MANIFEST文件（会在文件名中植入新的number）会在数据库重新打开时创建。MANIFEST是日志文件，服务状态的更新（新增或者移除文件）会追加到这一log文件。</p>
-<h3 id="Current"><a href="#Current" class="headerlink" title="Current"></a>Current</h3><p>CURRENT是一个简单的文本文件，其中包含了最新的MANIFEST文件的名字。</p>
-<h3 id="Info-logs"><a href="#Info-logs" class="headerlink" title="Info logs"></a>Info logs</h3><p>日志信息被写入命名为LOG或者Log.old的文件。</p>
-<h3 id="Others"><a href="#Others" class="headerlink" title="Others"></a>Others</h3><p>其他文件各种用途的文件，用途如名称所述，例如LOCK， *.dbtmp。</p>
-<h2 id="level0"><a href="#level0" class="headerlink" title="level0"></a>level0</h2><p>当log文件增长到某个值（默认是1MB）时：</p>
-<p>创建新的memtable和log文件，将未来的更新写入新的文件。</p>
-<p>在后台：</p>
+        <h1 id="leveldb-File-format"><a href="#leveldb-File-format" class="headerlink" title="leveldb File format"></a>leveldb File format</h1><pre><code>&lt;beginning_of_file&gt;
+[data block 1]
+[data block 2]
+...
+[data block N]
+[meta block 1]
+...
+[meta block K]
+[metaindex block]
+[index block]
+[Footer]        (fixed size; starts at file_size - sizeof(Footer))
+&lt;end_of_file&gt;
+</code></pre><p>The file contains internal pointers.  Each such pointer is called<br>a BlockHandle and contains the following information:</p>
+<pre><code>offset:   varint64
+size:     varint64
+</code></pre><p>See <a href="https://developers.google.com/protocol-buffers/docs/encoding#varints" target="_blank" rel="external">varints</a><br>for an explanation of varint64 format.</p>
 <ol>
-<li>将之前memtable的内容写入到sstable</li>
-<li>丢弃memtable</li>
-<li>删除旧的log和memtable文件，将新的sstable文件加入<strong>young level</strong>。</li>
+<li><p>The sequence of key/value pairs in the file are stored in sorted<br>order and partitioned into a sequence of data blocks.  These blocks<br>come one after at the beginning of the file.  Each data block<br>is formatted according to the code in <code>block_builder.cc</code>, and then<br>optionally compressed.</p>
+</li>
+<li><p>After the data blocks we store a bunch of meta blocks.  The<br>supported meta block types are described below.  More meta block types<br>may be added in the future.  Each meta block is again formatted using<br><code>block_builder.cc</code> and then optionally compressed.</p>
+</li>
+<li><p>A “metaindex” block.  It contains one entry for every other meta<br>block where the key is the name of the meta block and the value is a<br>BlockHandle pointing to that meta block.</p>
+</li>
+<li><p>An “index” block.  This block contains one entry per data block,<br>where the key is a string &gt;= last key in that data block and before<br>the first key in the successive data block.  The value is the<br>BlockHandle for the data block.</p>
+</li>
+<li><p>At the very end of the file is a fixed length footer that contains<br>the BlockHandle of the metaindex and index blocks as well as a magic number.</p>
+<pre><code>metaindex_handle: char[p];     // Block handle for metaindex
+index_handle:     char[q];     // Block handle for index
+padding:          char[40-p-q];// zeroed bytes to make fixed length
+                               // (40==2*BlockHandle::kMaxEncodedLength)
+magic:            fixed64;     // == 0xdb4775248b80fb57 (little-endian)
+</code></pre></li>
 </ol>
-<h2 id="Compactions"><a href="#Compactions" class="headerlink" title="Compactions"></a>Compactions</h2><p>当level L的文件大小超出限制之后，我们会在后台线程之中进行压缩合并。合并操作选取level-L中的一个文件和下一个level-(L+1)中key区间重叠的所有文件进行。注意到，如果level-L文件key区间只和level-(L+1)文件部分重叠，那么level-(L+1)文件会作为合并操作的输入，并且在合并操作完成之后被丢弃。例外：因为level-0文件比较特殊（level-0文件可能彼此之间互相重叠），我们对于从level-0到level-1的合并操作特殊对待：一个level-0级别的合并操作会选取所有key区间重叠的level-0文件进行，因而选取的level-0文件数量可能超过1。</p>
-<p>一个合并压缩操作合并选取的文件内容，产生一个level-(L+1)序列的文件。在当前输出文件大小到达目标大小（2MB），我们会创建新的level-(L+1)文件。我们在当前输出文件的大小增长到和超过10个level-(L+2)级别的文件重叠时，也会产生新的输出文件。最后一条规则确保之后对于level-(L+1)文件的合并操作不会涉及到level-(L+2)中的过多的文件。</p>
-<p>旧的文件会被丢弃，新的文件会被记录以更新当前服务状态。</p>
-<p>对于一个特定level来说，合并操作会在key区间轮转进行。更详细地说，对于每一个level L，我们记录上一次level-L合并操作最后的key，下次level L的合并操作将会选取第一个大于这个key的文件开始（如果没有这样的文件，就从key区间的开头位置开始）。</p>
-<p>合并操作会丢弃覆盖的值。若更高level的文件key的区间没有包含标记为删除的key，也会将其删除。</p>
-<h3 id="Timing"><a href="#Timing" class="headerlink" title="Timing"></a>Timing</h3><p>Level-0的合并操作会读取至多4个1MB大小的level-0文件，在最坏的情况下会读取所有的level-1文件（10MB）。因此，我们会读14MB，写14MB。</p>
-<p>除了特殊的level-0合并操作，我们会从level-L选取一个2MB的文件。在最坏的情况下，这一文件会和level-(L+1)的中12个level-L文件大小的，level-(L+1)文件key区间重合（10因为level-(L+1) 比level-L的文件大小大10倍，剩余2因为level-L的文件大小和level-L+1的文件大小通常不对齐而增加的界限)。所以合并操作会读取26MB，写入26MB。假设硬盘的IO速度为100MB/s(现代设备的速度)，最坏的合并操作需要大约0.5秒。</p>
-<p>若我们限制后台写入的速度，比如说全速100MB/s的10%，一个合并操作可能花费5秒。如果用户写入的速度是10MB/s，我们需要创建很多level-0文件（~50个，用于存放5*10MB）。由于每次读操作会合并过多的文件，这会显著增加读的开销。</p>
-<p>解决方式：</p>
-<ol>
-<li>为了减小这一问题，当level-0文件数量很大时，我们可能需要增加生成新的log文件的阈值。然而，缺点是这个阈值越大，我们需要更多的内存来存放对应的memtable。</li>
-<li>当level-0文件数量上涨时，我们可能需要人为减小写入速度。</li>
-<li>减小大幅度merge的开销。可能大多数level-0文件都是未经压缩存放在cache中，我们只需要O(N)复杂度的合并操作。</li>
-</ol>
-<h3 id="Number-of-files"><a href="#Number-of-files" class="headerlink" title="Number of files"></a>Number of files</h3><p>不再总是创建2MB的文件，更大level的文件有更大的大小能减小文件总数，虽然以合并操作更加突发为代价。另外，我们能将文件集合存放在不同的路径下。</p>
-<p>2001年2月4日，一个在ext3文件系统下的实验演示了对于目录下不同数量，相同大小（100K）文件的打开操作的时间开销：</p>
-<table>
-<thead>
-<tr>
-<th style="text-align:right">Files in directory</th>
-<th style="text-align:right">Microseconds to open a file</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:right">1000</td>
-<td style="text-align:right">9</td>
-</tr>
-<tr>
-<td style="text-align:right">10000</td>
-<td style="text-align:right">10</td>
-</tr>
-<tr>
-<td style="text-align:right">100000</td>
-<td style="text-align:right">16</td>
-</tr>
-</tbody>
-</table>
-<p>所以对于现代文件系统，分片没有必要？</p>
-<h2 id="Recovery"><a href="#Recovery" class="headerlink" title="Recovery"></a>Recovery</h2><ul>
-<li>读取CURRENT找到最新提交的MANIFEST文件的名称</li>
-<li>读取MANIFEST文件</li>
-<li>清除无效文件</li>
-<li>我们可以打开所有的sstables文件，但是可能晚点打开会更好…</li>
-<li>将log文件转换为新的level-0 sstable文件</li>
-<li>将更新新写入新的log文件（以恢复后的序列）</li>
-</ul>
-<h2 id="Garbage-collection-of-file"><a href="#Garbage-collection-of-file" class="headerlink" title="Garbage collection of file"></a>Garbage collection of file</h2><p><code>DeleteObsoleteFiles()</code>在每次合并和恢复操作的最后会被调用。他会查找database中用到的所有文件，删除不是当前log文件的所有log文件，删除没被任何层引用并且不是有效合并操作输出的所有table文件。</p>
+<h2 id="“filter”-Meta-Block"><a href="#“filter”-Meta-Block" class="headerlink" title="“filter” Meta Block"></a>“filter” Meta Block</h2><p>If a <code>FilterPolicy</code> was specified when the database was opened, a<br>filter block is stored in each table.  The “metaindex” block contains<br>an entry that maps from <code>filter.&lt;N&gt;</code> to the BlockHandle for the filter<br>block where <code>&lt;N&gt;</code> is the string returned by the filter policy’s<br><code>Name()</code> method.</p>
+<p>The filter block stores a sequence of filters, where filter i contains<br>the output of <code>FilterPolicy::CreateFilter()</code> on all keys that are stored<br>in a block whose file offset falls within the range</p>
+<pre><code>[ i*base ... (i+1)*base-1 ]
+</code></pre><p>Currently, “base” is 2KB.  So for example, if blocks X and Y start in<br>the range <code>[ 0KB .. 2KB-1 ]</code>, all of the keys in X and Y will be<br>converted to a filter by calling <code>FilterPolicy::CreateFilter()</code>, and the<br>resulting filter will be stored as the first filter in the filter<br>block.</p>
+<p>The filter block is formatted as follows:</p>
+<pre><code>[filter 0]
+[filter 1]
+[filter 2]
+...
+[filter N-1]
 
+[offset of filter 0]                  : 4 bytes
+[offset of filter 1]                  : 4 bytes
+[offset of filter 2]                  : 4 bytes
+...
+[offset of filter N-1]                : 4 bytes
+
+[offset of beginning of offset array] : 4 bytes
+lg(base)                              : 1 byte
+</code></pre><p>The offset array at the end of the filter block allows efficient<br>mapping from a data block offset to the corresponding filter.</p>
+<h2 id="“stats”-Meta-Block"><a href="#“stats”-Meta-Block" class="headerlink" title="“stats” Meta Block"></a>“stats” Meta Block</h2><p>This meta block contains a bunch of stats.  The key is the name<br>of the statistic.  The value contains the statistic.</p>
+<p>TODO(postrelease): record following stats.</p>
+<pre><code>data size
+index size
+key size (uncompressed)
+value size (uncompressed)
+number of entries
+number of data blocks
+</code></pre>
       
     </div>
 
@@ -481,8 +475,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/06/08/muduo-Channel/" rel="next" title="muduo Channel">
-                <i class="fa fa-chevron-left"></i> muduo Channel
+              <a href="/2017/06/09/leveldb-Log-format/" rel="next" title="leveldb Log format">
+                <i class="fa fa-chevron-left"></i> leveldb Log format
               </a>
             
           </div>
@@ -490,10 +484,6 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/06/09/leveldb-Log-format/" rel="prev" title="leveldb Log format">
-                leveldb Log format <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -644,7 +634,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-实现文档"><span class="nav-text">leveldb 实现文档</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Files"><span class="nav-text">Files</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Log-files"><span class="nav-text">Log files</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Sorted-tables"><span class="nav-text">Sorted tables</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Manifset"><span class="nav-text">Manifset</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Current"><span class="nav-text">Current</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Info-logs"><span class="nav-text">Info logs</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Others"><span class="nav-text">Others</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#level0"><span class="nav-text">level0</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Compactions"><span class="nav-text">Compactions</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Timing"><span class="nav-text">Timing</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Number-of-files"><span class="nav-text">Number of files</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Recovery"><span class="nav-text">Recovery</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Garbage-collection-of-file"><span class="nav-text">Garbage collection of file</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-File-format"><span class="nav-text">leveldb File format</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#“filter”-Meta-Block"><span class="nav-text">“filter” Meta Block</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#“stats”-Meta-Block"><span class="nav-text">“stats” Meta Block</span></a></li></ol></li></ol></div>
             
 
           </div>
