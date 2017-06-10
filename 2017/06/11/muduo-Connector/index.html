@@ -1,0 +1,811 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="C++,muduo,Linux," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="怎么判断连接成功了？12345678910111213141516171819202122232425262728293031323334353637383940void Connector::connect()&amp;#123;  int sockfd = sockets::createNonblockingOrDie(serverAddr_.family());  int ret = sockets">
+<meta name="keywords" content="C++,muduo,Linux">
+<meta property="og:type" content="article">
+<meta property="og:title" content="muduo Connector">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/11/muduo-Connector/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="怎么判断连接成功了？12345678910111213141516171819202122232425262728293031323334353637383940void Connector::connect()&amp;#123;  int sockfd = sockets::createNonblockingOrDie(serverAddr_.family());  int ret = sockets">
+<meta property="og:updated_time" content="2017-06-10T17:07:49.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="muduo Connector">
+<meta name="twitter:description" content="怎么判断连接成功了？12345678910111213141516171819202122232425262728293031323334353637383940void Connector::connect()&amp;#123;  int sockfd = sockets::createNonblockingOrDie(serverAddr_.family());  int ret = sockets">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/11/muduo-Connector/"/>
+
+
+
+
+
+  <title>muduo Connector | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/11/muduo-Connector/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">muduo Connector</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-11T01:07:49+08:00">
+                2017-06-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="怎么判断连接成功了？"><a href="#怎么判断连接成功了？" class="headerlink" title="怎么判断连接成功了？"></a>怎么判断连接成功了？</h2><figure class="highlight groovy"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> <span class="string">Connector:</span>:connect()</div><div class="line">&#123;</div><div class="line">  <span class="keyword">int</span> sockfd = <span class="string">sockets:</span>:createNonblockingOrDie(serverAddr_.family());</div><div class="line">  <span class="keyword">int</span> ret = <span class="string">sockets:</span>:connect(sockfd, serverAddr_.getSockAddr());</div><div class="line">  <span class="keyword">int</span> savedErrno = (ret == <span class="number">0</span>) ? 0 : errno;</div><div class="line">  <span class="keyword">switch</span> (savedErrno)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">case</span> <span class="number">0</span>:</div><div class="line">    <span class="keyword">case</span> <span class="string">EINPROGRESS:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">EINTR:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">EISCONN:</span></div><div class="line">      connecting(sockfd);</div><div class="line">      <span class="keyword">break</span>;</div><div class="line"></div><div class="line">    <span class="keyword">case</span> <span class="string">EAGAIN:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">EADDRINUSE:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">EADDRNOTAVAIL:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">ECONNREFUSED:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">ENETUNREACH:</span></div><div class="line">      retry(sockfd);</div><div class="line">      <span class="keyword">break</span>;</div><div class="line"></div><div class="line">    <span class="keyword">case</span> <span class="string">EACCES:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">EPERM:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">EAFNOSUPPORT:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">EALREADY:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">EBADF:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">EFAULT:</span></div><div class="line">    <span class="keyword">case</span> <span class="string">ENOTSOCK:</span></div><div class="line">      LOG_SYSERR &lt;&lt; <span class="string">"connect error in Connector::startInLoop "</span> &lt;&lt; savedErrno;</div><div class="line"><span class="symbol">      sockets:</span>:close(sockfd);</div><div class="line">      <span class="keyword">break</span>;</div><div class="line"><span class="symbol"></span></div><div class="line">    default:</div><div class="line">      LOG_SYSERR &lt;&lt; <span class="string">"Unexpected error in Connector::startInLoop "</span> &lt;&lt; savedErrno;</div><div class="line"><span class="symbol">      sockets:</span>:close(sockfd);</div><div class="line">      <span class="comment">// connectErrorCallback_();</span></div><div class="line">      <span class="keyword">break</span>;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>可见，对于非阻塞io，如果connect之后的返回值为0，或者errno设置为EINTR, EINPROGRESS, EISCONN, 那么代表连接成功或者正在连接的过程之中。 如果errno为EAGIN，EADDRINUSE，EADDRNOTAVAIL，ECONNREFUSED，ENETURNREACH, 那么表示连接失败。在linux tcp编程之中，对于连接失败的情况，可以移植的解决方式是重新创建一个socket fd，再次尝试连接。对于EACCES，EPERM，EAFNOSUPPORT，EALREADY，EBADF，EFAULT，ENOTSOCK的情况，表示不可恢复的连接失败，直接停止连接，对于其他未知的情况也做此处理。</p>
+<p>现在，怎么知道连接成功了呢？以connect返回的sockfd创建一个channel，关注其可写事件。若channel可写，并且尝试使用<code>getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &amp;optval, &amp;optlen)</code>返回的errorCode为0，并且不是自连接，那么说明连接成功，可以将这个sockfd通过connectionCallback通知TcpClient。当然，如果调用的是ErrorCallback，那么close返回的fd，并且进行重试。</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> <span class="string">Connector:</span>:handleWrite()</div><div class="line">&#123;</div><div class="line">  LOG_TRACE &lt;&lt; <span class="string">"Connector::handleWrite "</span> &lt;&lt; state_;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (state_ == kConnecting)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">int</span> sockfd = removeAndResetChannel();</div><div class="line">    <span class="keyword">int</span> err = <span class="string">sockets:</span>:getSocketError(sockfd);</div><div class="line">    <span class="keyword">if</span> (err)</div><div class="line">    &#123;</div><div class="line">      LOG_WARN &lt;&lt; <span class="string">"Connector::handleWrite - SO_ERROR = "</span></div><div class="line">               &lt;&lt; err &lt;&lt; <span class="string">" "</span> &lt;&lt; strerror_tl(err);</div><div class="line">      retry(sockfd);</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">sockets:</span>:isSelfConnect(sockfd))</div><div class="line">    &#123;</div><div class="line">      LOG_WARN &lt;&lt; <span class="string">"Connector::handleWrite - Self connect"</span>;</div><div class="line">      retry(sockfd);</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span></div><div class="line">    &#123;</div><div class="line">      setState(kConnected);</div><div class="line">      <span class="keyword">if</span> (connect_)</div><div class="line">      &#123;</div><div class="line">        newConnectionCallback_(sockfd);</div><div class="line">      &#125;</div><div class="line">      <span class="keyword">else</span></div><div class="line">      &#123;</div><div class="line"><span class="symbol">        sockets:</span>:close(sockfd);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    <span class="comment">// what happened?</span></div><div class="line">    <span class="keyword">assert</span>(state_ == kDisconnected);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// check if self connection</span></div><div class="line"><span class="keyword">bool</span> sockets::isSelfConnect(<span class="keyword">int</span> sockfd)</div><div class="line">&#123;</div><div class="line">  struct sockaddr_in6 localaddr = getLocalAddr(sockfd);</div><div class="line">  struct sockaddr_in6 peeraddr = getPeerAddr(sockfd);</div><div class="line">  <span class="built_in">if</span> (localaddr.sin6_family == AF_INET)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">const</span> struct sockaddr_in* laddr4 = <span class="keyword">reinterpret_cast</span>&lt;struct sockaddr_in*&gt;(&amp;localaddr);</div><div class="line">    <span class="keyword">const</span> struct sockaddr_in* raddr4 = <span class="keyword">reinterpret_cast</span>&lt;struct sockaddr_in*&gt;(&amp;peeraddr);</div><div class="line">    <span class="built_in">return</span> laddr4-&gt;sin_port == raddr4-&gt;sin_port</div><div class="line">        &amp;&amp; laddr4-&gt;sin_addr.s_addr == raddr4-&gt;sin_addr.s_addr;</div><div class="line">  &#125;</div><div class="line">  <span class="built_in">else</span> <span class="built_in">if</span> (localaddr.sin6_family == AF_INET6)</div><div class="line">  &#123;</div><div class="line">    <span class="built_in">return</span> localaddr.sin6_port == peeraddr.sin6_port</div><div class="line">        &amp;&amp; memcmp(&amp;localaddr.sin6_addr, &amp;peeraddr.sin6_addr, <span class="keyword">sizeof</span> localaddr.sin6_addr) == <span class="number">0</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="built_in">else</span></div><div class="line">  &#123;</div><div class="line">    <span class="built_in">return</span> false;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="怎么实现超时重连？"><a href="#怎么实现超时重连？" class="headerlink" title="怎么实现超时重连？"></a>怎么实现超时重连？</h2><p>对于retry的处理使用了Connector的retry方法，他会设置超时回调，回调的时间间隔设置为从500ms~30s, 每次重新retry会将间隔的时间加倍，当然时间间隔不可超过30s。</p>
+<figure class="highlight zephir"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">void Connector::retry(<span class="keyword">int</span> sockfd)</div><div class="line">&#123;</div><div class="line">  sockets::close(sockfd);</div><div class="line">  setState(kDisconnected);</div><div class="line">  <span class="keyword">if</span> (connect_)</div><div class="line">  &#123;</div><div class="line">    LOG_INFO &lt;&lt; <span class="string">"Connector::retry - Retry connecting to "</span> &lt;&lt; serverAddr_.toIpPort()</div><div class="line">             &lt;&lt; <span class="string">" in "</span> &lt;&lt; retryDelayMs_ &lt;&lt; <span class="string">" milliseconds. "</span>;</div><div class="line">    loop_-&gt;runAfter(retryDelayMs_/<span class="number">1000.0</span>,</div><div class="line">                    std::bind(&amp;Connector::startInLoop, shared_from_this()));</div><div class="line">    retryDelayMs_ = std::min(retryDelayMs_ * <span class="number">2</span>, kMaxRetryDelayMs);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    LOG_DEBUG &lt;&lt; <span class="string">"do not connect"</span>;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="对于stop的处理"><a href="#对于stop的处理" class="headerlink" title="对于stop的处理"></a>对于stop的处理</h2><p>如果要停止连接，那么首先设置<code>connect_</code>为false，表示不需要建立连接了，这样若handleWrite之中返回了正常的sockfd，那么我也不要通过这个sockfd创建一个连接，而是直接将其close。并且因为<code>connect_</code>设置设置为false，后续进行retry的时候也不会尝试重新连接的。</p>
+<p>紧接着的是对stopInLoop的调用，这里对正在处于连接状态的channel进行了reset处理，并且将没有确定连接的sockfd关闭。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/C/" rel="tag"># C++</a>
+          
+            <a href="/tags/muduo/" rel="tag"># muduo</a>
+          
+            <a href="/tags/Linux/" rel="tag"># Linux</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/10/C-中的可变长参数/" rel="next" title="C++中的可变长参数">
+                <i class="fa fa-chevron-left"></i> C++中的可变长参数
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">11</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#怎么判断连接成功了？"><span class="nav-text">怎么判断连接成功了？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#怎么实现超时重连？"><span class="nav-text">怎么实现超时重连？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#对于stop的处理"><span class="nav-text">对于stop的处理</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
