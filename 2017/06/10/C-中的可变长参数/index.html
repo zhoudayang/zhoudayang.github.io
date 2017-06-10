@@ -75,7 +75,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="leveldb," />
+  <meta name="keywords" content="C++," />
 
 
 
@@ -91,17 +91,17 @@
 
 
 
-<meta name="description" content="leveldb Log format日志文件内容是一系列32KB大小的block序列。唯一的例外是文件的末尾可能包含一个不完整的block。 每一个block包含一个记录序列： 123456block := record* trailer? record :=   checksum: uint32     // crc32c of type and data[] ; little-endian">
-<meta name="keywords" content="leveldb">
+<meta name="description" content="C++ 中的可变长参数基本格式在C++中，可变长参数模板可以用来应对未知长度函数参数的问题。其基本格式如下所示： 123456template&amp;lt;typename ...Args&amp;gt;void g(Args ... args)&amp;#123;    cout &amp;lt;&amp;lt; sizeof ...(Args) &amp;lt;&amp;lt; endl; // 类型参数的数目    cout &amp;lt;&amp;lt;">
+<meta name="keywords" content="C++">
 <meta property="og:type" content="article">
-<meta property="og:title" content="leveldb Log format">
-<meta property="og:url" content="http://zhoudayang.github.io/2017/06/09/leveldb-Log-format/index.html">
+<meta property="og:title" content="C++中的可变长参数">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/10/C-中的可变长参数/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="leveldb Log format日志文件内容是一系列32KB大小的block序列。唯一的例外是文件的末尾可能包含一个不完整的block。 每一个block包含一个记录序列： 123456block := record* trailer? record :=   checksum: uint32     // crc32c of type and data[] ; little-endian">
-<meta property="og:updated_time" content="2017-06-09T08:11:02.000Z">
+<meta property="og:description" content="C++ 中的可变长参数基本格式在C++中，可变长参数模板可以用来应对未知长度函数参数的问题。其基本格式如下所示： 123456template&amp;lt;typename ...Args&amp;gt;void g(Args ... args)&amp;#123;    cout &amp;lt;&amp;lt; sizeof ...(Args) &amp;lt;&amp;lt; endl; // 类型参数的数目    cout &amp;lt;&amp;lt;">
+<meta property="og:updated_time" content="2017-06-10T06:13:40.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="leveldb Log format">
-<meta name="twitter:description" content="leveldb Log format日志文件内容是一系列32KB大小的block序列。唯一的例外是文件的末尾可能包含一个不完整的block。 每一个block包含一个记录序列： 123456block := record* trailer? record :=   checksum: uint32     // crc32c of type and data[] ; little-endian">
+<meta name="twitter:title" content="C++中的可变长参数">
+<meta name="twitter:description" content="C++ 中的可变长参数基本格式在C++中，可变长参数模板可以用来应对未知长度函数参数的问题。其基本格式如下所示： 123456template&amp;lt;typename ...Args&amp;gt;void g(Args ... args)&amp;#123;    cout &amp;lt;&amp;lt; sizeof ...(Args) &amp;lt;&amp;lt; endl; // 类型参数的数目    cout &amp;lt;&amp;lt;">
 
 
 
@@ -129,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/09/leveldb-Log-format/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/10/C-中的可变长参数/"/>
 
 
 
 
 
-  <title>leveldb Log format | zhouyang's blog</title>
+  <title>C++中的可变长参数 | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -303,7 +303,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/09/leveldb-Log-format/">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/10/C-中的可变长参数/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Zhou Yang">
@@ -320,7 +320,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">leveldb Log format</h1>
+          <h1 class="post-title" itemprop="name headline">C++中的可变长参数</h1>
         
 
         <div class="post-meta">
@@ -332,8 +332,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-09T16:11:02+08:00">
-                2017-06-09
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-10T14:13:40+08:00">
+                2017-06-10
               </time>
             
 
@@ -372,30 +372,21 @@
       
 
       
-        <h1 id="leveldb-Log-format"><a href="#leveldb-Log-format" class="headerlink" title="leveldb Log format"></a>leveldb Log format</h1><p>日志文件内容是一系列32KB大小的block序列。唯一的例外是文件的末尾可能包含一个不完整的block。</p>
-<p>每一个block包含一个记录序列：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">block := record* trailer?</div><div class="line"> record :=</div><div class="line">   checksum: <span class="keyword">uint32</span>     <span class="comment">// crc32c of type and data[] ; little-endian</span></div><div class="line">   length: <span class="keyword">uint16</span>       <span class="comment">// little-endian</span></div><div class="line">   <span class="keyword">type</span>: <span class="keyword">uint8</span>          <span class="comment">// One of FULL, FIRST, MIDDLE, LAST</span></div><div class="line">   data: <span class="keyword">uint8</span>[length]</div></pre></td></tr></table></figure>
-<p>一条记录不会在一个block的最后6 byte处开始（因为放不下）。所有剩余的bytes组成trailer，需要包含全0的bytes，并且必须被读者跳过。</p>
-<p>例外：若当前block恰好剩余7bytes，增加一个新的非0长度的record，写者必须将第一条记录（包含长度为0的用户数据）填充之前block剩余的7bytes，将用户数据写入之后的block之中。</p>
-<p>在未来可能会增加新的类型。 一些读者可能会跳过不理解的记录类型，其他的可能会报告他跳过了一些值。</p>
-<figure class="highlight ini"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="attr">FULL</span> == <span class="number">1</span></div><div class="line"><span class="attr">FIRST</span> == <span class="number">2</span></div><div class="line"><span class="attr">MIDDLE</span> == <span class="number">3</span></div><div class="line"><span class="attr">LAST</span> == <span class="number">4</span></div></pre></td></tr></table></figure>
-<p>FULL record包含完整的用户记录。</p>
-<p>FIRST, MIDDLE, LAST 用于标志分片的用户记录（一般由于block边界）。FIRST是用户记录第一个分片的类型，LAST是用户记录最后一个分片的类型，MIDDLE是所有的用户记录中间分片的类型。</p>
-<p>例子： 一个用户记录序列：</p>
-<figure class="highlight applescript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">A: <span class="built_in">length</span> <span class="number">1000</span></div><div class="line">B: <span class="built_in">length</span> <span class="number">97270</span></div><div class="line">C: <span class="built_in">length</span> <span class="number">8000</span></div></pre></td></tr></table></figure>
-<p><strong>A</strong> 会是第一个block的FULL记录。</p>
-<p><strong>B</strong> 会被分为3个分段：第一段占据第一块剩余部分，第二段占据第二个block的全部，第三段占据第三个block的前面的绝大部分。第三个block会剩余6bytes空间，会被空余当做trailer。</p>
-<p><strong>C</strong> 会在第4个block中存放一条FULL记录。</p>
-<hr>
-<h2 id="Some-benefits-over-the-recordio-format"><a href="#Some-benefits-over-the-recordio-format" class="headerlink" title="Some benefits over the recordio format:"></a>Some benefits over the recordio format:</h2><ol>
-<li>重新同步时不需要任何启发式查找 - 只需要到下一个block边界并进行扫描。 如果有错误，跳过去处理下一个block。附加的好处是，当一个log文件的部分内容被嵌入另一个log文件作为record时，我们不会陷入疑惑。</li>
-<li>在大致的边界上进行分割（例如，mapreduce）非常简单：找到下一个块的边界，跳过record直到我们找到一条FULL或者FIRST类型的记录。</li>
-<li>对于大的records，我们不需要额外的缓存。</li>
+        <h1 id="C-中的可变长参数"><a href="#C-中的可变长参数" class="headerlink" title="C++ 中的可变长参数"></a>C++ 中的可变长参数</h1><h2 id="基本格式"><a href="#基本格式" class="headerlink" title="基本格式"></a>基本格式</h2><p>在C++中，可变长参数模板可以用来应对未知长度函数参数的问题。其基本格式如下所示：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> ...Args&gt;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">g</span><span class="params">(Args ... args)</span></span></div><div class="line">&#123;</div><div class="line">    <span class="built_in">cout</span> &lt;&lt; <span class="keyword">sizeof</span> ...(Args) &lt;&lt; <span class="built_in">endl</span>; <span class="comment">// 类型参数的数目</span></div><div class="line">    <span class="built_in">cout</span> &lt;&lt; <span class="keyword">sizeof</span> ...(args) &lt;&lt; <span class="built_in">endl</span>; <span class="comment">// 函数参数的数目</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="基本用法"><a href="#基本用法" class="headerlink" title="基本用法"></a>基本用法</h2><p>可变参数函数通常是递归的，第一步调用处理包中的第一个实参，然后用剩余的实参来调用自身。如下的print示例程序就演示了这种用法。<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;vector&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;cstring&gt;</span></span></div><div class="line"></div><div class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> <span class="built_in">std</span>;</div><div class="line"></div><div class="line"><span class="comment">// 递归调用的终点</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</div><div class="line"><span class="function">ostream&amp; <span class="title">print</span><span class="params">(ostream&amp; os, <span class="keyword">const</span> T&amp; t)</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">return</span> os &lt;&lt; t;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span>... Args&gt;</div><div class="line"><span class="function">ostream&amp; <span class="title">print</span><span class="params">(ostream&amp; os, <span class="keyword">const</span> T&amp; t, <span class="keyword">const</span> Args&amp;... rest)</span></span></div><div class="line">&#123;</div><div class="line">  os &lt;&lt; t &lt;&lt; <span class="string">", "</span>;</div><div class="line">  <span class="comment">// 递归用剩余参数进行调用</span></div><div class="line">  <span class="keyword">return</span> print(os, rest...);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  print(<span class="built_in">cout</span>, <span class="number">1</span>, <span class="number">2.0</span>, <span class="literal">false</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>递归会执行如下序列：</p>
+<ol>
+<li>print(cout, 1, 2.0, false)</li>
+<li>print(cout, 2.0, false)</li>
+<li>print(cout, false)</li>
 </ol>
-<h2 id="Some-downside-compared-to-recordio-format"><a href="#Some-downside-compared-to-recordio-format" class="headerlink" title="Some downside compared to recordio format:"></a>Some downside compared to recordio format:</h2><ol>
-<li>不会对小的record进行打包。可以通过增加新的记录类型来解决。所以这是当前实现的缺陷，不是这一format的缺点。</li>
-<li>没有压缩。 这个也可以通过增加新的记录类型来解决。</li>
-</ol>
+<p>当定义可变参数版本的print的时候，非可变参数版本的声明必须在作用域中。否则，可变参数版本会无限递归。</p>
+<h2 id="包扩展"><a href="#包扩展" class="headerlink" title="包扩展"></a>包扩展</h2><p>可以利用包扩展机制，对可变长模板参数中的每一个参数进行相同的调用。如下所示代码演示了对输入的每个参数都调用了函数<code>no_operation</code>。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;atomic&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;vector&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;cstring&gt;</span></span></div><div class="line"></div><div class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> <span class="built_in">std</span>;</div><div class="line"></div><div class="line"><span class="comment">// 递归调用的终点</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</div><div class="line"><span class="function">ostream&amp; <span class="title">print</span><span class="params">(ostream&amp; os, <span class="keyword">const</span> T&amp; t)</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">return</span> os &lt;&lt; t;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</div><div class="line"><span class="function">T <span class="title">no_operation</span><span class="params">(<span class="keyword">const</span> T&amp; val)</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">return</span> val;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span>... Args&gt;</div><div class="line"><span class="function">ostream&amp; <span class="title">print</span><span class="params">(ostream&amp; os, <span class="keyword">const</span> T&amp; t, <span class="keyword">const</span> Args&amp;... rest)</span></span></div><div class="line">&#123;</div><div class="line">  os &lt;&lt; t &lt;&lt; <span class="string">", "</span>;</div><div class="line">  <span class="comment">// 递归用剩余参数进行调用</span></div><div class="line">  <span class="comment">// 对所有的参数统一调用no_operation</span></div><div class="line">  <span class="keyword">return</span> print(os, no_operation(rest)...);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="comment">// 实际调用no_operation的次数为3，和输入的参数的个数一致</span></div><div class="line">  print(<span class="built_in">cout</span>, <span class="number">1</span>, <span class="number">2.0</span>, <span class="literal">false</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="转发参数包"><a href="#转发参数包" class="headerlink" title="转发参数包"></a>转发参数包</h2><p>借助std::forward，可以安全的将输入的可变长参数转发给其他函数，这样vector通过emplace_back就在容器内部直接通过输入的参数构造需要插入的对象。</p>
+<p>最简单的例子是make_unique，如下所示：</p>
+<figure class="highlight elixir"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">template&lt;typename T, typename... Args&gt;</div><div class="line"><span class="symbol">std:</span><span class="symbol">:unique_ptr&lt;T&gt;</span> make_unique(Args&amp;&amp; ...args)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">return</span> <span class="symbol">std:</span><span class="symbol">:unique_ptr&lt;T&gt;</span>(new T(<span class="symbol">std:</span><span class="symbol">:forward&lt;Args&gt;</span>(args)...));</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 
       
     </div>
@@ -425,7 +416,7 @@
       
         <div class="post-tags">
           
-            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+            <a href="/tags/C/" rel="tag"># C++</a>
           
         </div>
       
@@ -438,8 +429,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/06/09/leveldb-实现文档/" rel="next" title="leveldb 实现文档">
-                <i class="fa fa-chevron-left"></i> leveldb 实现文档
+              <a href="/2017/06/09/leveldb-filter-block/" rel="next" title="leveldb filter_block">
+                <i class="fa fa-chevron-left"></i> leveldb filter_block
               </a>
             
           </div>
@@ -447,10 +438,6 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/06/09/leveldb-File-format/" rel="prev" title="leveldb File format">
-                leveldb File format <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -601,7 +588,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-Log-format"><span class="nav-text">leveldb Log format</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Some-benefits-over-the-recordio-format"><span class="nav-text">Some benefits over the recordio format:</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Some-downside-compared-to-recordio-format"><span class="nav-text">Some downside compared to recordio format:</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#C-中的可变长参数"><span class="nav-text">C++ 中的可变长参数</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#基本格式"><span class="nav-text">基本格式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#基本用法"><span class="nav-text">基本用法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#包扩展"><span class="nav-text">包扩展</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#转发参数包"><span class="nav-text">转发参数包</span></a></li></ol></li></ol></div>
             
 
           </div>
