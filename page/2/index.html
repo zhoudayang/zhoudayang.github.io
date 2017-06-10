@@ -372,9 +372,7 @@
         
           
           5. 优先使用auto而非显示类型声明在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。
-123456789template&lt;typename It&gt;void dwim(It b, It e)&#123;  while(b != e)&#123;    typename std::iterator_traits&lt;It&gt;::value_type    currValue = *b;      ...  &#125;&#125;
-使用auto关键字
-12345678template&lt;typename It
+123456789template&lt;typename It&gt;void dwim(It b, It e)&#123;  while(b != e)&#123;    typename std::iterator_traits&lt;It
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -494,7 +492,7 @@
           
           1. 理解模板类型推导1. expr是T&amp;123456template&lt;typename T&gt;void f(T &amp; param);// 我们声明如下变量int x = 27;const int cx = x;const int&amp; rx = x;
 函数调用时，推导出的Param和T的类型如下：
-123f(x);  // T is int, param's type is int&amp;f(cx); // T is const int, param's type is const int&amp;f(rx); // T is const int, param'
+123f(x);  // T is int, param's type
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -614,7 +612,7 @@
           
           运行流程Acceptr是muduo之中TcpServer用于接受连接的wrapper类。其中有一个成员acceptChannel_用于接受连接。其句柄是用于接受连接的socket fd。
 上述acceptChannel_关注的是可读事件，可读代表有新的连接可以accept了。在关注可读事件之前需要首先开始监听。监听的backlog的限制采用的是Linux所支持的最大值: SOMAXCONN.
-特殊处理在接受连接的时候，可能会出现这种问题：描述符用完了，这会导致accpet失败，并且返回ENFILE错误。但是并没有拒绝这一连接，连接仍然会在连接队列之中，这导致了下一次eventLoop中仍然会触
+特殊
           ...
           <!--noindex-->
           <div class="post-button text-center">

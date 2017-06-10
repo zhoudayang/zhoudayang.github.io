@@ -371,8 +371,7 @@
       
         
           
-          C++ std::atomic 原子类型原子操作：一个不可分割的操作。标准原子类型可以在头文件之中找到，在这种类型上的所有操作都是原子的。它们都有一个is_lock_free()的成员函数，让用户决定在给定类型上的操作是否用原子指令完成。唯一不提供is_lock_free()成员函数的类型是std::atomic_flag,在此类型上的操作要求是无锁的。可以利用std::atomic_flag实现一个简单的锁。
-123456789101112131415161718192021222324252627282930313233343536373839404142434445464748#incl
+          C++ std::atomic 原子类型原子操作：一个不可分割的操作。标准原子类型可以在头文件之中找到，在这种类型上的所有操作都是原子的。它们都有一个is_lock_free()的成员函数，让用户决定在给定类型上的操作是否用原子指令完成。唯一不提供is_lock_free()成员函数的类型是std::atomic_flag,在此类型上的操作要求是无锁的。可以利用std::atomic_flag实现
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -492,7 +491,7 @@
           
           默认使用什么io复用模型？在Poller的接口类中定义了一个static函数，如下所示：
 1static Poller* newDefaultPoller(EventLoop* loop);
-其实现是在DefaultPoller.cc文件之中，如下所示：1234567891011Poller* Poller::newDefaultPoller(EventLoop* loop)&#123;  if (::getenv("MUDUO_USE_POLL"))  &#123;    return new PollPoller(loop);  &#125;  else  &#123;    return
+其实现是在DefaultPoller.cc文件之中，如下所示：1234567891011Poller* Poller::newDefaultPoller(EventLoop* loop)&#123;  if 
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -610,7 +609,7 @@
       
         
           
-          怎么判断连接成功了？12345678910111213141516171819202122232425262728293031323334353637383940void Connector::connect()&#123;  int sockfd = sockets::createNonblockingOrDie(serverAddr_.family());  int ret = sockets::connect(sockfd, serverAddr_.getSockAddr());  int savedErrno = (ret == 0) ? 0 : errno;  switch (sav
+          怎么判断连接成功了？12345678910111213141516171819202122232425262728293031323334353637383940void Connector::connect()&#123;  int sockfd = sockets::createNonblockingOrDie(serverAddr_.family());  int ret = sockets
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -729,8 +728,7 @@
         
           
           C++ 中的可变长参数基本格式在C++中，可变长参数模板可以用来应对未知长度函数参数的问题。其基本格式如下所示：
-123456template&lt;typename ...Args&gt;void g(Args ... args)&#123;    cout &lt;&lt; sizeof ...(Args) &lt;&lt; endl; // 类型参数的数目    cout &lt;&lt; sizeof ...(args) &lt;&lt; endl; // 函数参数的数目&#125;
-基本用法可变参数函数通常是递归的，第一步调用处理包中的第一个实参，然后用剩余的实参来调用自身。如下的p
+123456template&lt;typename ...Args&gt;void g(Args ... args)&#123;    cout &lt;&lt; sizeof ...(Args) &lt;&lt; endl; // 类型参数的数目    cout &lt;&lt; 
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -849,7 +847,7 @@
         
           
           leveldb filter_block解析filter meta block 文件格式首先借助leveldb文档leveldb File format可以确定filter meta block内部的格式如下所示：
-1234567891011121314[filter 0][filter 1][filter 2][filter 3][filter 4]...[filter N-1][offset of filter 0]                  : 4 bytes[offset of filter 1]                  : 4 bytes[offset of fil
+1234567891011121314[filter 0][filter 1][filter 2][filter 3][filter 4]...[filter N-1][offset 
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -967,9 +965,7 @@
       
         
           
-          leveldb File format123456789101112&lt;beginning_of_file&gt;[data block 1][data block 2]...[data block N][meta block 1]...[meta block K][metaindex block][index block][Footer]        (fixed size; starts at file_size - sizeof(Footer))&lt;end_of_file&gt;
-文件之中包含内部指针。每一个这样的指针被称为BlockHandle，包含下述信息。
-12offse
+          leveldb File format123456789101112&lt;beginning_of_file&gt;[data block 1][data block 2]...[data block N][meta block 1]...[meta block K][metaindex block][index block][Footer]        (fixed size; starts
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -1089,7 +1085,7 @@
           
           leveldb Log format日志文件内容是一系列32KB大小的block序列。唯一的例外是文件的末尾可能包含一个不完整的block。
 每一个block包含一个记录序列：
-123456block := record* trailer? record :=   checksum: uint32     // crc32c of type and data[] ; little-endian   length: uint16       // little-endian   type: uint8          // One of FULL, FIRST, MIDDLE, LAST   
+123456block := record* trailer? record :=   checksum: uint32     // crc32c of type and data[] ; little-endian  
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -1209,8 +1205,7 @@
           
           leveldb 实现文档Filesleveldb的实现和一个单点的Bigtable tablet(section 5.2)相似。但是内部文件的组成有所不同，下面会进行解释。
 每一个数据库都是存储在目录下一系列的文件集合构成。有以下几种不同的文件类型：
-Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB），它会被转换为一个sorted table，并且会创建一个新的log文件记录未来的更新。
-当前log文件的副本被保存在内存中(memtable)。每次读都会检索这一副本，所以读操作能反映所有已经记录
+Log files一个log文件存储了最近更新的序列。每一个更新记录都被追加到当前的log文件中。当log文件达到预先设置的大小（可能是默认值4MB
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -1329,7 +1324,7 @@ Log files一个log文件存储了最近更新的序列。每一个更新记录�
         
           
           实现简介channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回调函数。整个Channel类的实现非常简单明了。
-重点:tie可能出现这种情况，我们设置的回调函数是某个类的成员函数，此类对象使用shared_ptr进行管理。如果在回调函数之中对此shared_ptr进行了reset或者release处理，那么此回调函数就会立即失效，因为类对象被回收了。对于这种特
+重点:tie可能出现这种情况，我们设置的回调函数是
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -1448,7 +1443,7 @@ Log files一个log文件存储了最近更新的序列。每一个更新记录�
         
           
           实现原理在muduo之中，使用std::vector来存放网络中传输的数据，包括从要发送给对方的数据以及从对方接收的数据。在Buffer之中，预留了 prependable 的缓存，可以在buffer之中加入前缀而无需移动整个buffer。整个buffer分为prependable, readable, writable bytes. Buffer 的布局可以参考下图。
-12345678910/// A buffer class modeled after org.jboss.netty.buffer.ChannelBuffer////// @code/// +----------------
+12345678910//
           ...
           <!--noindex-->
           <div class="post-button text-center">
