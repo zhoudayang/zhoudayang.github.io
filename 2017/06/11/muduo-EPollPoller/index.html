@@ -1,0 +1,819 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="C++,muduo,Linux," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="默认使用什么io复用模型？在Poller的接口类中定义了一个static函数，如下所示： 1static Poller* newDefaultPoller(EventLoop* loop); 其实现是在DefaultPoller.cc文件之中，如下所示：1234567891011Poller* Poller::newDefaultPoller(EventLoop* loop)&amp;#123;  if">
+<meta name="keywords" content="C++,muduo,Linux">
+<meta property="og:type" content="article">
+<meta property="og:title" content="muduo EPollPoller">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/11/muduo-EPollPoller/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="默认使用什么io复用模型？在Poller的接口类中定义了一个static函数，如下所示： 1static Poller* newDefaultPoller(EventLoop* loop); 其实现是在DefaultPoller.cc文件之中，如下所示：1234567891011Poller* Poller::newDefaultPoller(EventLoop* loop)&amp;#123;  if">
+<meta property="og:updated_time" content="2017-06-10T17:15:17.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="muduo EPollPoller">
+<meta name="twitter:description" content="默认使用什么io复用模型？在Poller的接口类中定义了一个static函数，如下所示： 1static Poller* newDefaultPoller(EventLoop* loop); 其实现是在DefaultPoller.cc文件之中，如下所示：1234567891011Poller* Poller::newDefaultPoller(EventLoop* loop)&amp;#123;  if">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/11/muduo-EPollPoller/"/>
+
+
+
+
+
+  <title>muduo EPollPoller | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/11/muduo-EPollPoller/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">muduo EPollPoller</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-11T01:15:17+08:00">
+                2017-06-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="默认使用什么io复用模型？"><a href="#默认使用什么io复用模型？" class="headerlink" title="默认使用什么io复用模型？"></a>默认使用什么io复用模型？</h2><p>在Poller的接口类中定义了一个static函数，如下所示：</p>
+<figure class="highlight haxe"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">static</span> Poller* <span class="keyword">new</span><span class="type">DefaultPoller</span>(EventLoop* loop);</div></pre></td></tr></table></figure>
+<p>其实现是在DefaultPoller.cc文件之中，如下所示：<br><figure class="highlight lasso"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">Poller* Poller<span class="type">::newDefaultPoller</span>(EventLoop* <span class="keyword">loop</span>)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">if</span> (<span class="type">::getenv</span>(<span class="string">"MUDUO_USE_POLL"</span>))</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">return</span> <span class="literal">new</span> PollPoller(<span class="keyword">loop</span>);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    <span class="keyword">return</span> <span class="literal">new</span> EPollPoller(<span class="keyword">loop</span>);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>可见除非定义了<code>MUDUO_USE_POLL</code>环境变量，否则muduo会使用epoll作为io复用的方式。</p>
+<h2 id="poll"><a href="#poll" class="headerlink" title="poll"></a>poll</h2><p>因为epoll返回的io事件对应的结构体 epoll_event中，有一个data成员可以记录相关信息，可以方便我们找到对应的Channel，因而epoll的实现较poll比较更为简单。</p>
+<figure class="highlight crystal"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">typedef <span class="class"><span class="keyword">union</span> <span class="title">epoll_data</span></span></div><div class="line">&#123;</div><div class="line">  void* ptr;</div><div class="line">  int fd;</div><div class="line">  uint32_t u32;</div><div class="line">  uint64_t u64;</div><div class="line">&#125;epoll_data_t;</div></pre></td></tr></table></figure>
+<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">Timestamp EPollPoller::poll(<span class="keyword">int</span> timeoutMs, ChannelList* activeChannels)</div><div class="line">&#123;</div><div class="line">  LOG_TRACE &lt;&lt; <span class="string">"fd total count "</span> &lt;&lt; channels_.<span class="built_in">size</span>();</div><div class="line">  <span class="keyword">int</span> numEvents = ::epoll_wait(epollfd_,</div><div class="line">                               &amp;*events_.<span class="built_in">begin</span>(),</div><div class="line">                               <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(events_.<span class="built_in">size</span>()),</div><div class="line">                               timeoutMs);</div><div class="line">  <span class="keyword">int</span> savedErrno = errno;</div><div class="line">  Timestamp now(Timestamp::now());</div><div class="line">  <span class="built_in">if</span> (numEvents &gt; <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    LOG_TRACE &lt;&lt; numEvents &lt;&lt; <span class="string">" events happended"</span>;</div><div class="line">    fillActiveChannels(numEvents, activeChannels);</div><div class="line">    <span class="built_in">if</span> (implicit_cast&lt;size_t&gt;(numEvents) == events_.<span class="built_in">size</span>())</div><div class="line">    &#123;</div><div class="line">      events_.resize(events_.<span class="built_in">size</span>()*<span class="number">2</span>);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="built_in">else</span> <span class="built_in">if</span> (numEvents == <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    LOG_TRACE &lt;&lt; <span class="string">"nothing happended"</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="built_in">else</span></div><div class="line">  &#123;</div><div class="line">    <span class="comment">// error happens, log uncommon ones</span></div><div class="line">    <span class="built_in">if</span> (savedErrno != EINTR)</div><div class="line">    &#123;</div><div class="line">      errno = savedErrno;</div><div class="line">      LOG_SYSERR &lt;&lt; <span class="string">"EPollPoller::poll()"</span>;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="built_in">return</span> now;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>拿到epoll返回的事件列表之后，就可以调用fillActiveChannels来将当前active的Channel填充进入EventLoop之中的activeChannels之中。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> EPollPoller::fillActiveChannels(<span class="keyword">int</span> numEvents,</div><div class="line">                                     ChannelList* activeChannels) <span class="keyword">const</span></div><div class="line">&#123;</div><div class="line">  assert(implicit_cast&lt;<span class="keyword">size_t</span>&gt;(numEvents) &lt;= events_.size());</div><div class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; numEvents; ++i)</div><div class="line">  &#123;</div><div class="line">    Channel* channel = <span class="keyword">static_cast</span>&lt;Channel*&gt;(events_[i].data.ptr);</div><div class="line"><span class="meta">#<span class="meta-keyword">ifndef</span> NDEBUG</span></div><div class="line">    <span class="keyword">int</span> fd = channel-&gt;fd();</div><div class="line">    ChannelMap::const_iterator it = channels_.find(fd);</div><div class="line">    assert(it != channels_.end());</div><div class="line">    assert(it-&gt;second == channel);</div><div class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></div><div class="line">    <span class="comment">// set revents</span></div><div class="line">    channel-&gt;set_revents(events_[i].events);</div><div class="line">    activeChannels-&gt;push_back(channel);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="update-Channel"><a href="#update-Channel" class="headerlink" title="update Channel"></a>update Channel</h2><p>在Poller中使用<code>std::map&lt;int, Channel*&gt;</code> 来存放fd和对应channel之间的对应关系。需要保证channel和fd的一一对应，不能存在一个fd由两个不同的channel来管理。</p>
+<figure class="highlight coq"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div></pre></td><td class="code"><pre><div class="line">void EPollPoller::updateChannel(Channel* channel)</div><div class="line">&#123;</div><div class="line">  Poller::assertInLoopThread();</div><div class="line">  const int index = channel-&gt;index();</div><div class="line">  LOG_TRACE &lt;&lt; <span class="string">"fd = "</span> &lt;&lt; channel-&gt;fd()</div><div class="line">    &lt;&lt; <span class="string">" events = "</span> &lt;&lt; channel-&gt;events() &lt;&lt; <span class="string">" index = "</span> &lt;&lt; index;</div><div class="line">  <span class="keyword">if</span> (index == kNew |<span class="type">| index</span> == kDeleted)</div><div class="line">  &#123;</div><div class="line">    // a new one, add <span class="built_in">with</span> EPOLL_CTL_ADD</div><div class="line">    int fd = channel-&gt;fd();</div><div class="line">    <span class="keyword">if</span> (index == kNew)</div><div class="line">    &#123;</div><div class="line">      <span class="built_in">assert</span>(channels_.find(fd) == channels_.<span class="keyword">end</span>());</div><div class="line">      channels_[fd] = channel;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span> // index == kDeleted</div><div class="line">    &#123;</div><div class="line">      <span class="built_in">assert</span>(channels_.find(fd) != channels_.<span class="keyword">end</span>());</div><div class="line">      <span class="built_in">assert</span>(channels_[fd] == channel);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    channel-&gt;set_index(kAdded);</div><div class="line">    update(EPOLL_CTL_ADD, channel);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    // update existing one <span class="built_in">with</span> EPOLL_CTL_MOD/DEL</div><div class="line">    int fd = channel-&gt;fd();</div><div class="line">    (void)fd;</div><div class="line">    <span class="built_in">assert</span>(channels_.find(fd) != channels_.<span class="keyword">end</span>());</div><div class="line">    <span class="built_in">assert</span>(channels_[fd] == channel);</div><div class="line">    <span class="built_in">assert</span>(index == kAdded);</div><div class="line">    <span class="keyword">if</span> (channel-&gt;isNoneEvent())</div><div class="line">    &#123;</div><div class="line">      update(EPOLL_CTL_DEL, channel);</div><div class="line">      channel-&gt;set_index(kDeleted);</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span></div><div class="line">    &#123;</div><div class="line">      update(EPOLL_CTL_MOD, channel);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>Channel默认的index被设为-1，在epoll之中，index被用作标明类别，有以下3种类型，故而新创建的Channel其index代表新增的Channel。</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">namespace</span></div><div class="line">&#123;</div><div class="line"><span class="keyword">const</span> <span class="keyword">int</span> kNew = <span class="number">-1</span>;</div><div class="line"><span class="keyword">const</span> <span class="keyword">int</span> kAdded = <span class="number">1</span>;</div><div class="line"><span class="keyword">const</span> <span class="keyword">int</span> kDeleted = <span class="number">2</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>updateChannel会根据Channel的revent来调用update方法。注意到对于没有关注任何io事件的Channel，EPollPoller采取的方式是将该channel对应的fd直接从epoll之中删除。</p>
+<figure class="highlight verilog"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> EPollPoller::update(<span class="keyword">int</span> operation, Channel* channel)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">struct</span> epoll_event <span class="keyword">event</span>;</div><div class="line">  bzero(&amp;<span class="keyword">event</span>, sizeof <span class="keyword">event</span>);</div><div class="line">  <span class="keyword">event</span><span class="variable">.events</span> = channel-&gt;events();</div><div class="line">  <span class="keyword">event</span><span class="variable">.data</span><span class="variable">.ptr</span> = channel;</div><div class="line">  <span class="keyword">int</span> fd = channel-&gt;fd();</div><div class="line">  LOG_TRACE &lt;&lt; <span class="string">"epoll_ctl op = "</span> &lt;&lt; operationToString(operation)</div><div class="line">    &lt;&lt; <span class="string">" fd = "</span> &lt;&lt; fd &lt;&lt; <span class="string">" event = &#123; "</span> &lt;&lt; channel-&gt;eventsToString() &lt;&lt; <span class="string">" &#125;"</span>;</div><div class="line">  <span class="keyword">if</span> (::epoll_ctl(epollfd_, operation, fd, &amp;<span class="keyword">event</span>) &lt; <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">if</span> (operation == EPOLL_CTL_DEL)</div><div class="line">    &#123;</div><div class="line">      LOG_SYSERR &lt;&lt; <span class="string">"epoll_ctl op ="</span> &lt;&lt; operationToString(operation) &lt;&lt; <span class="string">" fd ="</span> &lt;&lt; fd;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span></div><div class="line">    &#123;</div><div class="line">      LOG_SYSFATAL &lt;&lt; <span class="string">"epoll_ctl op ="</span> &lt;&lt; operationToString(operation) &lt;&lt; <span class="string">" fd ="</span> &lt;&lt; fd;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在update中，对于delete操作进行了区分处理，它容忍delete出错，但是对于modify和add出错，程序会fatal。</p>
+<h2 id="removeChannel"><a href="#removeChannel" class="headerlink" title="removeChannel"></a>removeChannel</h2><p>removeChannel将Channel对应的fd从epoll中删除，并且Channel也从channels_之中删除了。<br><figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">void EPollPoller::removeChannel(Channel* channel)</div><div class="line">&#123;</div><div class="line"><span class="symbol">  Poller:</span>:assertInLoopThread()<span class="comment">;</span></div><div class="line">  int fd = channel-&gt;fd()<span class="comment">;</span></div><div class="line">  LOG_TRACE &lt;&lt; <span class="string">"fd = "</span> &lt;&lt; fd<span class="comment">;</span></div><div class="line">  assert(channels_.find(fd) != channels_<span class="meta">.end</span>())<span class="comment">;</span></div><div class="line">  assert(channels_[fd] == channel)<span class="comment">;</span></div><div class="line">  assert(channel-&gt;isNoneEvent())<span class="comment">;</span></div><div class="line">  int index = channel-&gt;index()<span class="comment">;</span></div><div class="line">  assert(index == kAdded <span class="title">||</span> index == kDeleted)<span class="comment">;</span></div><div class="line">  size_t n = channels_.erase(fd)<span class="comment">;</span></div><div class="line">  (void)n<span class="comment">;</span></div><div class="line">  assert(n == <span class="number">1</span>)<span class="comment">;</span></div><div class="line"></div><div class="line">  if (index == kAdded)</div><div class="line">  &#123;</div><div class="line">    update(EPOLL_CTL_DEL, channel)<span class="comment">;</span></div><div class="line">  &#125;</div><div class="line">  channel-&gt;set_index(kNew)<span class="comment">;</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/C/" rel="tag"># C++</a>
+          
+            <a href="/tags/muduo/" rel="tag"># muduo</a>
+          
+            <a href="/tags/Linux/" rel="tag"># Linux</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/11/muduo-Connector/" rel="next" title="muduo Connector">
+                <i class="fa fa-chevron-left"></i> muduo Connector
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">12</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#默认使用什么io复用模型？"><span class="nav-text">默认使用什么io复用模型？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#poll"><span class="nav-text">poll</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#update-Channel"><span class="nav-text">update Channel</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#removeChannel"><span class="nav-text">removeChannel</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
