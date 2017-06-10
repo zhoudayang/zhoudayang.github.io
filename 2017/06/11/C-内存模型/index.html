@@ -1,0 +1,825 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="C++," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="C++ std::atomic 原子类型原子操作：一个不可分割的操作。标准原子类型可以在头文件之中找到，在这种类型上的所有操作都是原子的。它们都有一个is_lock_free()的成员函数，让用户决定在给定类型上的操作是否用原子指令完成。唯一不提供is_lock_free()成员函数的类型是std::atomic_flag,在此类型上的操作要求是无锁的。可以利用std::atomic_flag实现">
+<meta name="keywords" content="C++">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++内存模型">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/11/C-内存模型/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="C++ std::atomic 原子类型原子操作：一个不可分割的操作。标准原子类型可以在头文件之中找到，在这种类型上的所有操作都是原子的。它们都有一个is_lock_free()的成员函数，让用户决定在给定类型上的操作是否用原子指令完成。唯一不提供is_lock_free()成员函数的类型是std::atomic_flag,在此类型上的操作要求是无锁的。可以利用std::atomic_flag实现">
+<meta property="og:updated_time" content="2017-06-10T17:26:55.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="C++内存模型">
+<meta name="twitter:description" content="C++ std::atomic 原子类型原子操作：一个不可分割的操作。标准原子类型可以在头文件之中找到，在这种类型上的所有操作都是原子的。它们都有一个is_lock_free()的成员函数，让用户决定在给定类型上的操作是否用原子指令完成。唯一不提供is_lock_free()成员函数的类型是std::atomic_flag,在此类型上的操作要求是无锁的。可以利用std::atomic_flag实现">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/11/C-内存模型/"/>
+
+
+
+
+
+  <title>C++内存模型 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/11/C-内存模型/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">C++内存模型</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-11T01:26:55+08:00">
+                2017-06-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="C-std-atomic-原子类型"><a href="#C-std-atomic-原子类型" class="headerlink" title="C++ std::atomic 原子类型"></a>C++ <code>std::atomic</code> 原子类型</h2><p>原子操作：一个不可分割的操作。<br>标准原子类型可以在<atomic>头文件之中找到，在这种类型上的所有操作都是原子的。它们都有一个<code>is_lock_free()</code>的成员函数，让用户决定在给定类型上的操作是否用原子指令完成。唯一不提供<code>is_lock_free()</code>成员函数的类型是<code>std::atomic_flag</code>,在此类型上的操作要求是无锁的。可以利用<code>std::atomic_flag</code>实现一个简单的锁。</atomic></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;thread&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;atomic&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;assert.h&gt;</span></span></div><div class="line"></div><div class="line"></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">spinlock_mutex</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">public</span>:</div><div class="line">    spinlock_mutex() : flag_(ATOMIC_FLAG_INIT) &#123; &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">lock</span><span class="params">()</span></span></div><div class="line">    &#123;</div><div class="line">      <span class="keyword">while</span>(flag_.test_and_set(<span class="built_in">std</span>::memory_order_acquire)) ;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">unlock</span><span class="params">()</span></span></div><div class="line">    &#123;</div><div class="line">      flag_.clear(<span class="built_in">std</span>::memory_order_release);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">  <span class="keyword">private</span>:</div><div class="line">    <span class="built_in">std</span>::atomic_flag flag_;</div><div class="line">&#125;;</div><div class="line"></div><div class="line"><span class="keyword">int</span> value = <span class="number">0</span>;</div><div class="line">spinlock_mutex mutex;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">test_function</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">100000</span>; i++)</div><div class="line">  &#123;</div><div class="line">    <span class="built_in">std</span>::unique_lock&lt;spinlock_mutex&gt; lock(mutex);</div><div class="line">    ++ value;</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">t1</span><span class="params">(test_function)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">t2</span><span class="params">(test_function)</span></span>;</div><div class="line">  t1.join();</div><div class="line">  t2.join();</div><div class="line"></div><div class="line">  assert(value == <span class="number">200000</span>);</div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>C++ 11中的内存模型都是围绕<code>std::atomic</code>展开的，下面依次介绍C++ 11中引入的内存顺序。<br><a href="https://stackoverflow.com/questions/6319146/c11-introduced-a-standardized-memory-model-what-does-it-mean-and-how-is-it-g#" target="_blank" rel="external">参考: Memory Model</a></p>
+<h2 id="顺序一致顺序"><a href="#顺序一致顺序" class="headerlink" title="顺序一致顺序"></a>顺序一致顺序</h2><p>默认的的顺序被命名为顺序一致，因为这意味着程序的行为和一个简单的世界观是一致的。如果所有原子类型实例上的操作是顺序一致的，多线程的行为就好像是所有这些操作由单个线程以某种特定的顺序进行执行的一样。<br>在一个带有多处理器的弱顺序的机器上，它可能导致显著的性能惩罚，因为操作的整体顺序必须与处理器之间保持一致，可能需要处理器之间进行密集的同步操作。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;atomic&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;thread&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;assert.h&gt;</span></span></div><div class="line"></div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">bool</span>&gt; x, y;</div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">int</span>&gt; z;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">write_x</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_seq_cst);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">write_y</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  y.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_seq_cst);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">read_x_then_y</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(!x.load(<span class="built_in">std</span>::memory_order_seq_cst)) ;</div><div class="line">  <span class="keyword">if</span>(y.load(<span class="built_in">std</span>::memory_order_seq_cst))</div><div class="line">  &#123;</div><div class="line">    <span class="built_in">printf</span>(<span class="string">"x,y\n"</span>);</div><div class="line">    ++ z;</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">read_y_then_x</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(!y.load(<span class="built_in">std</span>::memory_order_seq_cst)) ;</div><div class="line">  <span class="keyword">if</span>(x.load(<span class="built_in">std</span>::memory_order_seq_cst))</div><div class="line">  &#123;</div><div class="line">    <span class="built_in">printf</span>(<span class="string">"y,x\n"</span>);</div><div class="line">    ++ z;</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x = <span class="literal">false</span>;</div><div class="line">  y = <span class="literal">false</span>;</div><div class="line">  z = <span class="number">0</span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">a</span><span class="params">(write_x)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">b</span><span class="params">(write_y)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">c</span><span class="params">(read_x_then_y)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">d</span><span class="params">(read_y_then_x)</span></span>;</div><div class="line"></div><div class="line">  a.join();</div><div class="line">  b.join();</div><div class="line">  c.join();</div><div class="line">  d.join();</div><div class="line"></div><div class="line">  assert(z.load() != <span class="number">0</span>);</div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>上述代码中的assert永远不会触发，因为while循环总能保证x或者y的值已经修改为true，如果线程c或d中有一个线程if条件不满足，那么另一个线程的if条件总能保障，所以最后z的值一定不为0。请注意<code>memory_order_seq_cst</code>的语义需要在所有标记<code>memory_order_seq_cst</code>的操作上有单一的总体顺序。</p>
+<p>顺序一致是最直观的顺序，但是也是最为昂贵的内存顺序，因为它要求所有线程之间的全局同步。在多处理器系统中，这可能需要处理器之间相当密集和耗时的通信。</p>
+<h2 id="松散顺序"><a href="#松散顺序" class="headerlink" title="松散顺序"></a>松散顺序</h2><p>以松散顺序执行的原子类型上的操作不参与<code>synchronizes-with</code>关系。单线程中的同一变量的操作仍然服从<code>happens-before</code>的关系，但相对于其他线程的顺序几乎没有任何要求。唯一的要求是，从同一线程对单个原子变量的访问不能重排，一旦给定的线程已经看到了原子变量的特定值，该线程之后的读取就不能获取该变量更早的值。以下程序展现了这种松散性。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;atomic&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;thread&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;assert.h&gt;</span></span></div><div class="line"></div><div class="line"></div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">bool</span>&gt; x, y;</div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">int</span>&gt; z;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">write_x_then_y</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">  y.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">read_x_then_y</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(!y.load(<span class="built_in">std</span>::memory_order_relaxed)) ;</div><div class="line">  <span class="keyword">if</span>(x.load(<span class="built_in">std</span>::memory_order_relaxed))</div><div class="line">    ++ z;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x = <span class="literal">false</span>;</div><div class="line">  y = <span class="literal">false</span>;</div><div class="line">  z = <span class="number">0</span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">a</span><span class="params">(write_x_then_y)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">b</span><span class="params">(read_x_then_y)</span></span>;</div><div class="line"></div><div class="line">  a.join();</div><div class="line">  b.join();</div><div class="line">  assert(z.load() != <span class="number">0</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>这一次，assert可能会触发。因为x和y是不同的变量，每个操作所产生的值的可见性没有顺序的保证。</p>
+<p>为了理解松散顺序是如何工作的，可以想象每个变量是一个小隔间里使用记事本的人。在他的记事本上有一列值。你可以打电话给他，要求他给你一个值，或者你可以告诉他写下了一个新值。如果你告诉他写下新值，他就将其写在列表的底部。如果你向他要一个值，他就为你从列表之中读取一个数字。第一次你和这个人交谈，如果你向他要一个值，此时他可能从他的记事本上的列表里<strong>任意</strong>选一个给你。如果你接着向他要另一个值，他可能会再给你同一个值，或者从列表的下方给一个给你。<strong>他永远不会给你一个在列表上更上面的值</strong>。</p>
+<h2 id="获取释放顺序"><a href="#获取释放顺序" class="headerlink" title="获取释放顺序"></a>获取释放顺序</h2><p>获取释放顺序是松散顺序的进步，操作仍然没有总的顺序，但是引入了一些同步。在这个顺序模型下，原子载入是acquire操作<code>memory_order_acquire</code>，原子存储是release操作<code>memory_order_release</code>，原子的读，修改，写操作是获取，释放或者两者兼有<code>memory_order_acq_rel</code>。不同的线程仍然可以看到不同的顺序，但是这些顺序受到了限制。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;atomic&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;thread&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;assert.h&gt;</span></span></div><div class="line"></div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">bool</span>&gt; x, y;</div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">int</span>&gt; z;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">write_x</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_release);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">write_y</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  y.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_release);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">read_x_then_y</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(!x.load(<span class="built_in">std</span>::memory_order_acquire)) ;</div><div class="line">  <span class="keyword">if</span>(y.load(<span class="built_in">std</span>::memory_order_acquire))</div><div class="line">  &#123;</div><div class="line">    ++ z;</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">read_y_then_x</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(!y.load(<span class="built_in">std</span>::memory_order_seq_cst)) ;</div><div class="line">  <span class="keyword">if</span>(x.load(<span class="built_in">std</span>::memory_order_seq_cst))</div><div class="line">  &#123;</div><div class="line">    ++ z;</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x = <span class="literal">false</span>;</div><div class="line">  y = <span class="literal">false</span>;</div><div class="line">  z = <span class="number">0</span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">a</span><span class="params">(write_x)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">b</span><span class="params">(write_y)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">c</span><span class="params">(read_x_then_y)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">d</span><span class="params">(read_y_then_x)</span></span>;</div><div class="line"></div><div class="line">  a.join();</div><div class="line">  b.join();</div><div class="line">  c.join();</div><div class="line">  d.join();</div><div class="line"></div><div class="line">  assert(z.load() != <span class="number">0</span>);</div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>上述代码中的断言仍然可能触发，因为对x的载入和对y的载入都读取false也是有可能的。x与y由不同的线程写入，所以每种情况从释放到获取的顺序对另一个线程的操作是没有影响的。</p>
+<p>但是对于同一个线程来说，使用获取-释放操作可以在松散操作之中施加顺序。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;atomic&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;thread&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;assert.h&gt;</span></span></div><div class="line"></div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">bool</span>&gt; x, y;</div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">int</span>&gt; z;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">write_x_then_y</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">  y.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_release);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">read_y_then_x</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(!y.load(<span class="built_in">std</span>::memory_order_acquire));</div><div class="line">  <span class="keyword">if</span>(x.load(<span class="built_in">std</span>::memory_order_relaxed))</div><div class="line">    ++ z;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x = <span class="literal">false</span>;</div><div class="line">  y = <span class="literal">false</span>;</div><div class="line">  z = <span class="number">0</span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">a</span><span class="params">(write_x_then_y)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">b</span><span class="params">(read_y_then_x)</span></span>;</div><div class="line">  a.join();</div><div class="line">  b.join();</div><div class="line"></div><div class="line">  assert(z.load() != <span class="number">0</span>);</div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>因为存储使用<code>memory_order_release</code>并且载入使用<code>memory_order_acquire</code>，存储与载入同步。对x的存储发生在y的存储之前，因为它们在同一个线程之中。因为对y的存储与对y的载入同步，对x的载入必然读到true，所以断言并不会触发。配合使用release和acquire可以达到跨线程同步的功能，如下代码所示：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;atomic&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;thread&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;assert.h&gt;</span></span></div><div class="line"></div><div class="line"></div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">int</span>&gt; data[<span class="number">5</span>];</div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">bool</span>&gt; sync1(<span class="literal">false</span>), sync2(<span class="literal">false</span>);</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">thread_1</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  data[<span class="number">0</span>].store(<span class="number">42</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">  data[<span class="number">1</span>].store(<span class="number">97</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">  data[<span class="number">2</span>].store(<span class="number">17</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">  data[<span class="number">3</span>].store(<span class="number">1</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">  data[<span class="number">4</span>].store(<span class="number">2</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">  sync1.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_release);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">thread_2</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(!sync1.load(<span class="built_in">std</span>::memory_order_acquire)) ;</div><div class="line">  sync2.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_release);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">thread_3</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(!sync2.load(<span class="built_in">std</span>::memory_order_acquire));</div><div class="line">  assert(data[<span class="number">0</span>].load(<span class="built_in">std</span>::memory_order_relaxed) == <span class="number">42</span>);</div><div class="line">  assert(data[<span class="number">1</span>].load(<span class="built_in">std</span>::memory_order_relaxed) == <span class="number">97</span>);</div><div class="line">  assert(data[<span class="number">2</span>].load(<span class="built_in">std</span>::memory_order_relaxed) == <span class="number">17</span>);</div><div class="line">  assert(data[<span class="number">3</span>].load(<span class="built_in">std</span>::memory_order_relaxed) == <span class="number">1</span>);</div><div class="line">  assert(data[<span class="number">4</span>].load(<span class="built_in">std</span>::memory_order_relaxed) == <span class="number">2</span>);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">a</span><span class="params">(thread_1)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">b</span><span class="params">(thread_2)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">c</span><span class="params">(thread_3)</span></span>;</div><div class="line"></div><div class="line">  a.join();</div><div class="line">  b.join();</div><div class="line">  c.join();</div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="获取释放顺序与MEMORY-ORDER-CONSUME的数据依赖"><a href="#获取释放顺序与MEMORY-ORDER-CONSUME的数据依赖" class="headerlink" title="获取释放顺序与MEMORY_ORDER_CONSUME的数据依赖"></a>获取释放顺序与MEMORY_ORDER_CONSUME的数据依赖</h2><p>通过在载入上使用<code>memory_order_consume</code>以及在之前的存储上使用<code>memory_order_release</code>，你可以确保所指向的数据得到正确的同步，并且<strong>无需再其他非依赖的数据上强制任何同步需求</strong>。以下代码展示了这种用途:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;atomic&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;thread&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;assert.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;unistd.h&gt;</span></span></div><div class="line"></div><div class="line"><span class="class"><span class="keyword">struct</span> <span class="title">X</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">int</span> i;</div><div class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> s;</div><div class="line">&#125;;</div><div class="line"></div><div class="line"><span class="built_in">std</span>::atomic&lt;X*&gt; p;</div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">int</span>&gt; a;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">create_x</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  X* x = <span class="keyword">new</span> X;</div><div class="line">  x-&gt;i = <span class="number">42</span>;</div><div class="line">  x-&gt;s = <span class="string">"hello world"</span>;</div><div class="line">  a.store(<span class="number">99</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">  <span class="comment">// 因为这里依赖了x，所以这一句代码执行时保证了x已经初始化完毕，并且已经完成赋值。</span></div><div class="line">  <span class="comment">// 要点，有依赖关系的都已赋值完毕</span></div><div class="line">  p.store(x, <span class="built_in">std</span>::memory_order_release);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">use_x</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  X * x;</div><div class="line">  <span class="keyword">while</span>(!(x=p.load(<span class="built_in">std</span>::memory_order_consume)))</div><div class="line">    sleep(<span class="number">1</span>);</div><div class="line">  assert(x-&gt;i == <span class="number">42</span>);</div><div class="line">  assert(x-&gt;s == <span class="string">"hello world"</span>);</div><div class="line">  <span class="comment">// 可能断言出错</span></div><div class="line">  assert(a.load(<span class="built_in">std</span>::memory_order_relaxed) == <span class="number">99</span>);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">t1</span><span class="params">(create_x)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">t2</span><span class="params">(use_x)</span></span>;</div><div class="line">  t1.join();</div><div class="line">  t2.join();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>上述代码中的前两个断言不会出错，因为p的载入带有对那些通过变量x的表达式的依赖。另一方面，在a的值上的断言或许会被触发。此操作并不依赖从p载入的值，因而对读到的值就没有保证。</p>
+<h2 id="内存屏障"><a href="#内存屏障" class="headerlink" title="内存屏障"></a>内存屏障</h2><p>内存屏障分为写内存屏障和读内存屏障。写内存屏障保证所有在屏障之前的写入操作都会在屏障之后的写入操作之前完成，而读内存屏障确保所有屏障之前的读取操作都会在屏障之后的读取操作前执行。内存屏障使得特定的操作无法穿越。以下代码演示了内存屏障的用法。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;atomic&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;thread&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;assert.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;unistd.h&gt;</span></span></div><div class="line"></div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">bool</span>&gt; x, y;</div><div class="line"><span class="built_in">std</span>::atomic&lt;<span class="keyword">int</span>&gt; z;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">write_x_then_y</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_relaxed);</div><div class="line">  <span class="comment">// 写内存屏障</span></div><div class="line">  <span class="built_in">std</span>::atomic_thread_fence(<span class="built_in">std</span>::memory_order_release);</div><div class="line">  y.store(<span class="literal">true</span>, <span class="built_in">std</span>::memory_order_release);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">read_y_then_x</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(!y.load(<span class="built_in">std</span>::memory_order_acquire));</div><div class="line">  <span class="comment">// 读内存屏障</span></div><div class="line">  <span class="built_in">std</span>::atomic_thread_fence(<span class="built_in">std</span>::memory_order_acquire);</div><div class="line">  <span class="keyword">if</span>(x.load(<span class="built_in">std</span>::memory_order_relaxed))</div><div class="line">    ++ z;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  x = <span class="literal">false</span>;</div><div class="line">  y = <span class="literal">false</span>;</div><div class="line">  z = <span class="number">0</span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">a</span><span class="params">(write_x_then_y)</span></span>;</div><div class="line">  <span class="built_in">std</span>::<span class="function">thread <span class="title">b</span><span class="params">(read_y_then_x)</span></span>;</div><div class="line">  a.join();</div><div class="line">  b.join();</div><div class="line"></div><div class="line">  assert(z.load() != <span class="number">0</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>释放屏障与获取屏障同步，因为线程b中从y载入在线程a中存储的值，这意味着线程a对x的存储发生在线程b从x的load之前，所以读取的值一定为true，断言永远不会触发。</p>
+<blockquote>
+<p>参考: 《 C++并发编程实战 》</p>
+</blockquote>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/C/" rel="tag"># C++</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/11/muduo-EPollPoller/" rel="next" title="muduo EPollPoller">
+                <i class="fa fa-chevron-left"></i> muduo EPollPoller
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">13</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#C-std-atomic-原子类型"><span class="nav-text">C++ std::atomic 原子类型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#顺序一致顺序"><span class="nav-text">顺序一致顺序</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#松散顺序"><span class="nav-text">松散顺序</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#获取释放顺序"><span class="nav-text">获取释放顺序</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#获取释放顺序与MEMORY-ORDER-CONSUME的数据依赖"><span class="nav-text">获取释放顺序与MEMORY_ORDER_CONSUME的数据依赖</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#内存屏障"><span class="nav-text">内存屏障</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

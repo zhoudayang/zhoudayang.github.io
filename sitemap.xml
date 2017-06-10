@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://zhoudayang.github.io/2017/06/11/C-%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B/</loc>
+    
+    <lastmod>2017-06-10T17:26:55.000Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>http://zhoudayang.github.io/2017/06/11/muduo-EPollPoller/</loc>
     
     <lastmod>2017-06-10T17:15:17.000Z</lastmod>
