@@ -75,7 +75,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="C++,muduo,Linux," />
+  <meta name="keywords" content="C++," />
 
 
 
@@ -91,17 +91,17 @@
 
 
 
-<meta name="description" content="实现简介channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回调函数。整个Channel类的实现非常简单明了。 重点:tie可能出现这种情况，我们设置的回调函数是">
-<meta name="keywords" content="C++,muduo,Linux">
+<meta name="description" content="C++ 运行时类型识别C++中运行时类型识别(run-time type identification, RTTI)的功能由两个运算符实现。  typeid运算符，用于返回表达式的类型。 dynamic_cast运算符，用于将基类的指针或引用安全地转换成派生类的指针或者引用。  这两个运算符特别适用于以下情况：我们想使用基类对象的指针或引用执行某个派生类操作并且该操作不是虚函数。一般来说，只要有可">
+<meta name="keywords" content="C++">
 <meta property="og:type" content="article">
-<meta property="og:title" content="muduo Channel">
-<meta property="og:url" content="http://zhoudayang.github.io/2017/06/08/muduo-Channel/index.html">
+<meta property="og:title" content="C++运行时类型识别">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/11/C-运行时类型识别/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="实现简介channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回调函数。整个Channel类的实现非常简单明了。 重点:tie可能出现这种情况，我们设置的回调函数是">
-<meta property="og:updated_time" content="2017-06-08T10:28:58.000Z">
+<meta property="og:description" content="C++ 运行时类型识别C++中运行时类型识别(run-time type identification, RTTI)的功能由两个运算符实现。  typeid运算符，用于返回表达式的类型。 dynamic_cast运算符，用于将基类的指针或引用安全地转换成派生类的指针或者引用。  这两个运算符特别适用于以下情况：我们想使用基类对象的指针或引用执行某个派生类操作并且该操作不是虚函数。一般来说，只要有可">
+<meta property="og:updated_time" content="2017-06-11T06:40:55.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="muduo Channel">
-<meta name="twitter:description" content="实现简介channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回调函数。整个Channel类的实现非常简单明了。 重点:tie可能出现这种情况，我们设置的回调函数是">
+<meta name="twitter:title" content="C++运行时类型识别">
+<meta name="twitter:description" content="C++ 运行时类型识别C++中运行时类型识别(run-time type identification, RTTI)的功能由两个运算符实现。  typeid运算符，用于返回表达式的类型。 dynamic_cast运算符，用于将基类的指针或引用安全地转换成派生类的指针或者引用。  这两个运算符特别适用于以下情况：我们想使用基类对象的指针或引用执行某个派生类操作并且该操作不是虚函数。一般来说，只要有可">
 
 
 
@@ -129,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/08/muduo-Channel/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/11/C-运行时类型识别/"/>
 
 
 
 
 
-  <title>muduo Channel | zhouyang's blog</title>
+  <title>C++运行时类型识别 | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -303,7 +303,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/muduo-Channel/">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/11/C-运行时类型识别/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Zhou Yang">
@@ -320,7 +320,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">muduo Channel</h1>
+          <h1 class="post-title" itemprop="name headline">C++运行时类型识别</h1>
         
 
         <div class="post-meta">
@@ -332,8 +332,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T18:28:58+08:00">
-                2017-06-08
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-11T14:40:55+08:00">
+                2017-06-11
               </time>
             
 
@@ -372,10 +372,66 @@
       
 
       
-        <h4 id="实现简介"><a href="#实现简介" class="headerlink" title="实现简介"></a>实现简介</h4><p>channel一般用于抽象一个fd，包含fd当前关注的事件，出现事件更新需要在poller之中做出更新。poller获取到当前io复用返回的io事件之后，会更新channel之中的revent。在eventloop中会为当前活跃的channel进行事件处理，调用对应revent，io事件的回调函数。整个Channel类的实现非常简单明了。</p>
-<h4 id="重点-tie"><a href="#重点-tie" class="headerlink" title="重点:tie"></a>重点:tie</h4><p>可能出现这种情况，我们设置的回调函数是某个类的成员函数，此类对象使用shared_ptr进行管理。如果在回调函数之中对此shared_ptr进行了reset或者release处理，那么此回调函数就会立即失效，因为类对象被回收了。对于这种特殊情况，可以使用<code>std::weak_ptr&lt;void&gt; tie</code>来存放该shared_ptr的弱引用（使用弱引用是为了避免增加shared_ptr的引用计数，导致对象一直无法得以析构。每次进行事件处理的时候，若之前设置了tie，那么首先tie进行提升，保证回调函数处理期间此shared_ptr管理的对象不会被析构。</p>
-<p>tie这一措施是为了TcpConnectionPtr而设计了，如果在某个回调函数之中，reset了此TcpConnectionPtr, 那么TcpConnection的其他回调函数就会失效。所以在处理这些事件期间，需要提升此TcpConnectionPtr的引用计数，阻止TcpConnectionPtr被析构。</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> Channel::tie(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">shared_ptr</span>&lt;<span class="keyword">void</span>&gt;&amp; obj)</div><div class="line">&#123;</div><div class="line">  tie_ = obj;</div><div class="line">  tied_ = <span class="literal">true</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Channel::handleEvent(Timestamp receiveTime)</div><div class="line">&#123;</div><div class="line">  <span class="built_in">std</span>::<span class="built_in">shared_ptr</span>&lt;<span class="keyword">void</span>&gt; guard;</div><div class="line">  <span class="keyword">if</span> (tied_)</div><div class="line">  &#123;</div><div class="line">    guard = tie_.lock();</div><div class="line">    <span class="keyword">if</span> (guard)</div><div class="line">    &#123;</div><div class="line">      handleEventWithGuard(receiveTime);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    handleEventWithGuard(receiveTime);</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Channel::handleEventWithGuard(Timestamp receiveTime)</div><div class="line">&#123;</div><div class="line">  eventHandling_ = <span class="literal">true</span>;</div><div class="line">  LOG_TRACE &lt;&lt; reventsToString();</div><div class="line">  <span class="keyword">if</span> ((revents_ &amp; POLLHUP) &amp;&amp; !(revents_ &amp; POLLIN))</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">if</span> (logHup_)</div><div class="line">    &#123;</div><div class="line">      LOG_WARN &lt;&lt; <span class="string">"fd = "</span> &lt;&lt; fd_ &lt;&lt; <span class="string">" Channel::handle_event() POLLHUP"</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">if</span> (closeCallback_) closeCallback_();</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (revents_ &amp; POLLNVAL)</div><div class="line">  &#123;</div><div class="line">    LOG_WARN &lt;&lt; <span class="string">"fd = "</span> &lt;&lt; fd_ &lt;&lt; <span class="string">" Channel::handle_event() POLLNVAL"</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (revents_ &amp; (POLLERR | POLLNVAL))</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">if</span> (errorCallback_) errorCallback_();</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">if</span> (revents_ &amp; (POLLIN | POLLPRI | POLLRDHUP))</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">if</span> (readCallback_) readCallback_(receiveTime);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">if</span> (revents_ &amp; POLLOUT)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">if</span> (writeCallback_) writeCallback_();</div><div class="line">  &#125;</div><div class="line">  eventHandling_ = <span class="literal">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+        <h1 id="C-运行时类型识别"><a href="#C-运行时类型识别" class="headerlink" title="C++ 运行时类型识别"></a>C++ 运行时类型识别</h1><p>C++中运行时类型识别(run-time type identification, <strong>RTTI</strong>)的功能由两个运算符实现。</p>
+<ol>
+<li>typeid运算符，用于返回表达式的类型。</li>
+<li>dynamic_cast运算符，用于将基类的指针或引用安全地转换成派生类的指针或者引用。</li>
+</ol>
+<p>这两个运算符特别适用于以下情况：我们想使用基类对象的指针或引用执行某个派生类操作并且该操作不是虚函数。一般来说，只要有可能我们应该尽量使用虚函数。当操作被定义成为虚函数时，编译器将根据对象的动态类型根据对象的动态类型自动选择正确的函数版本。</p>
+<h2 id="dynamic-cast运算符"><a href="#dynamic-cast运算符" class="headerlink" title="dynamic_cast运算符"></a>dynamic_cast运算符</h2><p>dynamic_cast运算符的使用形式如下所示：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">dynamic_cast</span>&lt;type*&gt;(e);</div><div class="line"><span class="keyword">dynamic_cast</span>&lt;type&amp;&gt;(e);</div><div class="line"><span class="keyword">dynamic_cast</span>&lt;type&amp;&amp;&gt;(e);</div></pre></td></tr></table></figure>
+<p>type必须是一个类类型，并且通常情况下该类型应该含有虚函数。</p>
+<p>在上面的所有形式之中，e的类型必须符合下面3个条件之中的任意一个：</p>
+<ol>
+<li>e的类型是目标type的公有派生类</li>
+<li>e的类型是目标type的公有基类</li>
+<li>e的类型就是目标type的类型。</li>
+</ol>
+<p>如果符合，则类型转换就可以成功。否则，转换失败。如果一条dynamica_cast语句的转换目标是指针类型并且失败了，则结果为0。如果转换目标是引用类型并且失败了，则dynamic_cast运算符将抛出一个bad_cast的异常。</p>
+<p>使用举例：</p>
+<ul>
+<li>指针类型的dynamic_cast</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">if</span> (Derived* dp = <span class="keyword">dynamic_cast</span>&lt;Derived*&gt;(bp))</div><div class="line">&#123;</div><div class="line">	<span class="comment">// 使用dp指向的Derived对象	</span></div><div class="line">&#125;</div><div class="line"><span class="keyword">else</span></div><div class="line">&#123;</div><div class="line">	<span class="comment">// 转换失败，使用bp指向的Base对象</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<ul>
+<li>引用类型的dynamic_cast</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">f</span><span class="params">(<span class="keyword">const</span> Base&amp; b)</span></span></div><div class="line">&#123;</div><div class="line">	<span class="keyword">try</span></div><div class="line">	&#123;</div><div class="line">		<span class="keyword">const</span> Derived&amp; d = <span class="keyword">dynamic_cast</span>&lt;<span class="keyword">const</span> Derived&amp;&gt;(b);</div><div class="line">		<span class="comment">// 使用b引用的Derived对象</span></div><div class="line">	&#125; <span class="keyword">catch</span>(bad_cast)</div><div class="line">	&#123;</div><div class="line">		<span class="comment">// 处理类型转换失败的情况</span></div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="typeid运算符"><a href="#typeid运算符" class="headerlink" title="typeid运算符"></a>typeid运算符</h2><p>为RTTI提供的第二个运算符是typeid运算符，它允许程序向表达式提问，你是什么类型？</p>
+<p>typeid表达式的形式是<code>typeid(e)</code>，其中e可以是任意表达式或者类型的名字。typeid操作的结果是一个常量对象的引用，该对象的类型是标准库类型type_info或者type_info的公有派生类型。</p>
+<p>可以通过下述方式比较两条表达式的类型是否相同，或者比较一条表达式的类型是否与指定类型相同。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">Derived* dp = <span class="keyword">new</span> Derived;</div><div class="line">Base* bp = dp;</div><div class="line"><span class="keyword">if</span>(<span class="keyword">typeid</span>(*bp) == <span class="keyword">typeid</span>(*dp))</div><div class="line">&#123;</div><div class="line">	<span class="comment">// bp和dp指向同一类型的对象</span></div><div class="line">&#125;</div><div class="line"><span class="comment">// 检查运行时类型是否是某种指定的类型</span></div><div class="line"><span class="comment">// 请注意，typeid应该作用于对象而不是指针。</span></div><div class="line"><span class="keyword">if</span>(<span class="keyword">typeid</span>(*bp) == <span class="keyword">typeid</span>(Derived))</div><div class="line">&#123;	</div><div class="line">	<span class="comment">// bp 实际指向Derived对象</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="type-info类"><a href="#type-info类" class="headerlink" title="type_info类"></a>type_info类</h2><p>type_info类的精确定义和编译器的实现有关。C++标准规定type_info类必须定义在typeinfo头文件中，并且至少提供以下操作：</p>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>t1 == t2</td>
+<td>若type_info对象t1和t2表示同一类型，返回true，否则返回false</td>
+</tr>
+<tr>
+<td>t1 != t2</td>
+<td>如果type_info对象t1和t2表示不同的类型，返回true，否则返回false</td>
+</tr>
+<tr>
+<td>t.name()</td>
+<td>返回一个C风格字符串，表示类型名字的可打印形式。类型名字的生成方式因系统而定</td>
+</tr>
+<tr>
+<td>t1.before(t2)</td>
+<td>返回一个bool值，表示t1是否位于t2之前。before所采用的顺序关系是依赖于编译器的</td>
+</tr>
+</tbody>
+</table>
+<p>示例程序：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;typeinfo&gt;</span></span></div><div class="line"></div><div class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> <span class="built_in">std</span>;</div><div class="line"></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">test</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">public</span>:</div><div class="line">&#125;;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">int</span> arr[<span class="number">10</span>];</div><div class="line">  <span class="built_in">string</span> str;</div><div class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="keyword">typeid</span>(<span class="number">42</span>).name() &lt;&lt; <span class="built_in">endl</span>;</div><div class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="keyword">typeid</span>(arr).name() &lt;&lt; <span class="built_in">endl</span>;</div><div class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="keyword">typeid</span>(str).name() &lt;&lt; <span class="built_in">endl</span>;</div><div class="line"></div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>输出(macos, clang)：</p>
+<figure class="highlight gcode"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">i</div><div class="line">A<span class="number">10</span>_i</div><div class="line"><span class="symbol">NSt3</span>__<span class="number">112</span>basic_stri<span class="symbol">ngIcNS_11</span>char_traitsIcEE<span class="symbol">NS_9</span>allocatorIcEEEE</div><div class="line"><span class="number">4</span>test</div></pre></td></tr></table></figure>
 
       
     </div>
@@ -407,10 +463,6 @@
           
             <a href="/tags/C/" rel="tag"># C++</a>
           
-            <a href="/tags/muduo/" rel="tag"># muduo</a>
-          
-            <a href="/tags/Linux/" rel="tag"># Linux</a>
-          
         </div>
       
 
@@ -422,8 +474,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/06/08/muduo-Buffer/" rel="next" title="muduo Buffer">
-                <i class="fa fa-chevron-left"></i> muduo Buffer
+              <a href="/2017/06/11/C-内存模型/" rel="next" title="C++内存模型">
+                <i class="fa fa-chevron-left"></i> C++内存模型
               </a>
             
           </div>
@@ -431,10 +483,6 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/06/09/leveldb-实现文档/" rel="prev" title="leveldb 实现文档">
-                leveldb 实现文档 <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -585,7 +633,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#实现简介"><span class="nav-text">实现简介</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#重点-tie"><span class="nav-text">重点:tie</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#C-运行时类型识别"><span class="nav-text">C++ 运行时类型识别</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#dynamic-cast运算符"><span class="nav-text">dynamic_cast运算符</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#typeid运算符"><span class="nav-text">typeid运算符</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#type-info类"><span class="nav-text">type_info类</span></a></li></ol></li></ol></div>
             
 
           </div>
