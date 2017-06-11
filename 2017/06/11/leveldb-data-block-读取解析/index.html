@@ -1,0 +1,827 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="leveldb data block 读取解析下面解析的代码是block.h和block.cc，这一部分代码的功能是读取data block，并且提供一个基于data block中存储数据之上的迭代器。这一部分代码的实现首先基于data block内部存储格式，并且借助了data block数据有序的特性。 data block 内部格式 record 格式 BlockBlock的基本第一很简单，">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb data block 读取解析">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/11/leveldb-data-block-读取解析/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="leveldb data block 读取解析下面解析的代码是block.h和block.cc，这一部分代码的功能是读取data block，并且提供一个基于data block中存储数据之上的迭代器。这一部分代码的实现首先基于data block内部存储格式，并且借助了data block数据有序的特性。 data block 内部格式 record 格式 BlockBlock的基本第一很简单，">
+<meta property="og:image" content="http://static.zybuluo.com/zhoudayang/szkqrrzdn35g22vr09vtn33y/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.35.06.png">
+<meta property="og:image" content="http://static.zybuluo.com/zhoudayang/hyw0u7ftkyxfbbzmnwj5po0p/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.40.37.png">
+<meta property="og:image" content="http://static.zybuluo.com/zhoudayang/hyw0u7ftkyxfbbzmnwj5po0p/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.40.37.png">
+<meta property="og:updated_time" content="2017-06-11T12:12:12.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb data block 读取解析">
+<meta name="twitter:description" content="leveldb data block 读取解析下面解析的代码是block.h和block.cc，这一部分代码的功能是读取data block，并且提供一个基于data block中存储数据之上的迭代器。这一部分代码的实现首先基于data block内部存储格式，并且借助了data block数据有序的特性。 data block 内部格式 record 格式 BlockBlock的基本第一很简单，">
+<meta name="twitter:image" content="http://static.zybuluo.com/zhoudayang/szkqrrzdn35g22vr09vtn33y/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.35.06.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/11/leveldb-data-block-读取解析/"/>
+
+
+
+
+
+  <title>leveldb data block 读取解析 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/11/leveldb-data-block-读取解析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb data block 读取解析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-11T20:12:12+08:00">
+                2017-06-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="leveldb-data-block-读取解析"><a href="#leveldb-data-block-读取解析" class="headerlink" title="leveldb data block 读取解析"></a>leveldb data block 读取解析</h1><p>下面解析的代码是<code>block.h</code>和<code>block.cc</code>，这一部分代码的功能是读取data block，并且提供一个基于data block中存储数据之上的迭代器。这一部分代码的实现首先基于data block内部存储格式，并且借助了data block数据有序的特性。</p>
+<p>data block 内部格式<br><img src="http://static.zybuluo.com/zhoudayang/szkqrrzdn35g22vr09vtn33y/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.35.06.png" alt="data block"></p>
+<p>record 格式<br><img src="http://static.zybuluo.com/zhoudayang/hyw0u7ftkyxfbbzmnwj5po0p/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.40.37.png" alt="record"></p>
+<h2 id="Block"><a href="#Block" class="headerlink" title="Block"></a>Block</h2><p>Block的基本第一很简单，主要逻辑是一个迭代器的实现，定义在在内部类Iter中。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">Block</span> &#123;</span></div><div class="line"> <span class="keyword">public</span>:</div><div class="line">  <span class="comment">// Initialize the block with the specified contents.</span></div><div class="line">  <span class="function"><span class="keyword">explicit</span> <span class="title">Block</span><span class="params">(<span class="keyword">const</span> BlockContents&amp; contents)</span></span>;</div><div class="line"></div><div class="line">  ~Block();</div><div class="line"></div><div class="line">  <span class="keyword">size_t</span> size() <span class="keyword">const</span> &#123; <span class="keyword">return</span> size_; &#125;</div><div class="line">  <span class="comment">// Return new Iterator of given comparator</span></div><div class="line">  <span class="function">Iterator* <span class="title">NewIterator</span><span class="params">(<span class="keyword">const</span> Comparator* comparator)</span></span>;</div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="keyword">uint32_t</span> NumRestarts() <span class="keyword">const</span>;</div><div class="line"></div><div class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* data_; <span class="comment">// 指向data block 开始处</span></div><div class="line">  <span class="keyword">size_t</span> size_;   <span class="comment">// data block的大小</span></div><div class="line">  <span class="keyword">uint32_t</span> restart_offset_;     <span class="comment">// Offset in data_ of restart array</span></div><div class="line">  <span class="keyword">bool</span> owned_;                  <span class="comment">// Block owns data_[], if own need to call free when destruction</span></div><div class="line"></div><div class="line">  <span class="comment">// No copying allowed</span></div><div class="line">  Block(<span class="keyword">const</span> Block&amp;);</div><div class="line">  <span class="keyword">void</span> <span class="keyword">operator</span>=(<span class="keyword">const</span> Block&amp;);</div><div class="line">  <span class="comment">// 内部实现实际定义在Iter中</span></div><div class="line">  <span class="class"><span class="keyword">class</span> <span class="title">Iter</span>;</span></div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<p>在构造函数中，读取restarts数组的数目，判断是否合理，即存储的数组大小不可超出<code>max_restarts_allowed</code>。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 读取contents对应的block</span></div><div class="line"><span class="comment">// 实际上读取的是data block</span></div><div class="line">Block::Block(<span class="keyword">const</span> BlockContents&amp; contents)</div><div class="line">    : data_(contents.data.data()),</div><div class="line">      size_(contents.data.size()),</div><div class="line">      owned_(contents.heap_allocated) &#123;</div><div class="line">  <span class="keyword">if</span> (size_ &lt; <span class="keyword">sizeof</span>(<span class="keyword">uint32_t</span>)) &#123;</div><div class="line">    size_ = <span class="number">0</span>;  <span class="comment">// Error marker</span></div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="comment">// 最大允许的restarts的数目</span></div><div class="line">    <span class="keyword">size_t</span> max_restarts_allowed = (size_-<span class="keyword">sizeof</span>(<span class="keyword">uint32_t</span>)) / <span class="keyword">sizeof</span>(<span class="keyword">uint32_t</span>);</div><div class="line">    <span class="keyword">if</span> (NumRestarts() &gt; max_restarts_allowed) &#123;</div><div class="line">      <span class="comment">// The size is too small for NumRestarts()</span></div><div class="line">      size_ = <span class="number">0</span>;</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      <span class="comment">// 指向restart数组开始的位置</span></div><div class="line">      restart_offset_ = size_ - (<span class="number">1</span> + NumRestarts()) * <span class="keyword">sizeof</span>(<span class="keyword">uint32_t</span>);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>如果输入块的大小不足以容纳存放restarts数组大小的数，那么返回空的Error Iterator，若restarts数组数目为0，返回空的Iterator，否则返回内部类Iter中实现的Iterator。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">Iterator* Block::NewIterator(<span class="keyword">const</span> Comparator* cmp) &#123;</div><div class="line">  <span class="comment">// 块的大小无法存储restarts数组的数目</span></div><div class="line">  <span class="keyword">if</span> (size_ &lt; <span class="keyword">sizeof</span>(<span class="keyword">uint32_t</span>)) &#123;</div><div class="line">    <span class="keyword">return</span> NewErrorIterator(Status::Corruption(<span class="string">"bad block contents"</span>));</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// restarts数组的元素数目</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> num_restarts = NumRestarts();</div><div class="line">  <span class="comment">// 返回一个空的iterator</span></div><div class="line">  <span class="keyword">if</span> (num_restarts == <span class="number">0</span>) &#123;</div><div class="line">    <span class="keyword">return</span> NewEmptyIterator();</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="comment">// 返回iterator</span></div><div class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Iter(cmp, data_, restart_offset_, num_restarts);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="Iter"><a href="#Iter" class="headerlink" title="Iter"></a>Iter</h2><p>内部类Iter的成员如下所示：</p>
+<figure class="highlight smali"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">const Comparator*<span class="built_in"> const </span>comparator_;</div><div class="line"><span class="built_in"> const </span>char*<span class="built_in"> const </span>data_;      // underlying block contents</div><div class="line"> // 指向restart数组的第一个元素</div><div class="line"> uint32_t<span class="built_in"> const </span>restarts_;     // Offset of restart<span class="built_in"> array </span>(list of fixed32)</div><div class="line"> uint32_t<span class="built_in"> const </span>num_restarts_; // Number of uint32_t entries in restart<span class="built_in"> array</span></div><div class="line"></div><div class="line"> // current_ is offset in data_ of current entry.  &gt;= restarts_<span class="built_in"> if </span>!Valid</div><div class="line"> uint32_t current_;</div><div class="line"> // 当前current_位置对应的restart数组的index</div><div class="line"> uint32_t restart_index_;  // Index of restart block in which current_ falls</div><div class="line"> std::string key_;</div><div class="line"> Slice value_;</div><div class="line"> Status status_;</div></pre></td></tr></table></figure>
+<p>在构造函数之中，根据输入参数对类内部成员进行初始化，并且断言restarts数组的数目不为0。current_指向当前遍历到的record的开头位置。</p>
+<figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="selector-tag">Iter</span>(const Comparator* comparator,</div><div class="line">      const char* data,</div><div class="line">      uint32_t restarts,</div><div class="line">      uint32_t num_restarts)</div><div class="line">     : <span class="selector-tag">comparator_</span>(comparator), <span class="comment">// 比较器</span></div><div class="line">       <span class="selector-tag">data_</span>(data), <span class="comment">// data</span></div><div class="line">       <span class="selector-tag">restarts_</span>(restarts), <span class="comment">// 指向restart数组的开头位置</span></div><div class="line">       <span class="selector-tag">num_restarts_</span>(num_restarts), <span class="comment">// restart数组的元素个数</span></div><div class="line">       <span class="selector-tag">current_</span>(restarts_), <span class="comment">// current_ is offset in data_ of current entry.</span></div><div class="line">       <span class="selector-tag">restart_index_</span>(num_restarts_) &#123; <span class="comment">// restart index</span></div><div class="line">   <span class="comment">// 断言restarts数组中的元素个数大于0</span></div><div class="line">   <span class="selector-tag">assert</span>(num_restarts_ &gt; <span class="number">0</span>);</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+<p>解析record的时候，调用ParseNextKey，首先判断当前record的位置是否有效，然后获取共享，不共享key的长度，value的长度，设置当前entry对应的key和value，并且设置下一个key对应的restart_index。</p>
+<figure class="highlight ceylon"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 解析下一个值的实现</span></div><div class="line">  bool ParseNextKey() &#123;</div><div class="line">    <span class="comment">// 下一个entry的offset</span></div><div class="line">    current<span class="number">_</span> = NextEntryOffset();</div><div class="line">    const char* p = data<span class="number">_</span> + current<span class="number">_</span>;</div><div class="line">    <span class="comment">// 不可能越过restarts数组</span></div><div class="line">    const char* limit = data<span class="number">_</span> + restarts<span class="number">_</span>;  <span class="comment">// Restarts come right after data</span></div><div class="line">    <span class="comment">// 没有更多的entry，设置current和restart_index_，并且返回</span></div><div class="line">    <span class="keyword">if</span> (p &gt;= limit) &#123;</div><div class="line">      <span class="comment">// No more entries to return.  Mark as invalid.</span></div><div class="line">      current<span class="number">_</span> = restarts<span class="number">_</span>;</div><div class="line">      restart<span class="number">_</span>index<span class="number">_</span> = num<span class="number">_</span>restarts<span class="number">_</span>;</div><div class="line">      <span class="keyword">return</span> false;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// Decode next entry</span></div><div class="line">    uint<span class="number">32_</span>t <span class="keyword">shared</span>, non<span class="number">_</span><span class="keyword">shared</span>, <span class="keyword">value</span><span class="number">_</span>length;</div><div class="line">    <span class="comment">// 现在p指向non_shared key</span></div><div class="line">    p = DecodeEntry(p, limit, &amp;<span class="keyword">shared</span>, &amp;non<span class="number">_</span><span class="keyword">shared</span>, &amp;<span class="keyword">value</span><span class="number">_</span>length);</div><div class="line">    <span class="comment">// 解析失败，或者key的长度小于共享key的长度</span></div><div class="line">    <span class="comment">// 产生了崩溃错误，返回失败</span></div><div class="line">    <span class="keyword">if</span> (p == NULL || key<span class="number">_</span>.size() &lt; <span class="keyword">shared</span>) &#123;</div><div class="line">      CorruptionError();</div><div class="line">      <span class="keyword">return</span> false;</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      <span class="comment">// 设置key_和value_</span></div><div class="line">      key<span class="number">_</span>.resize(<span class="keyword">shared</span>);</div><div class="line">      key<span class="number">_</span>.append(p, non<span class="number">_</span><span class="keyword">shared</span>);</div><div class="line">      <span class="comment">// 这里的value_存放的是对应的value值</span></div><div class="line">      <span class="keyword">value</span><span class="number">_</span> = Slice(p + non<span class="number">_</span><span class="keyword">shared</span>, <span class="keyword">value</span><span class="number">_</span>length);</div><div class="line">      <span class="comment">// 跳过无效的restart数组元素，下一个restart数组元素指向的offset需要大于当前current_对应的偏移</span></div><div class="line">      <span class="keyword">while</span> (restart<span class="number">_</span>index<span class="number">_</span> + <span class="number">1</span> &lt; num<span class="number">_</span>restarts<span class="number">_</span> &amp;&amp;</div><div class="line">             GetRestartPoint(restart<span class="number">_</span>index<span class="number">_</span> + <span class="number">1</span>) &lt; current<span class="number">_</span>) &#123;</div><div class="line">        ++restart<span class="number">_</span>index<span class="number">_</span>;</div><div class="line">      &#125;</div><div class="line">      <span class="keyword">return</span> true;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<p>结合record格式，对于DecodeEntry的实现可以有清晰的认识：</p>
+<p><img src="http://static.zybuluo.com/zhoudayang/hyw0u7ftkyxfbbzmnwj5po0p/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.40.37.png" alt="record"></p>
+<p>DecodeEntry实际上是解析出共享key，非共享key和value的长度，使得p指向value开头的位置。因为key的长度一般不超过128，而且存储长度使用了varint32格式，所以这里首先尝试fast path。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">inline</span> <span class="keyword">const</span> <span class="keyword">char</span>* <span class="title">DecodeEntry</span><span class="params">(<span class="keyword">const</span> <span class="keyword">char</span>* p, <span class="keyword">const</span> <span class="keyword">char</span>* limit,</span></span></div><div class="line">                                      <span class="keyword">uint32_t</span>* shared,</div><div class="line">                                      <span class="keyword">uint32_t</span>* non_shared,</div><div class="line">                                      <span class="keyword">uint32_t</span>* value_length) &#123;</div><div class="line">  <span class="comment">// 不够存放key共享长度，key非共享长度和value长度</span></div><div class="line">  <span class="comment">// 3个varint32数，最少需要的空间是3byte</span></div><div class="line">  <span class="keyword">if</span> (limit - p &lt; <span class="number">3</span>) <span class="keyword">return</span> <span class="literal">NULL</span>;</div><div class="line">  <span class="comment">// 取出key共享长度，非共享长度以及value的长度</span></div><div class="line">  <span class="comment">// 这几个长度都是使用varint32进行存放</span></div><div class="line">  *shared = <span class="keyword">reinterpret_cast</span>&lt;<span class="keyword">const</span> <span class="keyword">unsigned</span> <span class="keyword">char</span>*&gt;(p)[<span class="number">0</span>];</div><div class="line">  *non_shared = <span class="keyword">reinterpret_cast</span>&lt;<span class="keyword">const</span> <span class="keyword">unsigned</span> <span class="keyword">char</span>*&gt;(p)[<span class="number">1</span>];</div><div class="line">  *value_length = <span class="keyword">reinterpret_cast</span>&lt;<span class="keyword">const</span> <span class="keyword">unsigned</span> <span class="keyword">char</span>*&gt;(p)[<span class="number">2</span>];</div><div class="line">  <span class="keyword">if</span> ((*shared | *non_shared | *value_length) &lt; <span class="number">128</span>) &#123;</div><div class="line">    <span class="comment">// Fast path: all three values are encoded in one byte each</span></div><div class="line">    p += <span class="number">3</span>;</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="keyword">if</span> ((p = GetVarint32Ptr(p, limit, shared)) == <span class="literal">NULL</span>) <span class="keyword">return</span> <span class="literal">NULL</span>;</div><div class="line">    <span class="keyword">if</span> ((p = GetVarint32Ptr(p, limit, non_shared)) == <span class="literal">NULL</span>) <span class="keyword">return</span> <span class="literal">NULL</span>;</div><div class="line">    <span class="keyword">if</span> ((p = GetVarint32Ptr(p, limit, value_length)) == <span class="literal">NULL</span>) <span class="keyword">return</span> <span class="literal">NULL</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 若剩余的字符串长度不足以存放non_shared key和value，返回 NULL</span></div><div class="line">  <span class="keyword">if</span> (<span class="keyword">static_cast</span>&lt;<span class="keyword">uint32_t</span>&gt;(limit - p) &lt; (*non_shared + *value_length)) &#123;</div><div class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 返回指向non_shared key字符串开始位置对应的指针</span></div><div class="line">  <span class="keyword">return</span> p;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>相比而言，Prev的实现稍微复杂一点。首先获取上一个entry对应的restarts数组的index值，然后调整到对应的offset，遍历entry，直到entry的右边界和Prev操作之前的entry的offset重合，就找到了上一个entry。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// iterator 往前移动一位</span></div><div class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Prev</span><span class="params">()</span> </span>&#123;</div><div class="line">    assert(Valid());</div><div class="line"></div><div class="line">    <span class="comment">// Scan backwards to a restart point before current_</span></div><div class="line">    <span class="keyword">const</span> <span class="keyword">uint32_t</span> original = current_;</div><div class="line">    <span class="comment">// 设置正确的restart_index_</span></div><div class="line">    <span class="comment">// 若越过了，就轮转</span></div><div class="line">    <span class="keyword">while</span> (GetRestartPoint(restart_index_) &gt;= original) &#123;</div><div class="line">      <span class="keyword">if</span> (restart_index_ == <span class="number">0</span>) &#123;</div><div class="line">        <span class="comment">// No more entries</span></div><div class="line">        current_ = restarts_;</div><div class="line">        restart_index_ = num_restarts_;</div><div class="line">        <span class="keyword">return</span>;</div><div class="line">      &#125;</div><div class="line">      restart_index_--;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// 调整到正确的restart_index_对应的位置</span></div><div class="line">    SeekToRestartPoint(restart_index_);</div><div class="line">    <span class="comment">// 循环直到当前entry结束的位置和original entry对应的位置相同</span></div><div class="line">    <span class="keyword">do</span> &#123;</div><div class="line">      <span class="comment">// Loop until end of current entry hits the start of original entry</span></div><div class="line">    &#125; <span class="keyword">while</span> (ParseNextKey() &amp;&amp; NextEntryOffset() &lt; original);</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
+<p>Seek操作利用了data block中的record有序的特性，首先利用二分查找找到小于target但是最接近target的restarts数组的偏移位置。在此偏移位置的基础之上，往后遍历直到对应entry的key大于等于target，迭代器就移动到了第一个大于或等于target的位置。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Seek</span><span class="params">(<span class="keyword">const</span> Slice&amp; target)</span> </span>&#123;</div><div class="line">    <span class="comment">// Binary search in restart array to find the last restart point</span></div><div class="line">    <span class="comment">// with a key &lt; target</span></div><div class="line">    <span class="comment">// 进行二分查找，找到最后的restart point, key &lt; target</span></div><div class="line">    <span class="keyword">uint32_t</span> left = <span class="number">0</span>;</div><div class="line">    <span class="keyword">uint32_t</span> right = num_restarts_ - <span class="number">1</span>;</div><div class="line">    <span class="comment">// loop until left hit right</span></div><div class="line">    <span class="keyword">while</span> (left &lt; right) &#123;</div><div class="line">      <span class="comment">// middle</span></div><div class="line">      <span class="keyword">uint32_t</span> mid = (left + right + <span class="number">1</span>) / <span class="number">2</span>;</div><div class="line">      <span class="keyword">uint32_t</span> region_offset = GetRestartPoint(mid);</div><div class="line">      <span class="keyword">uint32_t</span> shared, non_shared, value_length;</div><div class="line">      <span class="comment">// 解析middle restart的第一个key</span></div><div class="line">      <span class="keyword">const</span> <span class="keyword">char</span>* key_ptr = DecodeEntry(data_ + region_offset,</div><div class="line">                                        data_ + restarts_,</div><div class="line">                                        &amp;shared, &amp;non_shared, &amp;value_length);</div><div class="line">      <span class="comment">// 发生错误，或者第一个key shared的长度不为0</span></div><div class="line">      <span class="keyword">if</span> (key_ptr == <span class="literal">NULL</span> || (shared != <span class="number">0</span>)) &#123;</div><div class="line">        CorruptionError();</div><div class="line">        <span class="keyword">return</span>;</div><div class="line">      &#125;</div><div class="line">      <span class="function">Slice <span class="title">mid_key</span><span class="params">(key_ptr, non_shared)</span></span>;</div><div class="line">      <span class="comment">// 在右半部分</span></div><div class="line">      <span class="keyword">if</span> (Compare(mid_key, target) &lt; <span class="number">0</span>) &#123;</div><div class="line">        <span class="comment">// Key at "mid" is smaller than "target".  Therefore all</span></div><div class="line">        <span class="comment">// blocks before "mid" are uninteresting.</span></div><div class="line">        left = mid;</div><div class="line">      &#125;</div><div class="line">        <span class="comment">// 在左半部分</span></div><div class="line">      <span class="keyword">else</span> &#123;</div><div class="line">        <span class="comment">// Key at "mid" is &gt;= "target".  Therefore all blocks at or</span></div><div class="line">        <span class="comment">// after "mid" are uninteresting.</span></div><div class="line">        right = mid - <span class="number">1</span>;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// Linear search (within restart block) for first key &gt;= target</span></div><div class="line">    SeekToRestartPoint(left);</div><div class="line">    <span class="comment">// 找到第一个 &gt;= target的key</span></div><div class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</div><div class="line">      <span class="keyword">if</span> (!ParseNextKey()) &#123;</div><div class="line">        <span class="keyword">return</span>;</div><div class="line">      &#125;</div><div class="line">      <span class="keyword">if</span> (Compare(key_, target) &gt;= <span class="number">0</span>) &#123;</div><div class="line">        <span class="keyword">return</span>;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
+<p>相比而言SeekToFirst和SeekToLast的实现比较简单，如代码所示：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 指向第一个restarts数组元素对应的offset，然后解析获取值</span></div><div class="line"><span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">SeekToFirst</span><span class="params">()</span> </span>&#123;</div><div class="line">  SeekToRestartPoint(<span class="number">0</span>);</div><div class="line">  ParseNextKey();</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 指向最后一个restarts数组元素对应的offset，然后解析所有剩余的key</span></div><div class="line"><span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">SeekToLast</span><span class="params">()</span> </span>&#123;</div><div class="line">  SeekToRestartPoint(num_restarts_ - <span class="number">1</span>);</div><div class="line">  <span class="keyword">while</span> (ParseNextKey() &amp;&amp; NextEntryOffset() &lt; restarts_) &#123;</div><div class="line">    <span class="comment">// Keep skipping</span></div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/11/C-运行时类型识别/" rel="next" title="C++运行时类型识别">
+                <i class="fa fa-chevron-left"></i> C++运行时类型识别
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">15</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-data-block-读取解析"><span class="nav-text">leveldb data block 读取解析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Block"><span class="nav-text">Block</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Iter"><span class="nav-text">Iter</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
