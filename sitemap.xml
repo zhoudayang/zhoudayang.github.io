@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://zhoudayang.github.io/2017/06/11/leveldb-table-builder-%E8%A7%A3%E6%9E%90/</loc>
+    
+    <lastmod>2017-06-11T14:14:51.000Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>http://zhoudayang.github.io/2017/06/11/leveldb-format%E8%A7%A3%E6%9E%90/</loc>
     
     <lastmod>2017-06-11T13:20:10.000Z</lastmod>
