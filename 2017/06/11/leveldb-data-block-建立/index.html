@@ -1,0 +1,816 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="leveldb data block 建立总览相比data block的读取来说，data block的建立比较简单，因为不涉及到查找的操作。下面的所有操作都是根据data block 内部的组织格式进行的，如下图所示。 data block  record   leveldb data block 建立相关的代码是data_block.h和data_block.c。 实现类成员类成员如下所示，b">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb data block 建立">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/11/leveldb-data-block-建立/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="leveldb data block 建立总览相比data block的读取来说，data block的建立比较简单，因为不涉及到查找的操作。下面的所有操作都是根据data block 内部的组织格式进行的，如下图所示。 data block  record   leveldb data block 建立相关的代码是data_block.h和data_block.c。 实现类成员类成员如下所示，b">
+<meta property="og:image" content="http://static.zybuluo.com/zhoudayang/vrb731ujpwkkkqntl165t80y/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.35.06.png">
+<meta property="og:image" content="http://static.zybuluo.com/zhoudayang/rirmd5ijemot7tj0v817wh2k/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.40.37.png">
+<meta property="og:updated_time" content="2017-06-11T12:40:35.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb data block 建立">
+<meta name="twitter:description" content="leveldb data block 建立总览相比data block的读取来说，data block的建立比较简单，因为不涉及到查找的操作。下面的所有操作都是根据data block 内部的组织格式进行的，如下图所示。 data block  record   leveldb data block 建立相关的代码是data_block.h和data_block.c。 实现类成员类成员如下所示，b">
+<meta name="twitter:image" content="http://static.zybuluo.com/zhoudayang/vrb731ujpwkkkqntl165t80y/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.35.06.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/11/leveldb-data-block-建立/"/>
+
+
+
+
+
+  <title>leveldb data block 建立 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/11/leveldb-data-block-建立/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb data block 建立</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-11T20:40:35+08:00">
+                2017-06-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="leveldb-data-block-建立"><a href="#leveldb-data-block-建立" class="headerlink" title="leveldb data block 建立"></a>leveldb data block 建立</h1><h2 id="总览"><a href="#总览" class="headerlink" title="总览"></a>总览</h2><p>相比data block的读取来说，data block的建立比较简单，因为不涉及到查找的操作。下面的所有操作都是根据data block 内部的组织格式进行的，如下图所示。</p>
+<p>data block</p>
+<p><img src="http://static.zybuluo.com/zhoudayang/vrb731ujpwkkkqntl165t80y/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.35.06.png" alt="屏幕快照 2017-06-11 下午7.35.06.png-387.6kB"></p>
+<p>record </p>
+<p><img src="http://static.zybuluo.com/zhoudayang/rirmd5ijemot7tj0v817wh2k/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%887.40.37.png" alt="屏幕快照 2017-06-11 下午7.40.37.png-112.6kB"></p>
+<p>leveldb data block 建立相关的代码是<code>data_block.h</code>和<code>data_block.c</code>。</p>
+<h2 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h2><h3 id="类成员"><a href="#类成员" class="headerlink" title="类成员"></a>类成员</h3><p>类成员如下所示，buffers<em>存放最终生成的data block，restarts\</em>对应restarts数组，counter是自从上一次restart以来添加的key的计数，last_key_记录了上一次add的key。Options对应传入的参数，其中定义了restart的间隔大小限制。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">const</span> Options*        options_;</div><div class="line"><span class="built_in">std</span>::<span class="built_in">string</span>           buffer_;      <span class="comment">// Destination buffer</span></div><div class="line"><span class="comment">// 所有的restart数组的元素</span></div><div class="line"><span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="keyword">uint32_t</span>&gt; restarts_;    <span class="comment">// Restart points</span></div><div class="line"><span class="comment">// restart之后已经加入的entry的数目</span></div><div class="line"><span class="keyword">int</span>                   counter_;     <span class="comment">// Number of entries emitted since restart</span></div><div class="line"><span class="keyword">bool</span>                  finished_;    <span class="comment">// Has Finish() been called?</span></div><div class="line"><span class="built_in">std</span>::<span class="built_in">string</span>           last_key_;</div></pre></td></tr></table></figure>
+<h3 id="辅助类成员函数"><a href="#辅助类成员函数" class="headerlink" title="辅助类成员函数"></a>辅助类成员函数</h3><p>CurrentSizeEstimate() 返回当前估计的data block的大小，empty判断当前数据块是否为空，Reset重置所有状态，丢弃所有添加的key。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// Reset the contents as if the BlockBuilder was just constructed.</span></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">Reset</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line"><span class="comment">// Returns an estimate of the current (uncompressed) size of the block</span></div><div class="line"><span class="comment">// we are building.</span></div><div class="line"><span class="keyword">size_t</span> CurrentSizeEstimate() <span class="keyword">const</span>;</div><div class="line"></div><div class="line"><span class="comment">// Return true iff no entries have been added since the last Reset()</span></div><div class="line"><span class="function"><span class="keyword">bool</span> <span class="title">empty</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123;</div><div class="line">  <span class="keyword">return</span> buffer_.empty();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h3 id="Add和Finish操作"><a href="#Add和Finish操作" class="headerlink" title="Add和Finish操作"></a>Add和Finish操作</h3><p>data block在BlockBuilder类对象初始化之后，通过Add方法向block中添加键值对记录，数据块建立完成之后，调用Finish返回完整的数据块数据。</p>
+<p>Add操作要求添加的key的顺序应该是升序的。在Add中，首先检查是否达到restart间隔。若达到了，那么shared key的长度为0，否则和last key比较得到shared key的长度。之后则将共享key，非共享key，value的长度值写入buffer之中，同时也将非共享key和value的值写入buffer，更新last key。</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> BlockBuilder::Add(<span class="keyword">const</span> Slice&amp; <span class="built_in">key</span>, <span class="keyword">const</span> Slice&amp; value) &#123;</div><div class="line">  Slice last_key_piece(last_key_);</div><div class="line">  <span class="keyword">assert</span>(!finished_);</div><div class="line">  <span class="keyword">assert</span>(counter_ &lt;= options_-&gt;block_restart_interval);</div><div class="line">  <span class="comment">// 要求key比last_key要大</span></div><div class="line">  <span class="keyword">assert</span>(buffer_.empty() <span class="comment">// No values yet?</span></div><div class="line">         || options_-&gt;comparator-&gt;Compare(<span class="built_in">key</span>, last_key_piece) &gt; <span class="number">0</span>);</div><div class="line">  size_t shared = <span class="number">0</span>;</div><div class="line">  <span class="keyword">if</span> (counter_ &lt; options_-&gt;block_restart_interval) &#123;</div><div class="line">    <span class="comment">// See how much sharing to do with previous string</span></div><div class="line">    <span class="keyword">const</span> size_t min_length = std::<span class="built_in">min</span>(last_key_piece.<span class="built_in">size</span>(), <span class="built_in">key</span>.<span class="built_in">size</span>());</div><div class="line">    <span class="comment">// 计算shared 的key的长度</span></div><div class="line">    <span class="keyword">while</span> ((shared &lt; min_length) &amp;&amp; (last_key_piece[shared] == <span class="built_in">key</span>[shared])) &#123;</div><div class="line">      shared++;</div><div class="line">    &#125;</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="comment">// Restart compression</span></div><div class="line">    restarts_.push_back(buffer_.<span class="built_in">size</span>());</div><div class="line">    counter_ = <span class="number">0</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 不共享的key的长度</span></div><div class="line">  <span class="keyword">const</span> size_t non_shared = <span class="built_in">key</span>.<span class="built_in">size</span>() - shared;</div><div class="line"></div><div class="line">  <span class="comment">// Add "&lt;shared&gt;&lt;non_shared&gt;&lt;value_size&gt;" to buffer_</span></div><div class="line">  PutVarint32(&amp;buffer_, shared);</div><div class="line">  PutVarint32(&amp;buffer_, non_shared);</div><div class="line">  PutVarint32(&amp;buffer_, value.<span class="built_in">size</span>());</div><div class="line"></div><div class="line">  <span class="comment">// Add string delta to buffer_ followed by value</span></div><div class="line">  buffer_.<span class="built_in">append</span>(<span class="built_in">key</span>.data() + shared, non_shared);</div><div class="line">  buffer_.<span class="built_in">append</span>(value.data(), value.<span class="built_in">size</span>());</div><div class="line"></div><div class="line">  <span class="comment">// Update state</span></div><div class="line">  <span class="comment">// 设置last key</span></div><div class="line">  last_key_.resize(shared);</div><div class="line">  last_key_.<span class="built_in">append</span>(<span class="built_in">key</span>.data() + shared, non_shared);</div><div class="line">  <span class="keyword">assert</span>(Slice(last_key_) == <span class="built_in">key</span>);</div><div class="line">  counter_++;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>Finish操作则是将所有的restarts数组元素写入到block之中，同时在block之中写入数组的size信息，返回整个block对应的Slice。</p>
+<figure class="highlight smali"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">// 调用finish，设置restarts数组和restarts数组的个数，返回此data block</div><div class="line">Slice BlockBuilder::Finish() &#123;</div><div class="line">  // Append restart<span class="built_in"> array</span></div><div class="line">  for (size_t i = 0; i &lt; restarts_.size(); i++) &#123;</div><div class="line">    PutFixed32(&amp;buffer_, restarts_[i]);</div><div class="line">  &#125;</div><div class="line">  // put restarts_.size()</div><div class="line">  PutFixed32(&amp;buffer_, restarts_.size());</div><div class="line">  finished_ = true;</div><div class="line"> <span class="built_in"> return </span>Slice(buffer_);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/11/leveldb-data-block-读取解析/" rel="next" title="leveldb data block 读取解析">
+                <i class="fa fa-chevron-left"></i> leveldb data block 读取解析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">16</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-data-block-建立"><span class="nav-text">leveldb data block 建立</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#总览"><span class="nav-text">总览</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实现"><span class="nav-text">实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#类成员"><span class="nav-text">类成员</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#辅助类成员函数"><span class="nav-text">辅助类成员函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Add和Finish操作"><span class="nav-text">Add和Finish操作</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
