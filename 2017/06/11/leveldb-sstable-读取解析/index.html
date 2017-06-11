@@ -1,0 +1,834 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Linux, C++, Lua, Python, Golang" />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="leveldb sstable 读取解析结构化数据的读取比写入实现起来更为复杂，levledb中的sstable读取又一次说明了这一点。sstable的读取操作定义在table.h和table.cc之中。在这一节代码中主要实现了sstable的打开操作，以及如何从index handle得到对应block 的interator。  Opensstable的打开先从footer开始，校验是否是sst">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb sstable 读取解析">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/11/leveldb-sstable-读取解析/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="leveldb sstable 读取解析结构化数据的读取比写入实现起来更为复杂，levledb中的sstable读取又一次说明了这一点。sstable的读取操作定义在table.h和table.cc之中。在这一节代码中主要实现了sstable的打开操作，以及如何从index handle得到对应block 的interator。  Opensstable的打开先从footer开始，校验是否是sst">
+<meta property="og:image" content="http://static.zybuluo.com/zhoudayang/7si3xos5zadjqg3gujar7mil/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%889.42.43.png">
+<meta property="og:updated_time" content="2017-06-11T15:08:20.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb sstable 读取解析">
+<meta name="twitter:description" content="leveldb sstable 读取解析结构化数据的读取比写入实现起来更为复杂，levledb中的sstable读取又一次说明了这一点。sstable的读取操作定义在table.h和table.cc之中。在这一节代码中主要实现了sstable的打开操作，以及如何从index handle得到对应block 的interator。  Opensstable的打开先从footer开始，校验是否是sst">
+<meta name="twitter:image" content="http://static.zybuluo.com/zhoudayang/7si3xos5zadjqg3gujar7mil/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%889.42.43.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/11/leveldb-sstable-读取解析/"/>
+
+
+
+
+
+  <title>leveldb sstable 读取解析 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/11/leveldb-sstable-读取解析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb sstable 读取解析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-11T23:08:20+08:00">
+                2017-06-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="leveldb-sstable-读取解析"><a href="#leveldb-sstable-读取解析" class="headerlink" title="leveldb sstable 读取解析"></a>leveldb sstable 读取解析</h1><p>结构化数据的读取比写入实现起来更为复杂，levledb中的sstable读取又一次说明了这一点。sstable的读取操作定义在<code>table.h</code>和<code>table.cc</code>之中。在这一节代码中主要实现了sstable的打开操作，以及如何从index handle得到对应block 的interator。</p>
+<p><img src="http://static.zybuluo.com/zhoudayang/7si3xos5zadjqg3gujar7mil/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%889.42.43.png" alt="屏幕快照 2017-06-11 下午9.42.43.png-288.1kB"></p>
+<h2 id="Open"><a href="#Open" class="headerlink" title="Open"></a>Open</h2><p>sstable的打开先从footer开始，校验是否是sstable文件。读取meta_block index 和 index block handle。若无误，则根据footer中的信息来创建Rep对象。请注意，这里生成了cache_id，cache_id是采用全局递增的算法产生的，在整个系统中独一无二，后续会在cache之中使用。</p>
+<figure class="highlight zephir"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div></pre></td><td class="code"><pre><div class="line">Status Table::Open(<span class="keyword">const</span> Options&amp; options,</div><div class="line">                   RandomAccessFile* file,</div><div class="line">                   uint64_t size,</div><div class="line">                   Table** table) &#123;</div><div class="line">  *table = <span class="keyword">NULL</span>;</div><div class="line">  <span class="comment">// sstable的文件大小需要大于Footer</span></div><div class="line">  <span class="keyword">if</span> (size &lt; Footer::kEncodedLength) &#123;</div><div class="line">    <span class="keyword">return</span> Status::Corruption(<span class="string">"file is too short to be an sstable"</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">char</span> footer_space[Footer::kEncodedLength];</div><div class="line">  Slice footer_input;</div><div class="line">  <span class="comment">// 读取footer</span></div><div class="line">  Status s = file-&gt;Read(size - Footer::kEncodedLength, Footer::kEncodedLength,</div><div class="line">                        &amp;footer_input, footer_space);</div><div class="line">  <span class="keyword">if</span> (!s.ok()) <span class="keyword">return</span> s;</div><div class="line"></div><div class="line">  Footer footer;</div><div class="line">  <span class="comment">// decode from footer Slice</span></div><div class="line">  s = footer.DecodeFrom(&amp;footer_input);</div><div class="line">  <span class="keyword">if</span> (!s.ok()) <span class="keyword">return</span> s;</div><div class="line"></div><div class="line">  <span class="comment">// Read the index block</span></div><div class="line">  BlockContents contents;</div><div class="line">  Block* index_block = <span class="keyword">NULL</span>;</div><div class="line">  <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">    ReadOptions opt;</div><div class="line">    <span class="comment">// 如果设置了paranoid_checks, 那么需要检查校验码</span></div><div class="line">    <span class="keyword">if</span> (options.paranoid_checks) &#123;</div><div class="line">      opt.verify_checksums = <span class="keyword">true</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// 读取index block</span></div><div class="line">    s = ReadBlock(file, opt, footer.index_handle(), &amp;contents);</div><div class="line">    <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">      index_block = <span class="keyword">new</span> Block(contents);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">    <span class="comment">// We've successfully read the footer and the index block: we're</span></div><div class="line">    <span class="comment">// ready to serve requests.</span></div><div class="line">    Rep* rep = <span class="keyword">new</span> Table::Rep;</div><div class="line">    rep-&gt;options = options;</div><div class="line">    rep-&gt;file = file;</div><div class="line">    rep-&gt;metaindex_handle = footer.metaindex_handle();</div><div class="line">    rep-&gt;index_block = index_block;</div><div class="line">    rep-&gt;cache_id = (options.block_cache ? options.block_cache-&gt;NewId() : <span class="number">0</span>);</div><div class="line">    rep-&gt;filter_data = <span class="keyword">NULL</span>;</div><div class="line">    rep-&gt;filter = <span class="keyword">NULL</span>;</div><div class="line">    *table = <span class="keyword">new</span> Table(rep);</div><div class="line">    <span class="comment">// 读取meta 元数据</span></div><div class="line">    (*table)-&gt;ReadMeta(footer);</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    delete index_block;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">return</span> s;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>读取meta block会首先查找有没有filter block handle，若有的话读取filter block，创建FilterBlockReader成员。</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">void Table::ReadMeta(const Footer&amp; footer) &#123;</div><div class="line">  <span class="comment">// 没有设置filter_policy, return</span></div><div class="line">  <span class="function"><span class="title">if</span> (rep_-&gt;</span>options.filter_policy == NULL</div><div class="line">      || footer.metaindex_handle().size() == <span class="number">0</span>) &#123;</div><div class="line">    return;  <span class="comment">// Do not need any metadata</span></div><div class="line">  &#125;</div><div class="line"></div><div class="line">  ReadOptions opt;</div><div class="line">  <span class="function"><span class="title">if</span> (rep_-&gt;</span>options.paranoid_checks) &#123;</div><div class="line">    opt.verify_checksums = <span class="literal">true</span>;</div><div class="line">  &#125;</div><div class="line">  BlockContents <span class="built_in">contents</span>;</div><div class="line">  <span class="function"><span class="title">if</span> (!ReadBlock(rep_-&gt;</span>file, opt, footer.metaindex_handle(), &amp;<span class="built_in">contents</span>).ok()) &#123;</div><div class="line">    <span class="comment">// Do not propagate errors since meta info is not needed for operation</span></div><div class="line">    return;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// meta index block</span></div><div class="line">  Block* meta = new Block(<span class="built_in">contents</span>);</div><div class="line"></div><div class="line">  I<span class="function"><span class="title">terator</span>* iter = meta-&gt;</span>NewIterator(BytewiseComparator());</div><div class="line">  std::string key = <span class="string">"filter."</span>;</div><div class="line">  <span class="function"><span class="title">key</span>.append(rep_-&gt;</span><span class="function"><span class="title">options</span>.filter_policy-&gt;</span>Name());</div><div class="line">  <span class="comment">// 查找filter 策略对应的filter index block</span></div><div class="line">  <span class="function"><span class="title">iter</span>-&gt;</span>Seek(key);</div><div class="line">  <span class="function"><span class="title">if</span> (iter-&gt;</span>V<span class="function"><span class="title">alid</span>() &amp;&amp; iter-&gt;</span>key() == Slice(key)) &#123;</div><div class="line">    R<span class="function"><span class="title">eadFilter</span>(iter-&gt;</span>value());</div><div class="line">  &#125;</div><div class="line">  delete iter;</div><div class="line">  delete meta;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">void Table::ReadFilter(const Slice&amp; filter_handle_value) &#123;</div><div class="line">  Slice v = filter_handle_value;</div><div class="line">  BlockHandle filter_handle;</div><div class="line">  <span class="keyword">if</span> (!filter_handle.DecodeFrom(&amp;v).ok()) &#123;</div><div class="line">    return;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// We might want to unify with ReadBlock() if we start</span></div><div class="line">  <span class="comment">// requiring checksum verification in Table::Open.</span></div><div class="line">  ReadOptions opt;</div><div class="line">  <span class="function"><span class="title">if</span> (rep_-&gt;</span>options.paranoid_checks) &#123;</div><div class="line">    opt.verify_checksums = <span class="literal">true</span>;</div><div class="line">  &#125;</div><div class="line">  BlockContents <span class="keyword">block</span>;</div><div class="line">  <span class="function"><span class="title">if</span> (!ReadBlock(rep_-&gt;</span>file, opt, filter_handle, &amp;<span class="keyword">block</span>).ok()) &#123;</div><div class="line">    return;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">if</span> (<span class="keyword">block</span>.heap_allocated) &#123;</div><div class="line">    <span class="function"><span class="title">rep_</span>-&gt;</span>filter_data = <span class="keyword">block</span>.<span class="keyword">data</span>.<span class="keyword">data</span>();     <span class="comment">// Will need to delete later</span></div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 创建filter</span></div><div class="line">  <span class="function"><span class="title">rep_</span>-&gt;</span><span class="function"><span class="title">filter</span> = new FilterBlockReader(rep_-&gt;</span>options.filter_policy, <span class="keyword">block</span>.<span class="keyword">data</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="BlockReader"><a href="#BlockReader" class="headerlink" title="BlockReader"></a>BlockReader</h2><p>BlockReader函数根据index_value指定的handle信息，首先尝试从cache中查找block。查找的key是cache_id以及块偏移的组合键。找不到就直接从文件之中读取。根据读取的块创建这个数据块上的iterator。如果是从文件中读取的数据块，在iterator析构的时候，需要将数据块释放给内存；如果是从cache中读取的数据块，在iterator被析构时，需要进行release。</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// Convert an index iterator value (i.e., an encoded BlockHandle)</span></div><div class="line"><span class="comment">// into an iterator over the contents of the corresponding block.</span></div><div class="line">Iterator* Table::BlockReader(void* arg,</div><div class="line">                             const ReadOptions&amp; options,</div><div class="line">                             const Slice&amp; index_value) &#123;</div><div class="line">  Table* table = reinterpret_cast&lt;Table*&gt;(arg);</div><div class="line">  C<span class="function"><span class="title">ache</span>* block_cache = table-&gt;</span><span class="function"><span class="title">rep_</span>-&gt;</span>options.block_cache;</div><div class="line">  Block* <span class="keyword">block</span> = NULL;</div><div class="line">  Cache::Handle* cache_handle = NULL;</div><div class="line"></div><div class="line">  BlockHandle handle;</div><div class="line">  Slice input = index_value;</div><div class="line">  <span class="comment">// decode block handle from input</span></div><div class="line">  Status s = handle.DecodeFrom(&amp;input);</div><div class="line">  <span class="comment">// We intentionally allow extra stuff in index_value so that we</span></div><div class="line">  <span class="comment">// can add more features in the future.</span></div><div class="line"></div><div class="line">  <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">    BlockContents <span class="built_in">contents</span>;</div><div class="line">    <span class="keyword">if</span> (block_cache != NULL) &#123;</div><div class="line">      char cache_key_buffer[<span class="number">16</span>];</div><div class="line">      <span class="comment">// cache_id + handle.offset -&gt; key</span></div><div class="line">      E<span class="function"><span class="title">ncodeFixed64</span>(cache_key_buffer, table-&gt;</span><span class="function"><span class="title">rep_</span>-&gt;</span>cache_id);</div><div class="line">      EncodeFixed64(cache_key_buffer+<span class="number">8</span>, handle.offset());</div><div class="line">      Slice key(cache_key_buffer, sizeof(cache_key_buffer));</div><div class="line">      <span class="function"><span class="title">cache_handle</span> = block_cache-&gt;</span>Lookup(key);</div><div class="line">      <span class="keyword">if</span> (cache_handle != NULL) &#123;</div><div class="line">        <span class="comment">// 尝试从缓存之中获取handle对应的block</span></div><div class="line">        <span class="function"><span class="title">block</span> = reinterpret_cast&lt;Block*&gt;(block_cache-&gt;</span>Value(cache_handle));</div><div class="line">      &#125; <span class="keyword">else</span> &#123;</div><div class="line">        <span class="comment">// 直接从文件之中读取</span></div><div class="line">        <span class="function"><span class="title">s</span> = ReadBlock(table-&gt;</span><span class="function"><span class="title">rep_</span>-&gt;</span>file, options, handle, &amp;<span class="built_in">contents</span>);</div><div class="line">        <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">          <span class="keyword">block</span> = new Block(<span class="built_in">contents</span>);</div><div class="line">          <span class="comment">// 缓存it</span></div><div class="line">          <span class="keyword">if</span> (<span class="built_in">contents</span>.cachable &amp;&amp; options.fill_cache) &#123;</div><div class="line">            <span class="function"><span class="title">cache_handle</span> = block_cache-&gt;</span>Insert(</div><div class="line">                <span class="function"><span class="title">key</span>, <span class="keyword">block</span>, <span class="keyword">block</span>-&gt;</span>size(), &amp;DeleteCachedBlock);</div><div class="line">          &#125;</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      <span class="function"><span class="title">s</span> = ReadBlock(table-&gt;</span><span class="function"><span class="title">rep_</span>-&gt;</span>file, options, handle, &amp;<span class="built_in">contents</span>);</div><div class="line">      <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">        <span class="keyword">block</span> = new Block(<span class="built_in">contents</span>);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  Iterator* iter;</div><div class="line">  <span class="keyword">if</span> (<span class="keyword">block</span> != NULL) &#123;</div><div class="line">    <span class="function"><span class="title">iter</span> = <span class="keyword">block</span>-&gt;</span>N<span class="function"><span class="title">ewIterator</span>(table-&gt;</span><span class="function"><span class="title">rep_</span>-&gt;</span>options.comparator);</div><div class="line">    <span class="keyword">if</span> (cache_handle == NULL) &#123;</div><div class="line">      <span class="comment">// 注册cleanup function 为 DeleteBlock</span></div><div class="line">      <span class="function"><span class="title">iter</span>-&gt;</span>RegisterCleanup(&amp;DeleteBlock, <span class="keyword">block</span>, NULL);</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      <span class="comment">// 注册cleanup function 为ReleaseBlock</span></div><div class="line">      <span class="function"><span class="title">iter</span>-&gt;</span>RegisterCleanup(&amp;ReleaseBlock, block_cache, cache_handle);</div><div class="line">    &#125;</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="comment">// 否则创建非法的空的iterator</span></div><div class="line">    iter = NewErrorIterator(s);</div><div class="line">  &#125;</div><div class="line">  return iter;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="NewIterator"><a href="#NewIterator" class="headerlink" title="NewIterator"></a>NewIterator</h2><p>由Table对象返回的Iterator实际上是一个TwoLevelIterator，其具体实现会在后面进行讲解，这个iterator实际上涉及到从index handle到对应data block之间的转换，转换函数就是前面的BlockReader函数。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/11/leveldb-table-builder-解析/" rel="next" title="leveldb table builder 解析">
+                <i class="fa fa-chevron-left"></i> leveldb table builder 解析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">19</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">1</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-sstable-读取解析"><span class="nav-text">leveldb sstable 读取解析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Open"><span class="nav-text">Open</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#BlockReader"><span class="nav-text">BlockReader</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#NewIterator"><span class="nav-text">NewIterator</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
