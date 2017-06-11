@@ -1,0 +1,814 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="leveldb format 解析下面解析的是leveldb中的源文件format.h和format.cc，这一节代码主要围绕handle的存储和解析，footer的存储和解析，以及block的读取。 handlehandle 是对block文件之中位移和大小封装的数据结构，有了它，就能迅速对block进行定位。因为采取varint64存储这两个值，所以占据的大小最大为10bytes。 12345">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb format解析">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/11/leveldb-format解析/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="leveldb format 解析下面解析的是leveldb中的源文件format.h和format.cc，这一节代码主要围绕handle的存储和解析，footer的存储和解析，以及block的读取。 handlehandle 是对block文件之中位移和大小封装的数据结构，有了它，就能迅速对block进行定位。因为采取varint64存储这两个值，所以占据的大小最大为10bytes。 12345">
+<meta property="og:image" content="http://static.zybuluo.com/zhoudayang/k31lp9l5et3zbylhmqfd01r3/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%889.06.42.png">
+<meta property="og:image" content="http://static.zybuluo.com/zhoudayang/1mxx9gsxgrd6fooqe3anqdu8/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%889.14.06.png">
+<meta property="og:updated_time" content="2017-06-11T13:20:10.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb format解析">
+<meta name="twitter:description" content="leveldb format 解析下面解析的是leveldb中的源文件format.h和format.cc，这一节代码主要围绕handle的存储和解析，footer的存储和解析，以及block的读取。 handlehandle 是对block文件之中位移和大小封装的数据结构，有了它，就能迅速对block进行定位。因为采取varint64存储这两个值，所以占据的大小最大为10bytes。 12345">
+<meta name="twitter:image" content="http://static.zybuluo.com/zhoudayang/k31lp9l5et3zbylhmqfd01r3/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%889.06.42.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/11/leveldb-format解析/"/>
+
+
+
+
+
+  <title>leveldb format解析 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/11/leveldb-format解析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb format解析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-11T21:20:10+08:00">
+                2017-06-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="leveldb-format-解析"><a href="#leveldb-format-解析" class="headerlink" title="leveldb format 解析"></a>leveldb format 解析</h1><p>下面解析的是leveldb中的源文件<code>format.h</code>和<code>format.cc</code>，这一节代码主要围绕handle的存储和解析，footer的存储和解析，以及block的读取。</p>
+<h2 id="handle"><a href="#handle" class="headerlink" title="handle"></a>handle</h2><p>handle 是对block文件之中位移和大小封装的数据结构，有了它，就能迅速对block进行定位。因为采取varint64存储这两个值，所以占据的大小最大为10bytes。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">BlockHandle</span> &#123;</span></div><div class="line"> <span class="keyword">public</span>:</div><div class="line">  BlockHandle();</div><div class="line"></div><div class="line">  <span class="comment">// The offset of the block in the file.</span></div><div class="line">  <span class="keyword">uint64_t</span> offset() <span class="keyword">const</span> &#123; <span class="keyword">return</span> offset_; &#125;</div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">set_offset</span><span class="params">(<span class="keyword">uint64_t</span> offset)</span> </span>&#123; offset_ = offset; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// The size of the stored block</span></div><div class="line">  <span class="keyword">uint64_t</span> size() <span class="keyword">const</span> &#123; <span class="keyword">return</span> size_; &#125;</div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">set_size</span><span class="params">(<span class="keyword">uint64_t</span> size)</span> </span>&#123; size_ = size; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 向dst指定的地址位置存入offset和size</span></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">EncodeTo</span><span class="params">(<span class="built_in">std</span>::<span class="built_in">string</span>* dst)</span> <span class="keyword">const</span></span>;</div><div class="line">  <span class="comment">// 从input指定的地址位置获取offset和size</span></div><div class="line">  <span class="function">Status <span class="title">DecodeFrom</span><span class="params">(Slice* input)</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Maximum encoding length of a BlockHandle</span></div><div class="line">  <span class="comment">// 两个varint64数占用的空间最大为20bytes</span></div><div class="line">  <span class="keyword">enum</span> &#123; kMaxEncodedLength = <span class="number">10</span> + <span class="number">10</span> &#125;;</div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="keyword">uint64_t</span> offset_;</div><div class="line">  <span class="keyword">uint64_t</span> size_;</div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<h2 id="Footer"><a href="#Footer" class="headerlink" title="Footer"></a>Footer</h2><p>Footer位于整个sstable文件的底部，由footer可以快速获取sstable中的metaindex block，index block的位置信息，通过比较魔数，能够快速判断是否是leveldb之中使用的sstable文件。</p>
+<p><img src="http://static.zybuluo.com/zhoudayang/k31lp9l5et3zbylhmqfd01r3/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%889.06.42.png" alt="屏幕快照 2017-06-11 下午9.06.42.png-200.9kB"></p>
+<p>在Footer之中，前面40bytes存储Metaindex_handle和Index_handle，若空间不足40bytes就用0补齐。之后存放leveldb中定义的魔数<code>0xdb4775248b80fb57ull</code>。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// footer</span></div><div class="line"><span class="comment">// metaindex_handle</span></div><div class="line"><span class="comment">// index_handle</span></div><div class="line"><span class="comment">// padding</span></div><div class="line"><span class="comment">// magic number</span></div><div class="line"><span class="keyword">void</span> Footer::EncodeTo(<span class="built_in">std</span>::<span class="built_in">string</span>* dst) <span class="keyword">const</span> &#123;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">size_t</span> original_size = dst-&gt;size();</div><div class="line">  <span class="comment">// 此处存放的是varint64</span></div><div class="line">  metaindex_handle_.EncodeTo(dst);</div><div class="line">  index_handle_.EncodeTo(dst);</div><div class="line">  dst-&gt;resize(<span class="number">2</span> * BlockHandle::kMaxEncodedLength);  <span class="comment">// Padding</span></div><div class="line">  <span class="comment">// 加上padding，为 40 bytes</span></div><div class="line">  <span class="comment">// 再加上8bytes对应的魔数</span></div><div class="line">  <span class="comment">// 先存低 4bytes</span></div><div class="line">  PutFixed32(dst, <span class="keyword">static_cast</span>&lt;<span class="keyword">uint32_t</span>&gt;(kTableMagicNumber &amp; <span class="number">0xffffffff</span>u));</div><div class="line">  <span class="comment">// 再存高 4 bytes</span></div><div class="line">  PutFixed32(dst, <span class="keyword">static_cast</span>&lt;<span class="keyword">uint32_t</span>&gt;(kTableMagicNumber &gt;&gt; <span class="number">32</span>));</div><div class="line">  assert(dst-&gt;size() == original_size + kEncodedLength);</div><div class="line">  (<span class="keyword">void</span>)original_size;  <span class="comment">// Disable unused variable warning.</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在读取footer时，首先读取魔数，没有问题才继续读取meta index handle和index handle。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// input输入的是整个footer</span></div><div class="line">Status Footer::DecodeFrom(Slice* input) &#123;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* magic_ptr = input-&gt;data() + kEncodedLength - <span class="number">8</span>;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> magic_lo = DecodeFixed32(magic_ptr);</div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> magic_hi = DecodeFixed32(magic_ptr + <span class="number">4</span>);</div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint64_t</span> magic = ((<span class="keyword">static_cast</span>&lt;<span class="keyword">uint64_t</span>&gt;(magic_hi) &lt;&lt; <span class="number">32</span>) |</div><div class="line">                          (<span class="keyword">static_cast</span>&lt;<span class="keyword">uint64_t</span>&gt;(magic_lo)));</div><div class="line">  <span class="comment">// 魔数不匹配</span></div><div class="line">  <span class="keyword">if</span> (magic != kTableMagicNumber) &#123;</div><div class="line">    <span class="keyword">return</span> Status::Corruption(<span class="string">"not an sstable (bad magic number)"</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  Status result = metaindex_handle_.DecodeFrom(input);</div><div class="line">  <span class="keyword">if</span> (result.ok()) &#123;</div><div class="line">    result = index_handle_.DecodeFrom(input);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">if</span> (result.ok()) &#123;</div><div class="line">    <span class="comment">// We skip over any leftover data (just padding for now) in "input"</span></div><div class="line">    <span class="keyword">const</span> <span class="keyword">char</span>* end = magic_ptr + <span class="number">8</span>;</div><div class="line">    *input = Slice(end, input-&gt;data() + input-&gt;size() - end);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> result;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="block"><a href="#block" class="headerlink" title="block"></a>block</h2><p>leveldb在存储block的时候，实际上还要记录block的类型和当前block的CRC校验值在后面进行校验。block格式如下所示：</p>
+<p><img src="http://static.zybuluo.com/zhoudayang/1mxx9gsxgrd6fooqe3anqdu8/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202017-06-11%20%E4%B8%8B%E5%8D%889.14.06.png" alt="屏幕快照 2017-06-11 下午9.14.06.png-569.7kB"></p>
+<p>读取block时，首先根据option要求进行可选的crc校验，再根据type查看是压缩数据块还是raw block，对压缩数据块进行解压缩。若成功读取将读取处理之后的block记录在result之中，失败了就返回相应的状态码。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// block - type - crc</span></div><div class="line"><span class="function">Status <span class="title">ReadBlock</span><span class="params">(RandomAccessFile* file,</span></span></div><div class="line">                 <span class="keyword">const</span> ReadOptions&amp; options,</div><div class="line">                 <span class="keyword">const</span> BlockHandle&amp; handle,</div><div class="line">                 BlockContents* result) &#123;</div><div class="line">  result-&gt;data = Slice();</div><div class="line">  result-&gt;cachable = <span class="literal">false</span>;</div><div class="line">  result-&gt;heap_allocated = <span class="literal">false</span>;</div><div class="line"></div><div class="line">  <span class="comment">// Read the block contents as well as the type/crc footer.</span></div><div class="line">  <span class="comment">// See table_builder.cc for the code that built this structure.</span></div><div class="line">  <span class="keyword">size_t</span> n = <span class="keyword">static_cast</span>&lt;<span class="keyword">size_t</span>&gt;(handle.size());</div><div class="line">  <span class="keyword">char</span>* buf = <span class="keyword">new</span> <span class="keyword">char</span>[n + kBlockTrailerSize];</div><div class="line">  Slice contents;</div><div class="line">  Status s = file-&gt;Read(handle.offset(), n + kBlockTrailerSize, &amp;contents, buf);</div><div class="line">  <span class="comment">// 读取失败</span></div><div class="line">  <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">    <span class="keyword">delete</span>[] buf;</div><div class="line">    <span class="keyword">return</span> s;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 读取的block大小和handle不一致</span></div><div class="line">  <span class="keyword">if</span> (contents.size() != n + kBlockTrailerSize) &#123;</div><div class="line">    <span class="keyword">delete</span>[] buf;</div><div class="line">    <span class="keyword">return</span> Status::Corruption(<span class="string">"truncated block read"</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 检查block+type计算得到的crc值是否和记录的所一致</span></div><div class="line">  <span class="comment">// Check the crc of the type and the block contents</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* data = contents.data();    <span class="comment">// Pointer to where Read put the data</span></div><div class="line">  <span class="keyword">if</span> (options.verify_checksums) &#123;</div><div class="line">    <span class="keyword">const</span> <span class="keyword">uint32_t</span> crc = crc32c::Unmask(DecodeFixed32(data + n + <span class="number">1</span>));</div><div class="line">    <span class="keyword">const</span> <span class="keyword">uint32_t</span> actual = crc32c::Value(data, n + <span class="number">1</span>);</div><div class="line">    <span class="keyword">if</span> (actual != crc) &#123;</div><div class="line">      <span class="keyword">delete</span>[] buf;</div><div class="line">      s = Status::Corruption(<span class="string">"block checksum mismatch"</span>);</div><div class="line">      <span class="keyword">return</span> s;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 针对block的不同类型，采取不同的操作</span></div><div class="line">  <span class="keyword">switch</span> (data[n]) &#123;</div><div class="line">    <span class="keyword">case</span> kNoCompression:</div><div class="line">      <span class="keyword">if</span> (data != buf) &#123;</div><div class="line">        <span class="comment">// File implementation gave us pointer to some other data.</span></div><div class="line">        <span class="comment">// Use it directly under the assumption that it will be live</span></div><div class="line">        <span class="comment">// while the file is open.</span></div><div class="line">        <span class="comment">// 内部文件操作返回的buf不是之前分配的</span></div><div class="line">        <span class="keyword">delete</span>[] buf;</div><div class="line">        result-&gt;data = Slice(data, n);</div><div class="line">        result-&gt;heap_allocated = <span class="literal">false</span>;</div><div class="line">        result-&gt;cachable = <span class="literal">false</span>;  <span class="comment">// Do not double-cache</span></div><div class="line">      &#125; <span class="keyword">else</span> &#123;</div><div class="line">        result-&gt;data = Slice(buf, n);</div><div class="line">        result-&gt;heap_allocated = <span class="literal">true</span>;</div><div class="line">        result-&gt;cachable = <span class="literal">true</span>;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="comment">// Ok</span></div><div class="line">      <span class="keyword">break</span>;</div><div class="line">      <span class="comment">// 是压缩的类型，获取解压的长度，解压block</span></div><div class="line">    <span class="keyword">case</span> kSnappyCompression: &#123;</div><div class="line">      <span class="keyword">size_t</span> ulength = <span class="number">0</span>;</div><div class="line">      <span class="keyword">if</span> (!port::Snappy_GetUncompressedLength(data, n, &amp;ulength)) &#123;</div><div class="line">        <span class="keyword">delete</span>[] buf;</div><div class="line">        <span class="keyword">return</span> Status::Corruption(<span class="string">"corrupted compressed block contents"</span>);</div><div class="line">      &#125;</div><div class="line">      <span class="keyword">char</span>* ubuf = <span class="keyword">new</span> <span class="keyword">char</span>[ulength];</div><div class="line">      <span class="keyword">if</span> (!port::Snappy_Uncompress(data, n, ubuf)) &#123;</div><div class="line">        <span class="keyword">delete</span>[] buf;</div><div class="line">        <span class="keyword">delete</span>[] ubuf;</div><div class="line">        <span class="keyword">return</span> Status::Corruption(<span class="string">"corrupted compressed block contents"</span>);</div><div class="line">      &#125;</div><div class="line">      <span class="keyword">delete</span>[] buf;</div><div class="line">      result-&gt;data = Slice(ubuf, ulength);</div><div class="line">      result-&gt;heap_allocated = <span class="literal">true</span>;</div><div class="line">      result-&gt;cachable = <span class="literal">true</span>;</div><div class="line">      <span class="keyword">break</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">default</span>:</div><div class="line">      <span class="keyword">delete</span>[] buf;</div><div class="line">      <span class="keyword">return</span> Status::Corruption(<span class="string">"bad block type"</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">return</span> Status::OK();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/11/leveldb-data-block-建立/" rel="next" title="leveldb data block 建立">
+                <i class="fa fa-chevron-left"></i> leveldb data block 建立
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">17</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#leveldb-format-解析"><span class="nav-text">leveldb format 解析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#handle"><span class="nav-text">handle</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Footer"><span class="nav-text">Footer</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#block"><span class="nav-text">block</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
