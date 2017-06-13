@@ -75,7 +75,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="modern effective C++," />
+  <meta name="keywords" content="leveldb," />
 
 
 
@@ -91,17 +91,17 @@
 
 
 
-<meta name="description" content="5. 优先使用auto而非显示类型声明在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。 123456789template&amp;lt;typename It&amp;gt;void dwim(It b, It e)&amp;#123;  while(b != e)&amp;#123;    typename std::iterator_traits&amp;lt;It">
-<meta name="keywords" content="modern effective C++">
+<meta name="description" content="leveldb使用vector存放使用malloc分配的内存。在析构的时候，对这些分配的内存统一进行释放。 在分配内存时，首先判断上一个剩余块空间是否足够，足够就直接从剩余空间之中分配内存，否则调用AllocateFallback, 分配一块的新的内存。 123456789101112inline char* Arena::Allocate(size_t bytes)&amp;#123;  assert(">
+<meta name="keywords" content="leveldb">
 <meta property="og:type" content="article">
-<meta property="og:title" content="auto关键字">
-<meta property="og:url" content="http://zhoudayang.github.io/2017/06/08/auto关键字/index.html">
+<meta property="og:title" content="leveldb Arena内存分配器">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/13/leveldb-Arena内存分配器/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="5. 优先使用auto而非显示类型声明在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。 123456789template&amp;lt;typename It&amp;gt;void dwim(It b, It e)&amp;#123;  while(b != e)&amp;#123;    typename std::iterator_traits&amp;lt;It">
-<meta property="og:updated_time" content="2017-06-08T04:29:49.000Z">
+<meta property="og:description" content="leveldb使用vector存放使用malloc分配的内存。在析构的时候，对这些分配的内存统一进行释放。 在分配内存时，首先判断上一个剩余块空间是否足够，足够就直接从剩余空间之中分配内存，否则调用AllocateFallback, 分配一块的新的内存。 123456789101112inline char* Arena::Allocate(size_t bytes)&amp;#123;  assert(">
+<meta property="og:updated_time" content="2017-06-13T14:40:48.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="auto关键字">
-<meta name="twitter:description" content="5. 优先使用auto而非显示类型声明在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。 123456789template&amp;lt;typename It&amp;gt;void dwim(It b, It e)&amp;#123;  while(b != e)&amp;#123;    typename std::iterator_traits&amp;lt;It">
+<meta name="twitter:title" content="leveldb Arena内存分配器">
+<meta name="twitter:description" content="leveldb使用vector存放使用malloc分配的内存。在析构的时候，对这些分配的内存统一进行释放。 在分配内存时，首先判断上一个剩余块空间是否足够，足够就直接从剩余空间之中分配内存，否则调用AllocateFallback, 分配一块的新的内存。 123456789101112inline char* Arena::Allocate(size_t bytes)&amp;#123;  assert(">
 
 
 
@@ -129,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/08/auto关键字/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/13/leveldb-Arena内存分配器/"/>
 
 
 
 
 
-  <title>auto关键字 | zhouyang's blog</title>
+  <title>leveldb Arena内存分配器 | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -303,7 +303,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/08/auto关键字/">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/13/leveldb-Arena内存分配器/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Zhou Yang">
@@ -320,7 +320,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">auto关键字</h1>
+          <h1 class="post-title" itemprop="name headline">leveldb Arena内存分配器</h1>
         
 
         <div class="post-meta">
@@ -332,8 +332,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-08T12:29:49+08:00">
-                2017-06-08
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-13T22:40:48+08:00">
+                2017-06-13
               </time>
             
 
@@ -355,8 +355,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/C/" itemprop="url" rel="index">
-                    <span itemprop="name">C++</span>
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
                   </a>
                 </span>
 
@@ -394,17 +394,15 @@
       
 
       
-        <h3 id="5-优先使用auto而非显示类型声明"><a href="#5-优先使用auto而非显示类型声明" class="headerlink" title="5. 优先使用auto而非显示类型声明"></a>5. 优先使用auto而非显示类型声明</h3><p>在C++之中，使用auto关键字声明类型可以将程序员从输入繁琐的类型中解放出来，编译器会自动推导出变量的实际类型。</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> It&gt;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">dwim</span><span class="params">(It b, It e)</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span>(b != e)&#123;</div><div class="line">    <span class="keyword">typename</span> <span class="built_in">std</span>::iterator_traits&lt;It&gt;::value_type</div><div class="line">    currValue = *b;</div><div class="line">      ...</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>使用auto关键字</p>
-<figure class="highlight armasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="symbol">template</span>&lt;typename <span class="keyword">It&gt;</span></div><div class="line"><span class="symbol">void</span> dwim(<span class="keyword">It </span><span class="keyword">b, </span><span class="keyword">It </span>e)</div><div class="line">&#123;</div><div class="line">  <span class="meta">while</span>(<span class="keyword">b </span>!= e)&#123;</div><div class="line">    auto currValue = *<span class="keyword">b;</span></div><div class="line">      ...</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>在C++14中，lambda函数的参数都可以使用auto来定义。<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">auto</span> derefLess =                            <span class="comment">// C++14 comparison</span></div><div class="line">  [](<span class="keyword">const</span> <span class="keyword">auto</span>&amp; p1,                          <span class="comment">// function for</span></div><div class="line">     <span class="keyword">const</span> <span class="keyword">auto</span>&amp; p2)                          <span class="comment">// values pointed</span></div><div class="line">  &#123; <span class="keyword">return</span> *p1 &lt; *p2; &#125;;</div></pre></td></tr></table></figure></p>
-<p>使用auto生命类型还可以将我们从类型截断的问题中解放出来：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="keyword">int</span>&gt; arrs;</div><div class="line"><span class="keyword">auto</span> size = arrs.size();</div></pre></td></tr></table></figure></p>
-<p>在C++中，<code>unordered_map</code>的key的类型是const类型的，所以即便采取如下方式遍历<code>unordered_map</code>容器，仍然会产生临时对象：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">std</span>::<span class="built_in">unordered_map</span>&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="keyword">int</span>&gt; m;</div><div class="line">   ...</div><div class="line"></div><div class="line"><span class="keyword">for</span> (<span class="keyword">const</span> <span class="built_in">std</span>::pair&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="keyword">int</span>&gt;&amp; p : m)</div><div class="line">&#123;</div><div class="line">   ...                  <span class="comment">// do something with p</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>但是借助auto，我们不仅使声明更加简洁，还避开了此问题：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">std</span>::<span class="built_in">unordered_map</span>&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="keyword">int</span>&gt; m;</div><div class="line">   ...</div><div class="line"></div><div class="line"><span class="keyword">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; p : m)</div><div class="line">&#123;</div><div class="line">   ...                  <span class="comment">// do something with p</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<h3 id="6-当auto推导出非预期类型时应当使用显示的类型初始化"><a href="#6-当auto推导出非预期类型时应当使用显示的类型初始化" class="headerlink" title="6. 当auto推导出非预期类型时应当使用显示的类型初始化"></a>6. 当auto推导出非预期类型时应当使用显示的类型初始化</h3><p>在C++中，因为标准不允许返回对bit的引用，所以对于<code>vector&lt;bool&gt;</code>标准库进行了特化处理，其<code>[]</code>运算符返回的是<code>std::vector&lt;bool&gt;::reference</code>类型的临时对象。对临时对象的修改会被其同步到vector中，因而这样使用auto关键字是不合规的。<br><figure class="highlight gcode"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">Widget w;</div><div class="line">…</div><div class="line">auto highPriority = features<span class="comment">(w)</span>[<span class="number">5</span>];         <span class="comment">// w是不是个高优先级的？</span></div><div class="line">…</div><div class="line">processWidget<span class="comment">(w, highPriority)</span>;             <span class="comment">// 配合优先级处理w</span></div></pre></td></tr></table></figure></p>
-<p>在这种情况下，我们只需显示指出<code>highPriority</code>的类型为bool即可规避此问题。</p>
-
+        <p>leveldb使用vector存放使用malloc分配的内存。在析构的时候，对这些分配的内存统一进行释放。</p>
+<p>在分配内存时，首先判断上一个剩余块空间是否足够，足够就直接从剩余空间之中分配内存，否则调用AllocateFallback, 分配一块的新的内存。</p>
+<figure class="highlight lasso"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">inline</span> char* Arena<span class="type">::Allocate</span>(size_t <span class="built_in">bytes</span>)</div><div class="line">&#123;</div><div class="line">  assert(<span class="built_in">bytes</span> &gt; <span class="number">0</span>);</div><div class="line">  <span class="keyword">if</span>(<span class="built_in">bytes</span> &lt;= alloc_bytes_remaining_)</div><div class="line">  &#123;</div><div class="line">    char* result = alloc_ptr_;</div><div class="line">    alloc_ptr_ += <span class="built_in">bytes</span>;</div><div class="line">    alloc_bytes_remaining_ -= <span class="built_in">bytes</span>;</div><div class="line">    <span class="keyword">return</span> result;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> AllocateFallback(<span class="built_in">bytes</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在分配新的内存时，判断要分配的内存是否大于分配内存块大小kBlockSize的1/4，若大于，直接分配此大小的内存。否则分配一块kBlockSize大小的内存，从此内存块之中分配需要的内存，记录当前块剩余空间，以便下次内存分配能够利用剩余的空间。</p>
+<figure class="highlight nimrod"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">char</span>* <span class="type">Arena</span>::<span class="type">AllocateFallback</span>(size_t bytes)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">if</span>(bytes &gt; kBlockSize / <span class="number">4</span>)</div><div class="line">  &#123;</div><div class="line">    // <span class="keyword">object</span> <span class="keyword">is</span> more than a quarter <span class="keyword">of</span> our <span class="keyword">block</span> size. <span class="type">Allocate</span> it separately to</div><div class="line">    // avoid wasting too much space <span class="keyword">in</span> leftover bytes.</div><div class="line">    <span class="built_in">char</span>* <span class="literal">result</span> = <span class="type">AllocateNewBlock</span>(bytes);</div><div class="line">    <span class="keyword">return</span> <span class="literal">result</span>;</div><div class="line">  &#125;</div><div class="line">  // we waste the remaining space <span class="keyword">in</span> the current <span class="keyword">block</span></div><div class="line">  alloc_ptr_ = <span class="type">AllocateNewBlock</span>(kBlockSize);</div><div class="line">  alloc_bytes_remaining_ = kBlockSize;</div><div class="line"></div><div class="line">  <span class="built_in">char</span>* <span class="literal">result</span> = alloc_ptr_;</div><div class="line">  alloc_ptr_ += bytes;</div><div class="line">  alloc_bytes_remaining_ -= bytes;</div><div class="line">  <span class="keyword">return</span> <span class="literal">result</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>还有一种需求是分配的内存需要对齐，这需要保证分配的内存地址能够整除8（64位cpu），所以可能需要跳过一段内存区域，返回对齐的地址空间。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="keyword">char</span>* Arena::AllocateAligned(<span class="keyword">size_t</span> bytes)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">int</span> align = (<span class="keyword">sizeof</span>(<span class="keyword">void</span>*) &gt; <span class="number">8</span>) ? <span class="keyword">sizeof</span>(<span class="keyword">void</span>*) : <span class="number">8</span>;</div><div class="line">  assert((align &amp; (align - <span class="number">1</span>)) == <span class="number">0</span>); <span class="comment">// pointer size should be a power of 2</span></div><div class="line">  <span class="keyword">size_t</span> current_mod = <span class="keyword">reinterpret_cast</span>&lt;<span class="keyword">uintptr_t</span>&gt;(alloc_ptr_) &amp; (align - <span class="number">1</span>);</div><div class="line">  <span class="keyword">size_t</span> slop = (current_mod == <span class="number">0</span> ? <span class="number">0</span> : align - current_mod);</div><div class="line">  <span class="keyword">size_t</span> needed = bytes + slop;</div><div class="line">  <span class="keyword">char</span>* result;</div><div class="line">  <span class="keyword">if</span>(needed &lt;= alloc_bytes_remaining_)</div><div class="line">  &#123;</div><div class="line">    result = alloc_ptr_ + slop;</div><div class="line">    alloc_ptr_ += needed;</div><div class="line">    alloc_bytes_remaining_ -= needed;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    <span class="comment">// AllocateFallback always returned aligned memory</span></div><div class="line">    result = AllocateFallback(bytes);</div><div class="line">  &#125;</div><div class="line">  assert((<span class="keyword">reinterpret_cast</span>&lt;<span class="keyword">uintptr_t</span>&gt;(result) &amp; (align - <span class="number">1</span>)) == <span class="number">0</span>);</div><div class="line">  <span class="keyword">return</span> result;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>至于分配块内存，是直接调用new运算符来分配，其实质是利用malloc。在此过程中还记录了内存空间的总用量，注意要包括vector中记录内存地址占用的内存大小。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">char</span>* Arena::AllocateNewBlock(<span class="keyword">size_t</span> block_bytes)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">char</span>* result = <span class="keyword">new</span> <span class="keyword">char</span>[block_bytes];</div><div class="line">  blocks_.push_back(result);</div><div class="line">  <span class="comment">// also add pointer size at blocks_</span></div><div class="line">  memory_usage_.NoBarrier_Store(<span class="keyword">reinterpret_cast</span>&lt;<span class="keyword">void</span>*&gt;(MemoryUsage() + block_bytes + <span class="keyword">sizeof</span>(<span class="keyword">char</span>*)));</div><div class="line">  <span class="keyword">return</span> result;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
       
     </div>
 
@@ -433,7 +431,7 @@
       
         <div class="post-tags">
           
-            <a href="/tags/modern-effective-C/" rel="tag"># modern effective C++</a>
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
           
         </div>
       
@@ -446,8 +444,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/06/08/C++类型推导/" rel="next" title="C++类型推导">
-                <i class="fa fa-chevron-left"></i> C++类型推导
+              <a href="/2017/06/13/leveldb测试夹具/" rel="next" title="leveldb测试夹具">
+                <i class="fa fa-chevron-left"></i> leveldb测试夹具
               </a>
             
           </div>
@@ -456,8 +454,8 @@
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2017/06/08/muduo-Buffer/" rel="prev" title="muduo Buffer">
-                muduo Buffer <i class="fa fa-chevron-right"></i>
+              <a href="/2017/06/13/leveldb-bloom-filter/" rel="prev" title="leveldb bloom filter">
+                leveldb bloom filter <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>
@@ -507,17 +505,8 @@
       
 
       
-        <ul class="sidebar-nav motion-element">
-          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
-            文章目录
-          </li>
-          <li class="sidebar-nav-overview" data-target="site-overview">
-            站点概览
-          </li>
-        </ul>
-      
 
-      <section class="site-overview sidebar-panel">
+      <section class="site-overview sidebar-panel sidebar-panel-active">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
           <img class="site-author-image" itemprop="image"
                src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
@@ -608,22 +597,6 @@
 
       </section>
 
-      
-      <!--noindex-->
-        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
-          <div class="post-toc">
-
-            
-              
-            
-
-            
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-优先使用auto而非显示类型声明"><span class="nav-text">5. 优先使用auto而非显示类型声明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-当auto推导出非预期类型时应当使用显示的类型初始化"><span class="nav-text">6. 当auto推导出非预期类型时应当使用显示的类型初始化</span></a></li></ol></div>
-            
-
-          </div>
-        </section>
-      <!--/noindex-->
       
 
       

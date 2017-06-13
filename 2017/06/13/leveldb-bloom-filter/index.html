@@ -1,0 +1,813 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="bloom过滤器在1970年由布隆提出。它实际上是一个很长的二进制向量和一系列随机映射函数。布隆过滤器可以用于快速检索一个元素是否在一个集合中。使用布隆过滤器能够确定某个元素不在集合之中，但是布隆过滤器可能会误报，将本来不在集合中的元素归类为在集合之中的元素。 在leveldb的布隆过滤器，需要指定每个key需要的向量位数，如下所示： 12345678910explicit BloomFilter">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb bloom filter">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/13/leveldb-bloom-filter/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="bloom过滤器在1970年由布隆提出。它实际上是一个很长的二进制向量和一系列随机映射函数。布隆过滤器可以用于快速检索一个元素是否在一个集合中。使用布隆过滤器能够确定某个元素不在集合之中，但是布隆过滤器可能会误报，将本来不在集合中的元素归类为在集合之中的元素。 在leveldb的布隆过滤器，需要指定每个key需要的向量位数，如下所示： 12345678910explicit BloomFilter">
+<meta property="og:updated_time" content="2017-06-13T14:44:45.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb bloom filter">
+<meta name="twitter:description" content="bloom过滤器在1970年由布隆提出。它实际上是一个很长的二进制向量和一系列随机映射函数。布隆过滤器可以用于快速检索一个元素是否在一个集合中。使用布隆过滤器能够确定某个元素不在集合之中，但是布隆过滤器可能会误报，将本来不在集合中的元素归类为在集合之中的元素。 在leveldb的布隆过滤器，需要指定每个key需要的向量位数，如下所示： 12345678910explicit BloomFilter">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/13/leveldb-bloom-filter/"/>
+
+
+
+
+
+  <title>leveldb bloom filter | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/13/leveldb-bloom-filter/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb bloom filter</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-13T22:44:45+08:00">
+                2017-06-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>bloom过滤器在1970年由布隆提出。它实际上是一个很长的二进制向量和一系列随机映射函数。布隆过滤器可以用于快速检索一个元素是否在一个集合中。使用布隆过滤器能够确定某个元素<strong>不在</strong>集合之中，但是布隆过滤器可能会误报，将本来不在集合中的元素归类为在集合之中的元素。</p>
+<p>在leveldb的布隆过滤器，需要指定每个key需要的向量位数，如下所示：</p>
+<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">explicit</span> BloomFilterPolicy(<span class="keyword">int</span> bits_per_key)</div><div class="line">    : bits_per_key_(bits_per_key)</div><div class="line">&#123;</div><div class="line">  <span class="comment">// we intentionally round down to reduce probing cost a little bit</span></div><div class="line">  k_ = <span class="keyword">static_cast</span>&lt;size_t&gt;(bits_per_key * <span class="number">0.69</span>); <span class="comment">// 0.69 =~ ln(2)</span></div><div class="line">  <span class="built_in">if</span> (k_ &lt; <span class="number">1</span>)</div><div class="line">    k_ = <span class="number">1</span>;</div><div class="line">  <span class="built_in">if</span> (k_ &gt; <span class="number">30</span>)</div><div class="line">    k_ = <span class="number">30</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>leveldb 会在向量的最后记录<code>k_</code>的值,<code>k_</code>代表每个key需要设置hash位的次数。</p>
+<p>对于创建filter，leveldb会根据key的个数和<code>bits_per_key_</code>设置计算总共需要的二进制位数，将其向上取整到byte为单位，并且最小为8byte。对于每个key，重复设置<code>k_</code>次对应bit位，每次hash值加上delta <code>const uint32_t delta = (h &gt;&gt; 17) | (h &lt;&lt; 15);</code></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">CreateFilter</span><span class="params">(<span class="keyword">const</span> Slice *keys, <span class="keyword">int</span> n, <span class="built_in">std</span>::<span class="built_in">string</span> *dst)</span> <span class="keyword">const</span></span></div><div class="line">&#123;</div><div class="line">  <span class="comment">// compute bloom filter size (in both bits and bytes)</span></div><div class="line">  <span class="keyword">size_t</span> bits = n * bits_per_key_;</div><div class="line"></div><div class="line">  <span class="comment">// for small n, we can see a very high false positive rate. Fix it by enforcing</span></div><div class="line">  <span class="comment">// a minimum bloom filter length.</span></div><div class="line">  <span class="keyword">if</span> (bits &lt; <span class="number">64</span>)</div><div class="line">    bits = <span class="number">64</span>;</div><div class="line"></div><div class="line">  <span class="keyword">size_t</span> bytes = (bits + <span class="number">7</span>) / <span class="number">8</span>;</div><div class="line">  bits = bytes * <span class="number">8</span>;</div><div class="line"></div><div class="line">  <span class="keyword">const</span> <span class="keyword">size_t</span> init_size = dst-&gt;size();</div><div class="line">  dst-&gt;resize(init_size + bytes, <span class="number">0</span>);</div><div class="line">  dst-&gt;push_back(<span class="keyword">static_cast</span>&lt;<span class="keyword">char</span>&gt;(k_)); <span class="comment">// remember # of probes in filter</span></div><div class="line">  <span class="comment">// 因为采用的是push_back, 所以现在dst的实际大小为 init_size + 1 + bytes</span></div><div class="line">  <span class="comment">// 最后一个byte用于存放k_</span></div><div class="line">  <span class="keyword">char</span> *<span class="built_in">array</span> = &amp;(*dst)[init_size];</div><div class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n; ++i)</div><div class="line">  &#123;</div><div class="line">    <span class="comment">// use double-hashing to generate a sequence of hash values.</span></div><div class="line">    <span class="comment">// se analysis in [Kirsch,Mitzenmacher 2006].</span></div><div class="line">    <span class="keyword">uint32_t</span> h = BloomHash(keys[i]);</div><div class="line">    <span class="keyword">const</span> <span class="keyword">uint32_t</span> delta = (h &gt;&gt; <span class="number">17</span>) | (h &lt;&lt; <span class="number">15</span>); <span class="comment">// rotate right 17 bits</span></div><div class="line">    <span class="keyword">for</span> (<span class="keyword">size_t</span> j = <span class="number">0</span>; j &lt; k_; j++)</div><div class="line">    &#123;</div><div class="line">      <span class="keyword">const</span> <span class="keyword">uint32_t</span> bitpos = h % bits;</div><div class="line">      <span class="comment">// 设置对应位</span></div><div class="line">      <span class="built_in">array</span>[bitpos/<span class="number">8</span>] |= (<span class="number">1</span> &lt;&lt; (bitpos % <span class="number">8</span>));</div><div class="line">      <span class="comment">// h+= delta</span></div><div class="line">      h += delta;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>至于<code>KeyMayMatch</code>操作，就是对于给定key，首先拿到<code>k_</code>的值，然后进行<code>k_</code>次比较，比较每次计算得出的hash值对应的向量位是否设置为1，若<code>k_</code>次比较完毕之后，对应bit都设置为1，那么有理由相信这个key符合要求，否则，此key一定不在bloom集合之中。这里对<code>k_</code>做了特殊处理，对于<code>k_</code>大于30的情况，统一认定为符合filter，这是保留用途。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">virtual</span> <span class="keyword">bool</span> <span class="title">KeyMayMatch</span><span class="params">(<span class="keyword">const</span> Slice&amp; key, <span class="keyword">const</span> Slice&amp; bloom_filter)</span> <span class="keyword">const</span></span></div><div class="line"> &#123;</div><div class="line">   <span class="keyword">const</span> <span class="keyword">size_t</span> len = bloom_filter.size();</div><div class="line">   <span class="keyword">if</span> (len &lt; <span class="number">2</span>) <span class="keyword">return</span> <span class="literal">false</span>;</div><div class="line">   <span class="keyword">const</span> <span class="keyword">char</span>* <span class="built_in">array</span> = bloom_filter.data();</div><div class="line">   <span class="keyword">const</span> <span class="keyword">size_t</span> bits = (len - <span class="number">1</span>) * <span class="number">8</span>;</div><div class="line"></div><div class="line">   <span class="comment">// use the encoded k so that we can read filters generated by bloom filters created using different parameters.</span></div><div class="line">   <span class="keyword">const</span> <span class="keyword">size_t</span> k = <span class="built_in">array</span>[len - <span class="number">1</span>];</div><div class="line">   <span class="keyword">if</span> (k &gt; <span class="number">30</span>)</div><div class="line">   &#123;</div><div class="line">     <span class="comment">// reserved for potentially new encodings for short bloom filters.</span></div><div class="line">     <span class="comment">// consider it a match</span></div><div class="line">     <span class="keyword">return</span> <span class="literal">true</span>;</div><div class="line">   &#125;</div><div class="line"></div><div class="line">   <span class="keyword">uint32_t</span> h = BloomHash(key);</div><div class="line">   <span class="keyword">const</span> <span class="keyword">uint32_t</span> delta = (h &gt;&gt; <span class="number">17</span>) | (h &lt;&lt; <span class="number">15</span>);</div><div class="line">   <span class="keyword">for</span>(<span class="keyword">size_t</span> j = <span class="number">0</span>; j &lt; k; j++)</div><div class="line">   &#123;</div><div class="line">     <span class="keyword">const</span> <span class="keyword">uint32_t</span> bitpos = h % bits;</div><div class="line">     <span class="keyword">if</span>((<span class="built_in">array</span>[bitpos/<span class="number">8</span>] &amp; (<span class="number">1</span> &lt;&lt; (bitpos %<span class="number">8</span>))) == <span class="number">0</span>) <span class="keyword">return</span> <span class="literal">false</span>;</div><div class="line">     h += delta;</div><div class="line">   &#125;</div><div class="line">   <span class="keyword">return</span> <span class="literal">true</span>;</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+<p>求hash值的操作实际上是对hash操作的简单封装，指定seed为<code>0xbc9f1d34</code>。</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">static</span> uint32_t BloomHash(<span class="keyword">const</span> Slice &amp;<span class="built_in">key</span>)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">return</span> Hash(<span class="built_in">key</span>.data(), <span class="built_in">key</span>.<span class="built_in">size</span>(), <span class="number">0xbc9f1d34</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/13/leveldb-Arena内存分配器/" rel="next" title="leveldb Arena内存分配器">
+                <i class="fa fa-chevron-left"></i> leveldb Arena内存分配器
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview sidebar-panel sidebar-panel-active">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">23</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

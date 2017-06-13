@@ -343,6 +343,28 @@
           </span>
 
           
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/muduo/" itemprop="url" rel="index">
+                    <span itemprop="name">muduo</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
 
           
             
@@ -378,6 +400,7 @@
 <h4 id="重点"><a href="#重点" class="headerlink" title="重点"></a>重点</h4><p>在muduo的Buffer之中，对read进行了特殊处理。因为从socket读，会调用read，涉及到一次上下文切换，为了减少系统调用的开销，read的调用次数是越少越好，因而需要尽可能预先分配更大的用户空间缓存。另一方面，如果对于每个连接都分配过多的缓存，那么会造成因为内存容量有限而造成支持的并发连接数目有限的问题。这二者之间存在矛盾。</p>
 <p>在muduo之中，使用分配在堆栈上的缓存区域以及readv系统调用，将读取的数据优先存入buffer之中，超过限制才存放在堆栈上分配的缓存之中，最后再统一汇总到buffer之中。离开readFd函数之后，堆栈上分配的读取缓存会被自动回收。具体可以参考以下代码:</p>
 <figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">ssize_t</span> Buffer::readFd(<span class="keyword">int</span> fd, <span class="keyword">int</span>* savedErrno)</div><div class="line">&#123;</div><div class="line">  <span class="comment">// saved an ioctl()/FIONREAD call to tell how much to read</span></div><div class="line">  <span class="keyword">char</span> extrabuf[<span class="number">65536</span>];</div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">iovec</span> <span class="title">vec</span>[2];</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">size_t</span> writable = writableBytes();</div><div class="line">  vec[<span class="number">0</span>].iov_base = begin()+writerIndex_;</div><div class="line">  vec[<span class="number">0</span>].iov_len = writable;</div><div class="line">  vec[<span class="number">1</span>].iov_base = extrabuf;</div><div class="line">  vec[<span class="number">1</span>].iov_len = <span class="keyword">sizeof</span> extrabuf;</div><div class="line">  <span class="comment">// when there is enough space in this buffer, don't read into extrabuf.</span></div><div class="line">  <span class="comment">// when extrabuf is used, we read 128k-1 bytes at most.</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">int</span> iovcnt = (writable &lt; <span class="keyword">sizeof</span> extrabuf) ? <span class="number">2</span> : <span class="number">1</span>;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">ssize_t</span> n = sockets::readv(fd, vec, iovcnt);</div><div class="line">  <span class="keyword">if</span> (n &lt; <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    *savedErrno = errno;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span> <span class="keyword">if</span> (implicit_cast&lt;<span class="keyword">size_t</span>&gt;(n) &lt;= writable)</div><div class="line">  &#123;</div><div class="line">    writerIndex_ += n;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    writerIndex_ = buffer_.size();</div><div class="line">    append(extrabuf, n - writable);</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// if (n == writable + sizeof extrabuf)</span></div><div class="line">  <span class="comment">// &#123;</span></div><div class="line">  <span class="comment">//   goto line_30;</span></div><div class="line">  <span class="comment">// &#125;</span></div><div class="line">  <span class="keyword">return</span> n;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
       
     </div>
 
@@ -509,7 +532,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives/">
-                <span class="site-state-item-count">20</span>
+                <span class="site-state-item-count">23</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
@@ -520,7 +543,7 @@
             
             <div class="site-state-item site-state-categories">
               
-                <span class="site-state-item-count">1</span>
+                <span class="site-state-item-count">3</span>
                 <span class="site-state-item-name">分类</span>
               
             </div>
