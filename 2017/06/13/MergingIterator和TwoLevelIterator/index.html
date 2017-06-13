@@ -1,0 +1,831 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="MergingIterator概述MergingIterator的存在能够将多个iterator对应的数据结合起来，统一成一个iterator对外提供服务。迭代器的先后顺序仍然表示数据的大小关系，但是MegingIterator并不会对输入的迭代器进行去重处理。 通过构造函数可以发现，若没有输入任何迭代器，则返回一个empty iterator；若只输入了一个迭代器，则返回这个迭代器；在其他情况下">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MergingIterator和TwoLevelIterator">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/13/MergingIterator和TwoLevelIterator/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="MergingIterator概述MergingIterator的存在能够将多个iterator对应的数据结合起来，统一成一个iterator对外提供服务。迭代器的先后顺序仍然表示数据的大小关系，但是MegingIterator并不会对输入的迭代器进行去重处理。 通过构造函数可以发现，若没有输入任何迭代器，则返回一个empty iterator；若只输入了一个迭代器，则返回这个迭代器；在其他情况下">
+<meta property="og:updated_time" content="2017-06-13T14:22:38.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MergingIterator和TwoLevelIterator">
+<meta name="twitter:description" content="MergingIterator概述MergingIterator的存在能够将多个iterator对应的数据结合起来，统一成一个iterator对外提供服务。迭代器的先后顺序仍然表示数据的大小关系，但是MegingIterator并不会对输入的迭代器进行去重处理。 通过构造函数可以发现，若没有输入任何迭代器，则返回一个empty iterator；若只输入了一个迭代器，则返回这个迭代器；在其他情况下">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '9ace4c5f102f6ad339240ddda2b6100d',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/13/MergingIterator和TwoLevelIterator/"/>
+
+
+
+
+
+  <title>MergingIterator和TwoLevelIterator | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/13/MergingIterator和TwoLevelIterator/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">MergingIterator和TwoLevelIterator</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-13T22:22:38+08:00">
+                2017-06-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="MergingIterator"><a href="#MergingIterator" class="headerlink" title="MergingIterator"></a>MergingIterator</h2><h3 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h3><p>MergingIterator的存在能够将多个iterator对应的数据结合起来，统一成一个iterator对外提供服务。迭代器的先后顺序仍然表示数据的大小关系，但是MegingIterator并不会对输入的迭代器进行去重处理。</p>
+<p>通过构造函数可以发现，若没有输入任何迭代器，则返回一个empty iterator；若只输入了一个迭代器，则返回这个迭代器；在其他情况下才会创建MergingIterator对象。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 输入0，返回空的iterator，1，返回本身，n返回合并iterator</span></div><div class="line"><span class="function">Iterator* <span class="title">NewMergingIterator</span><span class="params">(<span class="keyword">const</span> Comparator* cmp, Iterator** <span class="built_in">list</span>, <span class="keyword">int</span> n)</span> </span>&#123;</div><div class="line">  assert(n &gt;= <span class="number">0</span>);</div><div class="line">  <span class="keyword">if</span> (n == <span class="number">0</span>) &#123;</div><div class="line">    <span class="keyword">return</span> NewEmptyIterator();</div><div class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (n == <span class="number">1</span>) &#123;</div><div class="line">    <span class="keyword">return</span> <span class="built_in">list</span>[<span class="number">0</span>];</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">new</span> MergingIterator(cmp, <span class="built_in">list</span>, n);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h3 id="实现解析"><a href="#实现解析" class="headerlink" title="实现解析"></a>实现解析</h3><h4 id="SeekToFirst，SeekToLast-和-Seek"><a href="#SeekToFirst，SeekToLast-和-Seek" class="headerlink" title="SeekToFirst，SeekToLast 和 Seek"></a>SeekToFirst，SeekToLast 和 Seek</h4><p>先从简单的讲起，SeekToFirst操作对所有输入的迭代器执行SeekToFirst操作，然后找到其中最小的一个就是第一个迭代器，并且记录迭代器前进方向为kForward。SeekToLast实现同理。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">SeekToFirst</span><span class="params">()</span> </span>&#123;</div><div class="line">   <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n_; i++) &#123;</div><div class="line">     children_[i].SeekToFirst();</div><div class="line">   &#125;</div><div class="line">   <span class="comment">// 找到最小的</span></div><div class="line">   FindSmallest();</div><div class="line">   <span class="comment">// 方向是前进</span></div><div class="line">   direction_ = kForward;</div><div class="line"> &#125;</div><div class="line"></div><div class="line"> <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">SeekToLast</span><span class="params">()</span> </span>&#123;</div><div class="line">   <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n_; i++) &#123;</div><div class="line">     children_[i].SeekToLast();</div><div class="line">   &#125;</div><div class="line">   <span class="comment">// 找到最大的</span></div><div class="line">   FindLargest();</div><div class="line">   <span class="comment">// 方向是后退</span></div><div class="line">   direction_ = kReverse;</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+<p>Seek操作是对所有输入的迭代器统一执行Seek操作，找到其中最小的迭代器返回。</p>
+<figure class="highlight aspectj"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">virtual <span class="function"><span class="keyword">void</span> <span class="title">Seek</span><span class="params">(<span class="keyword">const</span> Slice&amp; <span class="keyword">target</span>)</span> </span>&#123;</div><div class="line">   <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n_; i++) &#123;</div><div class="line">     children_[i].Seek(<span class="keyword">target</span>);</div><div class="line">   &#125;</div><div class="line">   <span class="comment">// 找到最小的</span></div><div class="line">   FindSmallest();</div><div class="line">   <span class="comment">// 方向是前进</span></div><div class="line">   direction_ = kForward;</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+<p>FindSmallest函数遍历所有输入的迭代器，记录key最小的迭代器为current_;FindLargest遍历所有输入的迭代器，记录key最大的迭代器为current_。</p>
+<figure class="highlight zephir"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 简单的O(n)遍历查找</span></div><div class="line">void MergingIterator::FindSmallest() &#123;</div><div class="line">  IteratorWrapper* smallest = <span class="keyword">NULL</span>;</div><div class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n_; i++) &#123;</div><div class="line">    IteratorWrapper* child = &amp;children_[i];</div><div class="line">    <span class="keyword">if</span> (child-&gt;Valid()) &#123;</div><div class="line">      <span class="keyword">if</span> (smallest == <span class="keyword">NULL</span>) &#123;</div><div class="line">        smallest = child;</div><div class="line">      &#125; <span class="keyword">else</span> <span class="keyword">if</span> (comparator_-&gt;Compare(child-&gt;key(), smallest-&gt;key()) &lt; <span class="number">0</span>) &#123;</div><div class="line">        smallest = child;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  current_ = smallest;</div><div class="line">&#125;</div><div class="line"></div><div class="line">void MergingIterator::FindLargest() &#123;</div><div class="line">  IteratorWrapper* largest = <span class="keyword">NULL</span>;</div><div class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = n_<span class="number">-1</span>; i &gt;= <span class="number">0</span>; i--) &#123;</div><div class="line">    IteratorWrapper* child = &amp;children_[i];</div><div class="line">    <span class="keyword">if</span> (child-&gt;Valid()) &#123;</div><div class="line">      <span class="keyword">if</span> (largest == <span class="keyword">NULL</span>) &#123;</div><div class="line">        largest = child;</div><div class="line">      &#125; <span class="keyword">else</span> <span class="keyword">if</span> (comparator_-&gt;Compare(child-&gt;key(), largest-&gt;key()) &gt; <span class="number">0</span>) &#123;</div><div class="line">        largest = child;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  current_ = largest;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h4 id="Prev-和-Next"><a href="#Prev-和-Next" class="headerlink" title="Prev 和 Next"></a>Prev 和 Next</h4><p>Prev操作是找到从左边最接近当前key的迭代器位置。若当前迭代器的遍历方向是kReverse，那么children_记录的除了current_之外的迭代器都current_小。因而其他迭代器都不用移动，只需current_向前移动一位，这样所有迭代器都比当前位置的key小，其中最大的就是最接近当前位置的迭代器。</p>
+<p>在其他情况下，就要对其他迭代器先执行Seek(key())操作，再执行Prev操作，移动到刚好小于当前key的位置。对于当前迭代器仍然只执行Prev操作。这样所有迭代器都是刚好比key小的位置，其中最大的就是最接近当前位置的迭代器。</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">virtual void Prev() &#123;</div><div class="line">    assert(Valid());</div><div class="line"></div><div class="line">    <span class="comment">/// Ensure that all children are positioned before key().</span></div><div class="line">    <span class="comment">/// reverse 情况下，其他child的key都比current小</span></div><div class="line">    <span class="comment">// If we are moving in the reverse direction, it is already</span></div><div class="line">    <span class="comment">// true for all of the non-current_ children since current_ is</span></div><div class="line">    <span class="comment">// the largest child and key() == current_-&gt;key().  Otherwise,</span></div><div class="line">    <span class="comment">// we explicitly position the non-current_ children.</span></div><div class="line">    <span class="keyword">if</span> (direction_ != kReverse) &#123;</div><div class="line">      <span class="keyword">for</span> (int i = <span class="number">0</span>; i &lt; n_; i++) &#123;</div><div class="line">        IteratorWrapper* child = &amp;children_[i];</div><div class="line">        <span class="keyword">if</span> (child != current_) &#123;</div><div class="line">          <span class="function"><span class="title">child</span>-&gt;</span>Seek(key());</div><div class="line">          <span class="function"><span class="title">if</span> (child-&gt;</span>Valid()) &#123;</div><div class="line">            <span class="comment">// Child is at first entry &gt;= key().  Step back one to be &lt; key()</span></div><div class="line">            <span class="function"><span class="title">child</span>-&gt;</span>Prev();</div><div class="line">          &#125; <span class="keyword">else</span> &#123;</div><div class="line">            <span class="comment">// Child has no entries &gt;= key().  Position at last entry.</span></div><div class="line">            <span class="function"><span class="title">child</span>-&gt;</span>SeekToLast();</div><div class="line">          &#125;</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">      direction_ = kReverse;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="title">current_</span>-&gt;</span>Prev();</div><div class="line">    <span class="comment">// 找其中最大的</span></div><div class="line">    FindLargest();</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
+<p>Next的实现方式同理，下面仅列出代码：</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div></pre></td><td class="code"><pre><div class="line">virtual void Next() &#123;</div><div class="line">    assert(Valid());</div><div class="line"></div><div class="line">    <span class="comment">/// Ensure that all children are positioned after key().</span></div><div class="line">    <span class="comment">/// forward 情况下，其他child的key都比current大</span></div><div class="line">    <span class="comment">// If we are moving in the forward direction, it is already</span></div><div class="line">    <span class="comment">// true for all of the non-current_ children since current_ is</span></div><div class="line">    <span class="comment">// the smallest child and key() == current_-&gt;key().  Otherwise,</span></div><div class="line">    <span class="comment">// we explicitly position the non-current_ children.</span></div><div class="line">    <span class="keyword">if</span> (direction_ != kForward) &#123;</div><div class="line">      <span class="keyword">for</span> (int i = <span class="number">0</span>; i &lt; n_; i++) &#123;</div><div class="line">        IteratorWrapper* child = &amp;children_[i];</div><div class="line">        <span class="keyword">if</span> (child != current_) &#123;</div><div class="line">          <span class="function"><span class="title">child</span>-&gt;</span>Seek(key());</div><div class="line">          <span class="function"><span class="title">if</span> (child-&gt;</span>Valid() &amp;&amp;</div><div class="line">              <span class="function"><span class="title">comparator_</span>-&gt;</span>C<span class="function"><span class="title">ompare</span>(key(), child-&gt;</span>key()) == <span class="number">0</span>) &#123;</div><div class="line">            <span class="comment">// child指向比key()大的位置</span></div><div class="line">            <span class="function"><span class="title">child</span>-&gt;</span>Next();</div><div class="line">          &#125;</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">      direction_ = kForward;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// current指向下一位</span></div><div class="line">    <span class="function"><span class="title">current_</span>-&gt;</span>Next();</div><div class="line">    <span class="comment">// 找其中最小的</span></div><div class="line">    FindSmallest();</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
+<h2 id="TwoLevelIterator"><a href="#TwoLevelIterator" class="headerlink" title="TwoLevelIterator"></a>TwoLevelIterator</h2><h3 id="概述-1"><a href="#概述-1" class="headerlink" title="概述"></a>概述</h3><p>TwoLevelIterator输入Index block 对应的iterator，以及输入的BlockReader函数，将index iterator所管理的数据块整合成为一个iterator，对外提供数据服务。</p>
+<h3 id="初始化data-iterator"><a href="#初始化data-iterator" class="headerlink" title="初始化data iterator"></a>初始化data iterator</h3><p>初始化data iterator的操作很简单，获取<code>index_iter_</code>当前位置的值作为block handle来初始化data iterator。在此过程中会记录此handle的值。若<code>data_iter_</code>不为空，且handle与记录的值不变，则不会重新初始化<code>data_iter_</code>。</p>
+<figure class="highlight lasso"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// initialize data iterator</span></div><div class="line"><span class="literal">void</span> TwoLevelIterator<span class="type">::InitDataBlock</span>() &#123;</div><div class="line">  <span class="keyword">if</span> (!index_iter_.Valid()) &#123;</div><div class="line">    SetDataIterator(<span class="built_in">NULL</span>);</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    Slice <span class="keyword">handle</span> = index_iter_.value();</div><div class="line">    <span class="keyword">if</span> (data_iter_.iter() != <span class="built_in">NULL</span> &amp;&amp; <span class="keyword">handle</span>.compare(data_block_handle_) == <span class="number">0</span>) &#123;</div><div class="line">      <span class="comment">// data_iter_ is already constructed with this iterator, so</span></div><div class="line">      <span class="comment">// no need to change anything</span></div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      <span class="comment">// 获取data iter</span></div><div class="line">      Iterator* iter = (*block_function_)(arg_, options_, <span class="keyword">handle</span>);</div><div class="line">      <span class="comment">// 保存创建data_iter的handle信息</span></div><div class="line">      data_block_handle_.assign(<span class="keyword">handle</span>.<span class="built_in">data</span>(), <span class="keyword">handle</span>.size());</div><div class="line">      <span class="comment">// 设置data iterator</span></div><div class="line">      SetDataIterator(iter);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 设置data iter</span></div><div class="line"><span class="literal">void</span> TwoLevelIterator<span class="type">::SetDataIterator</span>(Iterator* data_iter) &#123;</div><div class="line">  <span class="keyword">if</span> (data_iter_.iter() != <span class="built_in">NULL</span>) SaveError(data_iter_.status());</div><div class="line">  data_iter_.<span class="built_in">Set</span>(data_iter);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h3 id="iterator的Seek相关操作"><a href="#iterator的Seek相关操作" class="headerlink" title="iterator的Seek相关操作"></a>iterator的Seek相关操作</h3><p>iterator的Seek相关操作也非常简单，首先根据不同的Seek操作对<code>index_iter_</code>进行相应的移动，根据当前<code>index_iter_</code>的值初始化<code>data_iter_</code>，再移动到正确的位置上。</p>
+<figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"><span class="selector-tag">void</span> <span class="selector-tag">TwoLevelIterator</span><span class="selector-pseudo">::Seek(const</span> <span class="selector-tag">Slice</span><span class="selector-tag">&amp;</span> <span class="selector-tag">target</span>) &#123;</div><div class="line">  <span class="selector-tag">index_iter_</span><span class="selector-class">.Seek</span>(target);</div><div class="line">  <span class="selector-tag">InitDataBlock</span>();</div><div class="line">  <span class="selector-tag">if</span> (data_iter_.iter() != NULL) <span class="selector-tag">data_iter_</span><span class="selector-class">.Seek</span>(target);</div><div class="line">  <span class="selector-tag">SkipEmptyDataBlocksForward</span>();</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="selector-tag">void</span> <span class="selector-tag">TwoLevelIterator</span><span class="selector-pseudo">::SeekToFirst()</span> &#123;</div><div class="line">  <span class="selector-tag">index_iter_</span><span class="selector-class">.SeekToFirst</span>();</div><div class="line">  <span class="selector-tag">InitDataBlock</span>();</div><div class="line">  <span class="selector-tag">if</span> (data_iter_.iter() != NULL) <span class="selector-tag">data_iter_</span><span class="selector-class">.SeekToFirst</span>();</div><div class="line">  <span class="selector-tag">SkipEmptyDataBlocksForward</span>();</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="selector-tag">void</span> <span class="selector-tag">TwoLevelIterator</span><span class="selector-pseudo">::SeekToLast()</span> &#123;</div><div class="line">  <span class="selector-tag">index_iter_</span><span class="selector-class">.SeekToLast</span>();</div><div class="line">  <span class="selector-tag">InitDataBlock</span>();</div><div class="line">  <span class="selector-tag">if</span> (data_iter_.iter() != NULL) <span class="selector-tag">data_iter_</span><span class="selector-class">.SeekToLast</span>();</div><div class="line">  <span class="selector-tag">SkipEmptyDataBlocksBackward</span>();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="向前后移动以及Skip操作"><a href="#向前后移动以及Skip操作" class="headerlink" title="向前后移动以及Skip操作"></a>向前后移动以及Skip操作</h2><p><code>data_iter_</code>在移动过程中，有可能因为已经遍历过数据块的最后一条record，<code>data_iter_</code>需要继续移动，指向下一个数据块，而且<code>index_iter_</code>也可能指向空的数据块。对于这些情况，都需要跳过一些数据块，即如下代码所示：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 向前跳过空的data_iter_</span></div><div class="line"><span class="keyword">void</span> TwoLevelIterator::SkipEmptyDataBlocksForward() &#123;</div><div class="line">  <span class="keyword">while</span> (data_iter_.iter() == <span class="literal">NULL</span> || !data_iter_.Valid()) &#123;</div><div class="line">    <span class="comment">// Move to next block</span></div><div class="line">    <span class="keyword">if</span> (!index_iter_.Valid()) &#123;</div><div class="line">      SetDataIterator(<span class="literal">NULL</span>);</div><div class="line">      <span class="keyword">return</span>;</div><div class="line">    &#125;</div><div class="line">    index_iter_.Next();</div><div class="line">    InitDataBlock();</div><div class="line">    <span class="keyword">if</span> (data_iter_.iter() != <span class="literal">NULL</span>) data_iter_.SeekToFirst();</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 向后跳过空的data_iter_</span></div><div class="line"><span class="keyword">void</span> TwoLevelIterator::SkipEmptyDataBlocksBackward() &#123;</div><div class="line">  <span class="keyword">while</span> (data_iter_.iter() == <span class="literal">NULL</span> || !data_iter_.Valid()) &#123;</div><div class="line">    <span class="comment">// Move to next block</span></div><div class="line">    <span class="keyword">if</span> (!index_iter_.Valid()) &#123;</div><div class="line">      SetDataIterator(<span class="literal">NULL</span>);</div><div class="line">      <span class="keyword">return</span>;</div><div class="line">    &#125;</div><div class="line">    index_iter_.Prev();</div><div class="line">    InitDataBlock();</div><div class="line">    <span class="keyword">if</span> (data_iter_.iter() != <span class="literal">NULL</span>) data_iter_.SeekToLast();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在上述基础上，Prev和Next操作只需要在移动<code>data_iter_</code>移动之后，进行相应的跳空处理即可。</p>
+<figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="selector-tag">void</span> <span class="selector-tag">TwoLevelIterator</span><span class="selector-pseudo">::Next()</span> &#123;</div><div class="line">  <span class="selector-tag">assert</span>(Valid());</div><div class="line">  <span class="selector-tag">data_iter_</span><span class="selector-class">.Next</span>();</div><div class="line">  <span class="selector-tag">SkipEmptyDataBlocksForward</span>();</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="selector-tag">void</span> <span class="selector-tag">TwoLevelIterator</span><span class="selector-pseudo">::Prev()</span> &#123;</div><div class="line">  <span class="selector-tag">assert</span>(Valid());</div><div class="line">  <span class="selector-tag">data_iter_</span><span class="selector-class">.Prev</span>();</div><div class="line">  <span class="selector-tag">SkipEmptyDataBlocksBackward</span>();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>至此，leveldb table路径下所有代码分析完毕，下面转入db路径，深入到leveldb的实际建构之中。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/11/leveldb-sstable-读取解析/" rel="next" title="leveldb sstable 读取解析">
+                <i class="fa fa-chevron-left"></i> leveldb sstable 读取解析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">20</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">1</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#MergingIterator"><span class="nav-text">MergingIterator</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#概述"><span class="nav-text">概述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#实现解析"><span class="nav-text">实现解析</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#SeekToFirst，SeekToLast-和-Seek"><span class="nav-text">SeekToFirst，SeekToLast 和 Seek</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Prev-和-Next"><span class="nav-text">Prev 和 Next</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TwoLevelIterator"><span class="nav-text">TwoLevelIterator</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#概述-1"><span class="nav-text">概述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#初始化data-iterator"><span class="nav-text">初始化data iterator</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#iterator的Seek相关操作"><span class="nav-text">iterator的Seek相关操作</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#向前后移动以及Skip操作"><span class="nav-text">向前后移动以及Skip操作</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
