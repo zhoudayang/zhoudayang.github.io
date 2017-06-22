@@ -1,0 +1,853 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="基本介绍跳跃链表允许快速查询一个有序连续元素的数据链表。快速查询是通过维护一个多层次的链表，且每一层链表中的元素是前一层链表元素的子集。基于并联的链表，其效率可以比拟二叉查找树。在leveldb之中，基本的memtable和immutable memtable就是基于跳表实现的。leveldb内部键值对的有序性也是基于跳表的从前到后的有序性实现的。 基本的跳表结构如下所示: 我们可以发现，跳表之中">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb跳表">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/22/leveldb跳表/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="基本介绍跳跃链表允许快速查询一个有序连续元素的数据链表。快速查询是通过维护一个多层次的链表，且每一层链表中的元素是前一层链表元素的子集。基于并联的链表，其效率可以比拟二叉查找树。在leveldb之中，基本的memtable和immutable memtable就是基于跳表实现的。leveldb内部键值对的有序性也是基于跳表的从前到后的有序性实现的。 基本的跳表结构如下所示: 我们可以发现，跳表之中">
+<meta property="og:image" content="http://static.zybuluo.com/zhoudayang/ufvy4pc2g55hio7kei2hznb3/68747470733a2f2f75706c6f61642e77696b696d656469612e6f72672f77696b6970656469612f636f6d6d6f6e732f322f32632f536b69705f6c6973745f6164645f656c656d656e742d656e2e676966.gif">
+<meta property="og:updated_time" content="2017-06-22T10:05:08.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb跳表">
+<meta name="twitter:description" content="基本介绍跳跃链表允许快速查询一个有序连续元素的数据链表。快速查询是通过维护一个多层次的链表，且每一层链表中的元素是前一层链表元素的子集。基于并联的链表，其效率可以比拟二叉查找树。在leveldb之中，基本的memtable和immutable memtable就是基于跳表实现的。leveldb内部键值对的有序性也是基于跳表的从前到后的有序性实现的。 基本的跳表结构如下所示: 我们可以发现，跳表之中">
+<meta name="twitter:image" content="http://static.zybuluo.com/zhoudayang/ufvy4pc2g55hio7kei2hznb3/68747470733a2f2f75706c6f61642e77696b696d656469612e6f72672f77696b6970656469612f636f6d6d6f6e732f322f32632f536b69705f6c6973745f6164645f656c656d656e742d656e2e676966.gif">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '7ccbed52df595f2d66c7be0f9035d420',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/22/leveldb跳表/"/>
+
+
+
+
+
+  <title>leveldb跳表 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/22/leveldb跳表/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb跳表</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-22T18:05:08+08:00">
+                2017-06-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="基本介绍"><a href="#基本介绍" class="headerlink" title="基本介绍"></a>基本介绍</h1><p>跳跃链表允许快速查询一个有序连续元素的数据链表。快速查询是通过维护一个多层次的链表，且每一层链表中的元素是前一层链表元素的子集。基于并联的链表，其效率可以比拟二叉查找树。在leveldb之中，基本的memtable和immutable memtable就是基于跳表实现的。leveldb内部键值对的有序性也是基于跳表的从前到后的有序性实现的。</p>
+<p>基本的跳表结构如下所示:<br><img src="http://static.zybuluo.com/zhoudayang/ufvy4pc2g55hio7kei2hznb3/68747470733a2f2f75706c6f61642e77696b696d656469612e6f72672f77696b6970656469612f636f6d6d6f6e732f322f32632f536b69705f6c6973745f6164645f656c656d656e742d656e2e676966.gif" alt="68747470733a2f2f75706c6f61642e77696b696d656469612e6f72672f77696b6970656469612f636f6d6d6f6e732f322f32632f536b69705f6c6973745f6164645f656c656d656e742d656e2e676966.gif-47.9kB"></p>
+<p>我们可以发现，跳表之中每一个结点的高度是随机的，相同高度的节点按照key的先后顺序前后相连，高层次的链表中的节点更加稀疏。因此，在执行搜索的时候，不要从底层的链表开始一次遍历，只需要首先沿着高层链表依次往后遍历，直到刚好到达整个跳表尾端前面刚好大于等于要搜索的key的位置，然后再往下在低层的链表中继续按照此策略搜索，直至到达最底层的链表顺序遍历搜索。可以发现，采取这种搜索策略，大大加快了搜索的速度。实际上，跳表的搜索效率是和平衡二叉树一致的，都是<code>nlogn</code>级别。</p>
+<h1 id="实现简介"><a href="#实现简介" class="headerlink" title="实现简介"></a>实现简介</h1><h2 id="原子指针"><a href="#原子指针" class="headerlink" title="原子指针"></a>原子指针</h2><p>在leveldb之中，为了支持对memtable的并发访问，在实现跳表的时候，使用了原子指针数据结构。其实现主要是利用内存屏障，在对指针变量有更新的时候，使用内存屏障保证先后顺序，并且使得其他线程cache中的指针值失效，触发从内存之中重新读取。同样，在load指针值的时候，也使用内存屏障，保证先后顺序，保证读操作之前的所有写入操作生效之后，再从内存之中读取最新的指针值。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">inline</span> <span class="keyword">void</span>* <span class="title">Acquire_Load</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123;</div><div class="line">    <span class="keyword">void</span>* result = rep_;</div><div class="line">    MemoryBarrier();</div><div class="line">    <span class="keyword">return</span> result;</div><div class="line">&#125;</div><div class="line"><span class="function"><span class="keyword">inline</span> <span class="keyword">void</span> <span class="title">Release_Store</span><span class="params">(<span class="keyword">void</span>* v)</span> </span>&#123;</div><div class="line">    MemoryBarrier();</div><div class="line">    rep_ = v;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>跳表之中每个结点都是由一个<code>port::AtomicPointer</code>类型的数组构成，数组中的每一个成员对应跳表中某一层次的节点。关于指针的存取，为了充分提升性能，定义了非原子操作和原子操作的版本，区别使用。</p>
+<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// Implementation details follow</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, class Comparator&gt;</div><div class="line">struct SkipList&lt;Key,Comparator&gt;::Node &#123;</div><div class="line">  <span class="keyword">explicit</span> Node(<span class="keyword">const</span> Key&amp; k) : key(k) &#123; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 键</span></div><div class="line">  Key <span class="keyword">const</span> key;</div><div class="line"></div><div class="line">  <span class="comment">// Accessors/mutators for links.  Wrapped in methods so we can</span></div><div class="line">  <span class="comment">// add the appropriate barriers as necessary.</span></div><div class="line">  <span class="comment">// 获取n对应level的链表结点</span></div><div class="line">  Node* Next(<span class="keyword">int</span> n) &#123;</div><div class="line">    assert(n &gt;= <span class="number">0</span>);</div><div class="line">    <span class="comment">// Use an 'acquire load' so that we observe a fully initialized</span></div><div class="line">    <span class="comment">// version of the returned Node.</span></div><div class="line">    <span class="built_in">return</span> <span class="keyword">reinterpret_cast</span>&lt;Node*&gt;(next_[n].Acquire_Load());</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 设置n对应level上的链表结点</span></div><div class="line">  <span class="keyword">void</span> SetNext(<span class="keyword">int</span> n, Node* x) &#123;</div><div class="line">    assert(n &gt;= <span class="number">0</span>);</div><div class="line">    <span class="comment">// Use a 'release store' so that anybody who reads through this</span></div><div class="line">    <span class="comment">// pointer observes a fully initialized version of the inserted node.</span></div><div class="line">    next_[n].Release_Store(x);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// No-barrier version</span></div><div class="line">  <span class="comment">// No-barrier variants that can be safely used in a few locations.</span></div><div class="line">  Node* NoBarrier_Next(<span class="keyword">int</span> n) &#123;</div><div class="line">    assert(n &gt;= <span class="number">0</span>);</div><div class="line">    <span class="built_in">return</span> <span class="keyword">reinterpret_cast</span>&lt;Node*&gt;(next_[n].NoBarrier_Load());</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">void</span> NoBarrier_SetNext(<span class="keyword">int</span> n, Node* x) &#123;</div><div class="line">    assert(n &gt;= <span class="number">0</span>);</div><div class="line">    next_[n].NoBarrier_Store(x);</div><div class="line">  &#125;</div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="comment">// Array of length equal to the node height.  next_[0] is lowest level link.</span></div><div class="line">  <span class="comment">// 指向第一个level，实质上此数组的大小并不为1，这是c中struct的一个tricky</span></div><div class="line">  port::AtomicPointer next_[<span class="number">1</span>];</div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<p>在创建新节点的时候，使用内置的Arena内存分配器分配内存。节点中数组的大小为<code>kMaxHeight</code>，这是整个跳表所能够支持的最高层级。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">typename</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Node*</div><div class="line">SkipList&lt;Key,Comparator&gt;::NewNode(<span class="keyword">const</span> Key&amp; key, <span class="keyword">int</span> height) &#123;</div><div class="line">  <span class="comment">/// 数组的capacity为height</span></div><div class="line">  <span class="comment">//调用Arena内存分配器进行分配</span></div><div class="line">  <span class="keyword">char</span>* mem = arena_-&gt;AllocateAligned(</div><div class="line">      <span class="keyword">sizeof</span>(Node) + <span class="keyword">sizeof</span>(port::AtomicPointer) * (height - <span class="number">1</span>));</div><div class="line">  <span class="keyword">return</span> <span class="keyword">new</span> (mem) Node(key);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="查找"><a href="#查找" class="headerlink" title="查找"></a>查找</h2><p>在跳表之中，查找主要基于<code>FindGreaterOrEqual</code>和<code>FindLessThan</code>方法。查找大于或者等于key的节点方式是：从最高层往前遍历，直到x所指向的位置比key小，且next指向的位置比key大。如果当前所处的level为0，则next位置则为恰好大于或者等于key的位置，否则，继续在下层链表之中进行搜索。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">typename</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Node* SkipList&lt;Key,Comparator&gt;::FindGreaterOrEqual(<span class="keyword">const</span> Key&amp; key, Node** prev)</div><div class="line">    <span class="keyword">const</span> &#123;</div><div class="line">  Node* x = head_;</div><div class="line">  <span class="keyword">int</span> level = GetMaxHeight() - <span class="number">1</span>;</div><div class="line">  <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</div><div class="line">    Node* next = x-&gt;Next(level);</div><div class="line">    <span class="comment">/// 优先从高层链表往后遍历找到正确的位置</span></div><div class="line">    <span class="comment">// 还没有找到正确的位置，继续往前遍历链表</span></div><div class="line">    <span class="comment">/// key在链表结点next的后面</span></div><div class="line">    <span class="keyword">if</span> (KeyIsAfterNode(key, next)) &#123;</div><div class="line">      <span class="comment">// Keep searching in this list</span></div><div class="line">      x = next;</div><div class="line">    &#125;</div><div class="line">      <span class="comment">/// key在链表结点next的前面，在x结点的后面</span></div><div class="line">      <span class="comment">/// key的prev节点应该指向x</span></div><div class="line">    <span class="keyword">else</span> &#123;</div><div class="line">      <span class="keyword">if</span> (prev != <span class="literal">NULL</span>) prev[level] = x;</div><div class="line">      <span class="comment">// 若已经是最底层的链表，直接返回这个结点</span></div><div class="line">      <span class="keyword">if</span> (level == <span class="number">0</span>) &#123;</div><div class="line">        <span class="keyword">return</span> next;</div><div class="line">      &#125; <span class="keyword">else</span> &#123;</div><div class="line">        <span class="comment">// Switch to next list</span></div><div class="line">        <span class="comment">/// 进入更底层的链表，继续查找，直到第0层链表</span></div><div class="line">        level--;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>上述函数还有一个参数是一个Node*类型的数组，他存放的是每一个level级别链表输入的key的前一个节点的指针。其实就是每个level上，x小于key, 但是<code>x-&gt;next</code> 大于等于key的那个结点x。</p>
+<p>请注意，当输入key的sequence number大于或者等于跳表之中的节点，而user key部分一致，上述函数返回的节点指向的是跳表中sequence number较小，但user key部分一致的节点。<code>FindLessThan</code>的实现和<code>FindGreaterOrEqual</code>差不多，都是沿着高层链表往后遍历，直到next指向的节点比key大，并且当前位于第0层链表。不同于<code>FindLessThan</code>的是，<code>FindGreaterOrEqual</code>返回的是x结点，即next结点的上一个结点。</p>
+<figure class="highlight autoit"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">template&lt;typename Key, class Comparator&gt;</div><div class="line">typename SkipList&lt;Key,Comparator&gt;::Node*</div><div class="line">SkipList&lt;Key,Comparator&gt;::FindLessThan(<span class="keyword">const</span> Key&amp; key) <span class="keyword">const</span> &#123;</div><div class="line">  Node* x = head_<span class="comment">;</span></div><div class="line">  <span class="built_in">int</span> level = GetMaxHeight() - <span class="number">1</span><span class="comment">;</span></div><div class="line">  <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</div><div class="line">    // 断言当前x为head_结点，否则必有x-&gt;key &lt; key 成立</div><div class="line">    assert(x == head_ || compare_(x-&gt;key, key) &lt; <span class="number">0</span>)<span class="comment">;</span></div><div class="line">    // 拿到当前level层的下一个结点</div><div class="line">    Node* <span class="keyword">next</span> = x-&gt;<span class="keyword">Next</span>(level)<span class="comment">;</span></div><div class="line">    // 若<span class="keyword">next</span>指向<span class="literal">NULL</span>，或者<span class="keyword">next</span>-&gt;key &gt;= key</div><div class="line">    <span class="keyword">if</span> (<span class="keyword">next</span> == <span class="literal">NULL</span> || compare_(<span class="keyword">next</span>-&gt;key, key) &gt;= <span class="number">0</span>) &#123;</div><div class="line">      // 已经是最底层的链表，直接返回对应的结点</div><div class="line">      <span class="keyword">if</span> (level == <span class="number">0</span>) &#123;</div><div class="line">        <span class="keyword">return</span> x<span class="comment">;</span></div><div class="line">      &#125; <span class="keyword">else</span> &#123; // 转向更底层的链表</div><div class="line">        // <span class="keyword">Switch</span> <span class="keyword">to</span> <span class="keyword">next</span> list</div><div class="line">        level--<span class="comment">;</span></div><div class="line">      &#125; // <span class="keyword">next</span> &amp;&amp; compare_(<span class="keyword">next</span>-&gt;key, key) &lt; <span class="number">0</span>, 继续遍历到下一个结点</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      x = <span class="keyword">next</span><span class="comment">;</span></div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>若要定位到跳表的head节点，直接返回其head节点即可。定位到last节点由<code>FindLast</code>实现，从上到下，依次往后遍历，直到到达level 0，且x节点的后一个节点指向NULL，则x为跳表的最后一个节点。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 首先在最上层链表遍历到尾端，再转向底层结点，直到到达最低层链表的末尾结点</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">typename</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Node* SkipList&lt;Key,Comparator&gt;::FindLast()</div><div class="line">    <span class="keyword">const</span> &#123;</div><div class="line">  Node* x = head_;</div><div class="line">  <span class="keyword">int</span> level = GetMaxHeight() - <span class="number">1</span>;</div><div class="line">  <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</div><div class="line">    Node* next = x-&gt;Next(level);</div><div class="line">    <span class="keyword">if</span> (next == <span class="literal">NULL</span>) &#123;</div><div class="line">      <span class="keyword">if</span> (level == <span class="number">0</span>) &#123;</div><div class="line">        <span class="keyword">return</span> x;</div><div class="line">      &#125; <span class="keyword">else</span> &#123;</div><div class="line">        <span class="comment">// Switch to next list</span></div><div class="line">        level--;</div><div class="line">      &#125;</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      x = next;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="插入"><a href="#插入" class="headerlink" title="插入"></a>插入</h2><p>相比跳表的搜索，跳表的插入会稍显复杂。跳表每次插入的时候，新节点的高度实际上是随机产生的。插入会首先获取条表中大于或者等于key节点的第一个节点，并记录每一个对应level的前一个节点的地址保存在prev之中。最后更新prev数组中各节点的next值以及要插入的节点的next值即可。</p>
+<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 向skiplist中插入key</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, class Comparator&gt;</div><div class="line"><span class="keyword">void</span> SkipList&lt;Key,Comparator&gt;::Insert(<span class="keyword">const</span> Key&amp; key) &#123;</div><div class="line">  <span class="comment">// TODO(opt): We can use a barrier-free variant of FindGreaterOrEqual()</span></div><div class="line">  <span class="comment">// here since Insert() is externally synchronized.</span></div><div class="line">  Node* prev[kMaxHeight];</div><div class="line">  Node* x = FindGreaterOrEqual(key, prev);</div><div class="line"></div><div class="line">  <span class="comment">// Our data structure does not allow duplicate insertion</span></div><div class="line">  assert(x == NULL || !Equal(key, x-&gt;key));</div><div class="line"></div><div class="line">  <span class="keyword">int</span> <span class="built_in">height</span> = RandomHeight();</div><div class="line">  <span class="built_in">if</span> (<span class="built_in">height</span> &gt; GetMaxHeight()) &#123;</div><div class="line">    <span class="comment">// 更高层的结点，其prev指向head_</span></div><div class="line">    <span class="built_in">for</span> (<span class="keyword">int</span> i = GetMaxHeight(); i &lt; <span class="built_in">height</span>; i++) &#123;</div><div class="line">      prev[i] = head_;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">//fprintf(stderr, "Change height from %d to %d\n", max_height_, height);</span></div><div class="line"></div><div class="line">    <span class="comment">// It is ok to mutate max_height_ without any synchronization</span></div><div class="line">    <span class="comment">// with concurrent readers.  A concurrent reader that observes</span></div><div class="line">    <span class="comment">// the new value of max_height_ will see either the old value of</span></div><div class="line">    <span class="comment">// new level pointers from head_ (NULL), or a new value set in</span></div><div class="line">    <span class="comment">// the loop below.  In the former case the reader will</span></div><div class="line">    <span class="comment">// immediately drop to the next level since NULL sorts after all</span></div><div class="line">    <span class="comment">// keys.  In the latter case the reader will use the new node.</span></div><div class="line">    max_height_.NoBarrier_Store(<span class="keyword">reinterpret_cast</span>&lt;<span class="keyword">void</span>*&gt;(<span class="built_in">height</span>));</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  x = NewNode(key, <span class="built_in">height</span>);</div><div class="line">  <span class="built_in">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="built_in">height</span>; i++) &#123;</div><div class="line">    <span class="comment">// NoBarrier_SetNext() suffices since we will add a barrier when</span></div><div class="line">    <span class="comment">// we publish a pointer to "x" in prev[i].</span></div><div class="line">    <span class="comment">// 复制prev数组</span></div><div class="line">    x-&gt;NoBarrier_SetNext(i, prev[i]-&gt;NoBarrier_Next(i));</div><div class="line">    <span class="comment">// prev-&gt;next 也指向key</span></div><div class="line">    prev[i]-&gt;SetNext(i, x);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="迭代器"><a href="#迭代器" class="headerlink" title="迭代器"></a>迭代器</h2><p>跳表内部迭代器的接口定义和leveldb头文件中Iterator基本一致，但是没有继承头文件中的迭代器接口。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">Iterator</span> &#123;</span></div><div class="line">   <span class="keyword">public</span>:</div><div class="line">    <span class="comment">// Initialize an iterator over the specified list.</span></div><div class="line">    <span class="comment">// The returned iterator is not valid.</span></div><div class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">Iterator</span><span class="params">(<span class="keyword">const</span> SkipList* <span class="built_in">list</span>)</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">// Returns true iff the iterator is positioned at a valid node.</span></div><div class="line">    <span class="function"><span class="keyword">bool</span> <span class="title">Valid</span><span class="params">()</span> <span class="keyword">const</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">// Returns the key at the current position.</span></div><div class="line">    <span class="comment">// REQUIRES: Valid()</span></div><div class="line">    <span class="function"><span class="keyword">const</span> Key&amp; <span class="title">key</span><span class="params">()</span> <span class="keyword">const</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">// Advances to the next position.</span></div><div class="line">    <span class="comment">// REQUIRES: Valid()</span></div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">Next</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">// Advances to the previous position.</span></div><div class="line">    <span class="comment">// REQUIRES: Valid()</span></div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">Prev</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">// Advance to the first entry with a key &gt;= target</span></div><div class="line">    <span class="comment">// 此操作之后，指向第一条key &gt;= target的记录</span></div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">Seek</span><span class="params">(<span class="keyword">const</span> Key&amp; target)</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">// Position at the first entry in list.</span></div><div class="line">    <span class="comment">// Final state of iterator is Valid() iff list is not empty.</span></div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">SeekToFirst</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">// Position at the last entry in list.</span></div><div class="line">    <span class="comment">// Final state of iterator is Valid() iff list is not empty.</span></div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">SeekToLast</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">   <span class="keyword">private</span>:</div><div class="line">    <span class="comment">// itertor从属的链表</span></div><div class="line">    <span class="keyword">const</span> SkipList* list_;</div><div class="line">    <span class="comment">// 链表中的结点</span></div><div class="line">    Node* node_;</div><div class="line">    <span class="comment">// Intentionally copyable</span></div><div class="line">  &#125;;</div></pre></td></tr></table></figure>
+<p>我们可以发现，跳表中Iterator的相关操作基本上是对搜索操作的一次转调用。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// constructor of Iterator inside skiplist</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">inline</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Iterator::Iterator(<span class="keyword">const</span> SkipList* <span class="built_in">list</span>) &#123;</div><div class="line">  list_ = <span class="built_in">list</span>;</div><div class="line">  node_ = <span class="literal">NULL</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 若node_不为nil，那么Iterator是Valid的</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">inline</span> <span class="title">bool</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Iterator::Valid() <span class="keyword">const</span> &#123;</div><div class="line">  <span class="keyword">return</span> node_ != <span class="literal">NULL</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 返回node_对应的key_</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">inline</span> <span class="title">const</span> <span class="title">Key</span>&amp; <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Iterator::key() <span class="keyword">const</span> &#123;</div><div class="line">  assert(Valid());</div><div class="line">  <span class="keyword">return</span> node_-&gt;key;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 移动node_指向链表中的下一个结点</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">inline</span> <span class="title">void</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Iterator::Next() &#123;</div><div class="line">  assert(Valid());</div><div class="line">  node_ = node_-&gt;Next(<span class="number">0</span>);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// Iterator指向上一个结点</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">inline</span> <span class="title">void</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Iterator::Prev() &#123;</div><div class="line">  <span class="comment">// Instead of using explicit "prev" links, we just search for the</span></div><div class="line">  <span class="comment">// last node that falls before key.</span></div><div class="line">  assert(Valid());</div><div class="line">  <span class="comment">// node_应该指向恰好小于当前key的节点</span></div><div class="line">  <span class="comment">// 此操作是在skiplist的层面进行</span></div><div class="line">  node_ = list_-&gt;FindLessThan(node_-&gt;key);</div><div class="line">  <span class="comment">// 若链表为空，node_指向null，iterator 已经不再 valid了</span></div><div class="line">  <span class="keyword">if</span> (node_ == list_-&gt;head_) &#123;</div><div class="line">    node_ = <span class="literal">NULL</span>;</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 转调用skiplist中的FindGreaterOrEqual函数，node指向第一个大于等于target的节点</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">inline</span> <span class="title">void</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Iterator::Seek(<span class="keyword">const</span> Key&amp; target) &#123;</div><div class="line">  node_ = list_-&gt;FindGreaterOrEqual(target, <span class="literal">NULL</span>);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// iterator指向head_对应的结点</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">inline</span> <span class="title">void</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Iterator::SeekToFirst() &#123;</div><div class="line">  node_ = list_-&gt;head_-&gt;Next(<span class="number">0</span>);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// node_是skiplist中最后的节点</span></div><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Key, <span class="class"><span class="keyword">class</span> <span class="title">Comparator</span>&gt;</span></div><div class="line"><span class="title">inline</span> <span class="title">void</span> <span class="title">SkipList</span>&lt;Key,Comparator&gt;::Iterator::SeekToLast() &#123;</div><div class="line">  node_ = list_-&gt;FindLast();</div><div class="line">  <span class="comment">// 判断链表是否为空，设置iterator的状态</span></div><div class="line">  <span class="keyword">if</span> (node_ == list_-&gt;head_) &#123;</div><div class="line">    node_ = <span class="literal">NULL</span>;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/13/leveldb-bloom-filter/" rel="next" title="leveldb bloom filter">
+                <i class="fa fa-chevron-left"></i> leveldb bloom filter
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">24</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#基本介绍"><span class="nav-text">基本介绍</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#实现简介"><span class="nav-text">实现简介</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#原子指针"><span class="nav-text">原子指针</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#查找"><span class="nav-text">查找</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#插入"><span class="nav-text">插入</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#迭代器"><span class="nav-text">迭代器</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
