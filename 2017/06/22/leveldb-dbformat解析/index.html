@@ -1,0 +1,843 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="简介在leveldb中dbformat中，定义了几种不同类型的key，这几种类型的key的格式都是在dbformat之中定义的。在leveldb之中，会在用户定义的key后面附加上sequence number，用于标志key的先后顺序。在leveldb之中，删除key并不会真正将其从硬盘文件之中删除，而是将其类型标识为已经删除。的类型如下所示： 123456enum ValueType &amp;#12">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb dbformat解析">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/22/leveldb-dbformat解析/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="简介在leveldb中dbformat中，定义了几种不同类型的key，这几种类型的key的格式都是在dbformat之中定义的。在leveldb之中，会在用户定义的key后面附加上sequence number，用于标志key的先后顺序。在leveldb之中，删除key并不会真正将其从硬盘文件之中删除，而是将其类型标识为已经删除。的类型如下所示： 123456enum ValueType &amp;#12">
+<meta property="og:updated_time" content="2017-06-22T13:23:58.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb dbformat解析">
+<meta name="twitter:description" content="简介在leveldb中dbformat中，定义了几种不同类型的key，这几种类型的key的格式都是在dbformat之中定义的。在leveldb之中，会在用户定义的key后面附加上sequence number，用于标志key的先后顺序。在leveldb之中，删除key并不会真正将其从硬盘文件之中删除，而是将其类型标识为已经删除。的类型如下所示： 123456enum ValueType &amp;#12">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '7ccbed52df595f2d66c7be0f9035d420',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/22/leveldb-dbformat解析/"/>
+
+
+
+
+
+  <title>leveldb dbformat解析 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/22/leveldb-dbformat解析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb dbformat解析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-22T21:23:58+08:00">
+                2017-06-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>在leveldb中dbformat中，定义了几种不同类型的key，这几种类型的key的格式都是在dbformat之中定义的。在leveldb之中，会在用户定义的key后面附加上sequence number，用于标志key的先后顺序。在leveldb之中，删除key并不会真正将其从硬盘文件之中删除，而是将其类型标识为已经删除。的类型如下所示：</p>
+<figure class="highlight crystal"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">enum</span> <span class="title">ValueType</span> &#123;</span></div><div class="line">  /<span class="regexp">/ 数据已经删除</span></div><div class="line">  kTypeDeletion = 0x0,</div><div class="line">  /<span class="regexp">/ 是有效的value值</span></div><div class="line">  kTypeValue = 0x1</div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<p>实际上，ValueType是和SequenceNumber组合在一起存储的，共占据64bit，其中sequence number占据前56位，后面8位用于标志value的类型。</p>
+<h1 id="各种类型的key"><a href="#各种类型的key" class="headerlink" title="各种类型的key"></a>各种类型的key</h1><h2 id="InternalKey"><a href="#InternalKey" class="headerlink" title="InternalKey"></a>InternalKey</h2><p>InternalKey的格式是输入的<code>user_key</code>后面再加上sequence number和标志类型的ValueType。整个key的格式是：user key + sequence number + value type。因而，由ParsedInternalKey存储为字符串需要进行如下操作：</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 将sequence number 和 value type 组合成为 uint64_t</span></div><div class="line"><span class="keyword">static</span> uint64_t PackSequenceAndType(uint64_t seq, ValueType t) &#123;</div><div class="line">  <span class="keyword">assert</span>(seq &lt;= kMaxSequenceNumber);</div><div class="line">  <span class="keyword">assert</span>(t &lt;= kValueTypeForSeek);</div><div class="line">  <span class="keyword">return</span> (seq &lt;&lt; <span class="number">8</span>) | t;</div><div class="line">&#125;</div><div class="line"><span class="keyword">void</span> AppendInternalKey(std::string* result, <span class="keyword">const</span> ParsedInternalKey&amp; <span class="built_in">key</span>) &#123;</div><div class="line">  result-&gt;<span class="built_in">append</span>(<span class="built_in">key</span>.user_key.data(), <span class="built_in">key</span>.user_key.<span class="built_in">size</span>());</div><div class="line">  PutFixed64(result, PackSequenceAndType(<span class="built_in">key</span>.sequence, <span class="built_in">key</span>.type));</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="LookupKey"><a href="#LookupKey" class="headerlink" title="LookupKey"></a>LookupKey</h2><p>LookupKey相比InternalKey，在前面使用varint32格式记录了整个InternalKey所占据的空间大小。整个key的格式是：length + user key + sequence number + value_type。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">LookupKey</span> &#123;</span></div><div class="line"> <span class="keyword">public</span>:</div><div class="line">  <span class="comment">// Initialize *this for looking up user_key at a snapshot with</span></div><div class="line">  <span class="comment">// the specified sequence number.</span></div><div class="line">  LookupKey(<span class="keyword">const</span> Slice&amp; user_key, SequenceNumber sequence);</div><div class="line"></div><div class="line">  ~LookupKey();</div><div class="line"></div><div class="line">  <span class="comment">// Return a key suitable for lookup in a MemTable.</span></div><div class="line">  <span class="function">Slice <span class="title">memtable_key</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> Slice(start_, end_ - start_); &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return an internal key (suitable for passing to an internal iterator)</span></div><div class="line">  <span class="function">Slice <span class="title">internal_key</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> Slice(kstart_, end_ - kstart_); &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return the user key</span></div><div class="line">  <span class="function">Slice <span class="title">user_key</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> Slice(kstart_, end_ - kstart_ - <span class="number">8</span>); &#125;</div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="comment">/// lookup key 内部format如下所示</span></div><div class="line">  <span class="comment">// We construct a char array of the form:</span></div><div class="line">  <span class="comment">//    klength  varint32               &lt;-- start_</span></div><div class="line">  <span class="comment">//    userkey  char[klength]          &lt;-- kstart_</span></div><div class="line">  <span class="comment">//    tag      uint64</span></div><div class="line">  <span class="comment">//                                    &lt;-- end_</span></div><div class="line">  <span class="comment">// The array is a suitable MemTable key.</span></div><div class="line">  <span class="comment">// The suffix starting with "userkey" can be used as an InternalKey.</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* start_;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* kstart_;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* end_;</div><div class="line">  <span class="keyword">char</span> space_[<span class="number">200</span>];      <span class="comment">// Avoid allocation for short keys</span></div><div class="line"></div><div class="line">  <span class="comment">// No copying allowed</span></div><div class="line">  LookupKey(<span class="keyword">const</span> LookupKey&amp;);</div><div class="line">  <span class="keyword">void</span> <span class="keyword">operator</span>=(<span class="keyword">const</span> LookupKey&amp;);</div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<p>LookupKey类内部，<code>start_</code>标志整个LookupKey的开始位置，<code>kstart_</code>指向<code>user_key</code>的开始位置，<code>end_</code>指向整个LookupKey的结束位置。按照LookupKey格式，初始化各类成员，可以理解构造函数。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">LookupKey::LookupKey(<span class="keyword">const</span> Slice&amp; user_key, SequenceNumber s) &#123;</div><div class="line">  size_t <span class="built_in">usize</span> = user_key.size();</div><div class="line">  <span class="comment">/// varint32 + sequence number + value type</span></div><div class="line">  size_t needed = <span class="built_in">usize</span> + <span class="number">13</span>;  <span class="comment">// A conservative estimate</span></div><div class="line">  <span class="built_in">char</span>* dst;</div><div class="line">  <span class="comment">// 空间足够了</span></div><div class="line">  <span class="keyword">if</span> (needed &lt;= <span class="keyword">sizeof</span>(space_)) &#123;</div><div class="line">    dst = space_;</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="comment">// new 分配空间</span></div><div class="line">    dst = new <span class="built_in">char</span>[needed];</div><div class="line">  &#125;</div><div class="line">  start_ = dst;</div><div class="line">  <span class="comment">// encode length</span></div><div class="line">  dst = EncodeVarint32(dst, <span class="built_in">usize</span> + <span class="number">8</span>);</div><div class="line">  <span class="comment">// start_ 指向user key的开始处</span></div><div class="line">  kstart_ = dst;</div><div class="line">  <span class="comment">// encode user key</span></div><div class="line">  memcpy(dst, user_key.data(), <span class="built_in">usize</span>);</div><div class="line">  dst += <span class="built_in">usize</span>;</div><div class="line">  <span class="comment">// encode sequence number and type</span></div><div class="line">  EncodeFixed64(dst, PackSequenceAndType(s, kValueTypeForSeek));</div><div class="line">  dst += <span class="number">8</span>;</div><div class="line">  <span class="comment">// 指向数据结束处</span></div><div class="line">  end_ = dst;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="InternalKeyComparator"><a href="#InternalKeyComparator" class="headerlink" title="InternalKeyComparator"></a>InternalKeyComparator</h1><p>因为在InternalKey中引入了sequence number和value type，因而需要在Comparator的基础之上引入对Comparator相关接口实现进行改动才能适应。</p>
+<p>在进行比较的时候，优先按照user key进行比较，若user key一样，则按照sequence number进行排序，sequence number更大的被视为较小。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/// 优先按照user key进行升序排序，然后按照sequence number 降序排序</span></div><div class="line"><span class="comment">/// node-&gt;key key</span></div><div class="line"><span class="keyword">int</span> InternalKeyComparator::Compare(<span class="keyword">const</span> Slice&amp; akey, <span class="keyword">const</span> Slice&amp; bkey) <span class="keyword">const</span> &#123;</div><div class="line">  <span class="comment">// Order by:</span></div><div class="line">  <span class="comment">//    increasing user key (according to user-supplied comparator)</span></div><div class="line">  <span class="comment">//    decreasing sequence number</span></div><div class="line">  <span class="comment">//    decreasing type (though sequence# should be enough to disambiguate)</span></div><div class="line">  <span class="keyword">int</span> r = user_comparator_-&gt;Compare(ExtractUserKey(akey), ExtractUserKey(bkey));</div><div class="line">  <span class="keyword">if</span> (r == <span class="number">0</span>) &#123;</div><div class="line">    <span class="keyword">const</span> <span class="keyword">uint64_t</span> anum = DecodeFixed64(akey.data() + akey.size() - <span class="number">8</span>);</div><div class="line">    <span class="keyword">const</span> <span class="keyword">uint64_t</span> bnum = DecodeFixed64(bkey.data() + bkey.size() - <span class="number">8</span>);</div><div class="line">    <span class="keyword">if</span> (anum &gt; bnum) &#123;</div><div class="line">      r = <span class="number">-1</span>;</div><div class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (anum &lt; bnum) &#123;</div><div class="line">      r = +<span class="number">1</span>;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> r;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>对于<code>FindShortestSeparator</code>和<code>FindShortSuccessor</code>操作，需要在基类的基础之上再加上sequence number和value type，sequence number取最大值。</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> InternalKeyComparator::FindShortestSeparator(</div><div class="line">      std::string* start,</div><div class="line">      <span class="keyword">const</span> Slice&amp; limit) <span class="keyword">const</span> &#123;</div><div class="line">  <span class="comment">// Attempt to shorten the user portion of the key</span></div><div class="line">  Slice user_start = ExtractUserKey(*start);</div><div class="line">  Slice user_limit = ExtractUserKey(limit);</div><div class="line">  std::string tmp(user_start.data(), user_start.<span class="built_in">size</span>());</div><div class="line">  <span class="comment">/// 找到比user_start大，比user_limit小的key</span></div><div class="line">  user_comparator_-&gt;FindShortestSeparator(&amp;tmp, user_limit);</div><div class="line">  <span class="keyword">if</span> (tmp.<span class="built_in">size</span>() &lt; user_start.<span class="built_in">size</span>() &amp;&amp;</div><div class="line">      user_comparator_-&gt;Compare(user_start, tmp) &lt; <span class="number">0</span>) &#123;</div><div class="line">    <span class="comment">// User key has become shorter physically, but larger logically.</span></div><div class="line">    <span class="comment">// Tack on the earliest possible number to the shortened user key.</span></div><div class="line">    PutFixed64(&amp;tmp, PackSequenceAndType(kMaxSequenceNumber,kValueTypeForSeek));</div><div class="line">    <span class="keyword">assert</span>(<span class="keyword">this</span>-&gt;Compare(*start, tmp) &lt; <span class="number">0</span>);</div><div class="line">    <span class="keyword">assert</span>(<span class="keyword">this</span>-&gt;Compare(tmp, limit) &lt; <span class="number">0</span>);</div><div class="line">    start-&gt;swap(tmp);</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> InternalKeyComparator::FindShortSuccessor(std::string* <span class="built_in">key</span>) <span class="keyword">const</span> &#123;</div><div class="line">  Slice user_key = ExtractUserKey(*<span class="built_in">key</span>);</div><div class="line">  std::string tmp(user_key.data(), user_key.<span class="built_in">size</span>());</div><div class="line">  <span class="comment">/// 找到比key大的key, 存于tmp中</span></div><div class="line">  user_comparator_-&gt;FindShortSuccessor(&amp;tmp);</div><div class="line">  <span class="keyword">if</span> (tmp.<span class="built_in">size</span>() &lt; user_key.<span class="built_in">size</span>() &amp;&amp;</div><div class="line">      user_comparator_-&gt;Compare(user_key, tmp) &lt; <span class="number">0</span>) &#123;</div><div class="line">    <span class="comment">// User key has become shorter physically, but larger logically.</span></div><div class="line">    <span class="comment">// Tack on the earliest possible number to the shortened user key.</span></div><div class="line">    PutFixed64(&amp;tmp, PackSequenceAndType(kMaxSequenceNumber,kValueTypeForSeek));</div><div class="line">    <span class="keyword">assert</span>(<span class="keyword">this</span>-&gt;Compare(*<span class="built_in">key</span>, tmp) &lt; <span class="number">0</span>);</div><div class="line">    <span class="built_in">key</span>-&gt;swap(tmp);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/22/leveldb跳表/" rel="next" title="leveldb跳表">
+                <i class="fa fa-chevron-left"></i> leveldb跳表
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">25</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#简介"><span class="nav-text">简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#各种类型的key"><span class="nav-text">各种类型的key</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#InternalKey"><span class="nav-text">InternalKey</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#LookupKey"><span class="nav-text">LookupKey</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#InternalKeyComparator"><span class="nav-text">InternalKeyComparator</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
