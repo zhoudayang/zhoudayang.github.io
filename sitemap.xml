@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://zhoudayang.github.io/2017/06/23/leveldb-WriteBatch%E8%A7%A3%E6%9E%90/</loc>
+    
+    <lastmod>2017-06-23T03:56:18.000Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>http://zhoudayang.github.io/2017/06/23/leveldb-memtable%E8%A7%A3%E6%9E%90/</loc>
     
     <lastmod>2017-06-23T03:21:30.000Z</lastmod>
