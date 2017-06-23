@@ -75,7 +75,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="C++," />
+  <meta name="keywords" content="leveldb" />
 
 
 
@@ -91,17 +91,17 @@
 
 
 
-<meta name="description" content="C++ 运行时类型识别C++中运行时类型识别(run-time type identification, RTTI)的功能由两个运算符实现。  typeid运算符，用于返回表达式的类型。 dynamic_cast运算符，用于将基类的指针或引用安全地转换成派生类的指针或者引用。  这两个运算符特别适用于以下情况：我们想使用基类对象的指针或引用执行某个派生类操作并且该操作不是虚函数。一般来说，只要有可">
-<meta name="keywords" content="C++">
+<meta name="description" content="简介在leveldb之中，提供了快照机制，保证不同时刻定义的iterator能够获得与当前时刻保持一致的视图，在遍历访问数据库时仍然可以对数据库进行修改，而不用锁死整个数据库。 获取快照实际上是返回当前最新的读写记录的sequence number，并将这个值记录在链表之中。 12345const Snapshot* DBImpl::GetSnapshot() &amp;#123;  /// 记录当前ve">
+<meta name="keywords" content="leveldb">
 <meta property="og:type" content="article">
-<meta property="og:title" content="C++运行时类型识别">
-<meta property="og:url" content="http://zhoudayang.github.io/2017/06/11/C-运行时类型识别/index.html">
+<meta property="og:title" content="leveldb snapshot解析">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/23/leveldb-snapshot解析/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="C++ 运行时类型识别C++中运行时类型识别(run-time type identification, RTTI)的功能由两个运算符实现。  typeid运算符，用于返回表达式的类型。 dynamic_cast运算符，用于将基类的指针或引用安全地转换成派生类的指针或者引用。  这两个运算符特别适用于以下情况：我们想使用基类对象的指针或引用执行某个派生类操作并且该操作不是虚函数。一般来说，只要有可">
-<meta property="og:updated_time" content="2017-06-11T06:40:55.000Z">
+<meta property="og:description" content="简介在leveldb之中，提供了快照机制，保证不同时刻定义的iterator能够获得与当前时刻保持一致的视图，在遍历访问数据库时仍然可以对数据库进行修改，而不用锁死整个数据库。 获取快照实际上是返回当前最新的读写记录的sequence number，并将这个值记录在链表之中。 12345const Snapshot* DBImpl::GetSnapshot() &amp;#123;  /// 记录当前ve">
+<meta property="og:updated_time" content="2017-06-23T06:24:11.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="C++运行时类型识别">
-<meta name="twitter:description" content="C++ 运行时类型识别C++中运行时类型识别(run-time type identification, RTTI)的功能由两个运算符实现。  typeid运算符，用于返回表达式的类型。 dynamic_cast运算符，用于将基类的指针或引用安全地转换成派生类的指针或者引用。  这两个运算符特别适用于以下情况：我们想使用基类对象的指针或引用执行某个派生类操作并且该操作不是虚函数。一般来说，只要有可">
+<meta name="twitter:title" content="leveldb snapshot解析">
+<meta name="twitter:description" content="简介在leveldb之中，提供了快照机制，保证不同时刻定义的iterator能够获得与当前时刻保持一致的视图，在遍历访问数据库时仍然可以对数据库进行修改，而不用锁死整个数据库。 获取快照实际上是返回当前最新的读写记录的sequence number，并将这个值记录在链表之中。 12345const Snapshot* DBImpl::GetSnapshot() &amp;#123;  /// 记录当前ve">
 
 
 
@@ -129,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/11/C-运行时类型识别/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/23/leveldb-snapshot解析/"/>
 
 
 
 
 
-  <title>C++运行时类型识别 | zhouyang's blog</title>
+  <title>leveldb snapshot解析 | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -303,7 +303,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/11/C-运行时类型识别/">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/23/leveldb-snapshot解析/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Zhou Yang">
@@ -320,7 +320,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">C++运行时类型识别</h1>
+          <h1 class="post-title" itemprop="name headline">leveldb snapshot解析</h1>
         
 
         <div class="post-meta">
@@ -332,8 +332,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-11T14:40:55+08:00">
-                2017-06-11
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-23T14:24:11+08:00">
+                2017-06-23
               </time>
             
 
@@ -355,8 +355,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/C/" itemprop="url" rel="index">
-                    <span itemprop="name">C++</span>
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
                   </a>
                 </span>
 
@@ -394,67 +394,15 @@
       
 
       
-        <h1 id="C-运行时类型识别"><a href="#C-运行时类型识别" class="headerlink" title="C++ 运行时类型识别"></a>C++ 运行时类型识别</h1><p>C++中运行时类型识别(run-time type identification, <strong>RTTI</strong>)的功能由两个运算符实现。</p>
-<ol>
-<li>typeid运算符，用于返回表达式的类型。</li>
-<li>dynamic_cast运算符，用于将基类的指针或引用安全地转换成派生类的指针或者引用。</li>
-</ol>
-<p>这两个运算符特别适用于以下情况：我们想使用基类对象的指针或引用执行某个派生类操作并且该操作不是虚函数。一般来说，只要有可能我们应该尽量使用虚函数。当操作被定义成为虚函数时，编译器将根据对象的动态类型根据对象的动态类型自动选择正确的函数版本。</p>
-<h2 id="dynamic-cast运算符"><a href="#dynamic-cast运算符" class="headerlink" title="dynamic_cast运算符"></a>dynamic_cast运算符</h2><p>dynamic_cast运算符的使用形式如下所示：</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">dynamic_cast</span>&lt;type*&gt;(e);</div><div class="line"><span class="keyword">dynamic_cast</span>&lt;type&amp;&gt;(e);</div><div class="line"><span class="keyword">dynamic_cast</span>&lt;type&amp;&amp;&gt;(e);</div></pre></td></tr></table></figure>
-<p>type必须是一个类类型，并且通常情况下该类型应该含有虚函数。</p>
-<p>在上面的所有形式之中，e的类型必须符合下面3个条件之中的任意一个：</p>
-<ol>
-<li>e的类型是目标type的公有派生类</li>
-<li>e的类型是目标type的公有基类</li>
-<li>e的类型就是目标type的类型。</li>
-</ol>
-<p>如果符合，则类型转换就可以成功。否则，转换失败。如果一条dynamica_cast语句的转换目标是指针类型并且失败了，则结果为0。如果转换目标是引用类型并且失败了，则dynamic_cast运算符将抛出一个bad_cast的异常。</p>
-<p>使用举例：</p>
-<ul>
-<li>指针类型的dynamic_cast</li>
-</ul>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">if</span> (Derived* dp = <span class="keyword">dynamic_cast</span>&lt;Derived*&gt;(bp))</div><div class="line">&#123;</div><div class="line">	<span class="comment">// 使用dp指向的Derived对象	</span></div><div class="line">&#125;</div><div class="line"><span class="keyword">else</span></div><div class="line">&#123;</div><div class="line">	<span class="comment">// 转换失败，使用bp指向的Base对象</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<ul>
-<li>引用类型的dynamic_cast</li>
-</ul>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">f</span><span class="params">(<span class="keyword">const</span> Base&amp; b)</span></span></div><div class="line">&#123;</div><div class="line">	<span class="keyword">try</span></div><div class="line">	&#123;</div><div class="line">		<span class="keyword">const</span> Derived&amp; d = <span class="keyword">dynamic_cast</span>&lt;<span class="keyword">const</span> Derived&amp;&gt;(b);</div><div class="line">		<span class="comment">// 使用b引用的Derived对象</span></div><div class="line">	&#125; <span class="keyword">catch</span>(bad_cast)</div><div class="line">	&#123;</div><div class="line">		<span class="comment">// 处理类型转换失败的情况</span></div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<h2 id="typeid运算符"><a href="#typeid运算符" class="headerlink" title="typeid运算符"></a>typeid运算符</h2><p>为RTTI提供的第二个运算符是typeid运算符，它允许程序向表达式提问，你是什么类型？</p>
-<p>typeid表达式的形式是<code>typeid(e)</code>，其中e可以是任意表达式或者类型的名字。typeid操作的结果是一个常量对象的引用，该对象的类型是标准库类型type_info或者type_info的公有派生类型。</p>
-<p>可以通过下述方式比较两条表达式的类型是否相同，或者比较一条表达式的类型是否与指定类型相同。</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">Derived* dp = <span class="keyword">new</span> Derived;</div><div class="line">Base* bp = dp;</div><div class="line"><span class="keyword">if</span>(<span class="keyword">typeid</span>(*bp) == <span class="keyword">typeid</span>(*dp))</div><div class="line">&#123;</div><div class="line">	<span class="comment">// bp和dp指向同一类型的对象</span></div><div class="line">&#125;</div><div class="line"><span class="comment">// 检查运行时类型是否是某种指定的类型</span></div><div class="line"><span class="comment">// 请注意，typeid应该作用于对象而不是指针。</span></div><div class="line"><span class="keyword">if</span>(<span class="keyword">typeid</span>(*bp) == <span class="keyword">typeid</span>(Derived))</div><div class="line">&#123;	</div><div class="line">	<span class="comment">// bp 实际指向Derived对象</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<h2 id="type-info类"><a href="#type-info类" class="headerlink" title="type_info类"></a>type_info类</h2><p>type_info类的精确定义和编译器的实现有关。C++标准规定type_info类必须定义在typeinfo头文件中，并且至少提供以下操作：</p>
-<table>
-<thead>
-<tr>
-<th>操作</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>t1 == t2</td>
-<td>若type_info对象t1和t2表示同一类型，返回true，否则返回false</td>
-</tr>
-<tr>
-<td>t1 != t2</td>
-<td>如果type_info对象t1和t2表示不同的类型，返回true，否则返回false</td>
-</tr>
-<tr>
-<td>t.name()</td>
-<td>返回一个C风格字符串，表示类型名字的可打印形式。类型名字的生成方式因系统而定</td>
-</tr>
-<tr>
-<td>t1.before(t2)</td>
-<td>返回一个bool值，表示t1是否位于t2之前。before所采用的顺序关系是依赖于编译器的</td>
-</tr>
-</tbody>
-</table>
-<p>示例程序：</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;typeinfo&gt;</span></span></div><div class="line"></div><div class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> <span class="built_in">std</span>;</div><div class="line"></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">test</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">public</span>:</div><div class="line">&#125;;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">int</span> arr[<span class="number">10</span>];</div><div class="line">  <span class="built_in">string</span> str;</div><div class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="keyword">typeid</span>(<span class="number">42</span>).name() &lt;&lt; <span class="built_in">endl</span>;</div><div class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="keyword">typeid</span>(arr).name() &lt;&lt; <span class="built_in">endl</span>;</div><div class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="keyword">typeid</span>(str).name() &lt;&lt; <span class="built_in">endl</span>;</div><div class="line"></div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>输出(macos, clang)：</p>
-<figure class="highlight gcode"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">i</div><div class="line">A<span class="number">10</span>_i</div><div class="line"><span class="symbol">NSt3</span>__<span class="number">112</span>basic_stri<span class="symbol">ngIcNS_11</span>char_traitsIcEE<span class="symbol">NS_9</span>allocatorIcEEEE</div><div class="line"><span class="number">4</span>test</div></pre></td></tr></table></figure>
-
+        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>在leveldb之中，提供了快照机制，保证不同时刻定义的iterator能够获得与当前时刻保持一致的视图，在遍历访问数据库时仍然可以对数据库进行修改，而不用锁死整个数据库。</p>
+<p>获取快照实际上是返回当前最新的读写记录的sequence number，并将这个值记录在链表之中。</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">const</span> Snapshot* DBImpl::GetSnapshot() &#123;</div><div class="line">  <span class="comment">/// 记录当前version构建snapshot对象，并将其插入链表之中</span></div><div class="line">  MutexLock l(&amp;mutex_);</div><div class="line">  <span class="keyword">return</span> snapshots_.<span class="keyword">New</span>(versions_-&gt;LastSequence());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>除非进行compaction操作，否则具有相同key但是sequence number不同的记录不会精简只保留sequence number最大的哪一个。leveldb保证在compaction操作时，不会将user key相同，但sequence number大于取出的snapshots列表中最小的那个snapshot的记录删除。</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// db/db_impl.cc DoCompactionWork</span></div><div class="line">...</div><div class="line"> <span class="keyword">if</span> (snapshots_.empty()) &#123;</div><div class="line">    <span class="comment">/// 记录最小的snapshots_编号</span></div><div class="line">    <span class="function"><span class="title">compact</span>-&gt;</span><span class="function"><span class="title">smallest_snapshot</span> = versions_-&gt;</span>LastSequence();</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="comment">/// 取snapshot列表之中最小的sequence number</span></div><div class="line">    <span class="function"><span class="title">compact</span>-&gt;</span><span class="function"><span class="title">smallest_snapshot</span> = snapshots_.oldest()-&gt;</span>number_;</div><div class="line">  &#125;</div><div class="line">...</div><div class="line">      <span class="comment">/// 若sequence number 小于 snapshot list中最小的那个sequence number</span></div><div class="line">      <span class="function"><span class="title">if</span> (last_sequence_for_key &lt;= compact-&gt;</span>smallest_snapshot) &#123;</div><div class="line">        <span class="comment">// Hidden by an newer entry for same user key</span></div><div class="line">        drop = <span class="literal">true</span>;    <span class="comment">// (A)</span></div><div class="line">      &#125;</div><div class="line">      <span class="comment">/// key是删除的，并且该key不位于指定的Snapshot之内，并且key在level-n+1以上的level中</span></div><div class="line">      <span class="comment">/// 不存在，则丢弃</span></div><div class="line">      <span class="keyword">else</span> <span class="keyword">if</span> (ikey.type == kTypeDeletion &amp;&amp;</div><div class="line">                 <span class="function"><span class="title">ikey</span>.sequence &lt;= compact-&gt;</span>smallest_snapshot &amp;&amp;</div><div class="line">                 <span class="function"><span class="title">compact</span>-&gt;</span><span class="function"><span class="title">compaction</span>-&gt;</span>IsBaseLevelForKey(ikey.user_key)) &#123;</div><div class="line">        <span class="comment">// For this user key:</span></div><div class="line">        <span class="comment">// (1) there is no data in higher levels</span></div><div class="line">        <span class="comment">// (2) data in lower levels will have larger sequence numbers</span></div><div class="line">        <span class="comment">// (3) data in layers that are being compacted here and have</span></div><div class="line">        <span class="comment">//     smaller sequence numbers will be dropped in the next</span></div><div class="line">        <span class="comment">//     few iterations of this loop (by rule (A) above).</span></div><div class="line">        <span class="comment">// Therefore this deletion marker is obsolete and can be dropped.</span></div><div class="line">        drop = <span class="literal">true</span>;</div><div class="line">      &#125;</div></pre></td></tr></table></figure>
+<h1 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h1><p>snapshot的实现是基于一个简单的双向链表，链表中每一个结点都记录一个sequence number。双向链表的末尾对应的是sequence number最小的snapshot。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/// snapshots存在DB的双向链表之中，每一个SnapshotImpl对应一个结点</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">SnapshotImpl</span> :</span> <span class="keyword">public</span> Snapshot &#123;</div><div class="line"> <span class="keyword">public</span>:</div><div class="line">  SequenceNumber number_;  <span class="comment">// const after creation</span></div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="keyword">friend</span> <span class="class"><span class="keyword">class</span> <span class="title">SnapshotList</span>;</span></div><div class="line"></div><div class="line">  <span class="comment">// SnapshotImpl is kept in a doubly-linked circular list</span></div><div class="line">  SnapshotImpl* prev_;</div><div class="line">  SnapshotImpl* next_;</div><div class="line"></div><div class="line">  SnapshotList* list_;                 <span class="comment">// just for sanity checks</span></div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<p>双向环形链表：</p>
+<figure class="highlight zephir"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">SnapshotList</span> </span>&#123;</div><div class="line"> <span class="keyword">public</span>:</div><div class="line">  SnapshotList() &#123;</div><div class="line">    list_.prev_ = &amp;list_;</div><div class="line">    list_.next_ = &amp;list_;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">bool</span> <span class="keyword">empty</span>() <span class="keyword">const</span> &#123; <span class="keyword">return</span> list_.next_ == &amp;list_; &#125;</div><div class="line">  SnapshotImpl* oldest() <span class="keyword">const</span> &#123; assert(!<span class="keyword">empty</span>()); <span class="keyword">return</span> list_.next_; &#125;</div><div class="line">  SnapshotImpl* newest() <span class="keyword">const</span> &#123; assert(!<span class="keyword">empty</span>()); <span class="keyword">return</span> list_.prev_; &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// 在链表头部插入一个新的结点</span></div><div class="line">  <span class="keyword">const</span> SnapshotImpl* <span class="keyword">New</span>(SequenceNumber seq) &#123;</div><div class="line">    <span class="comment">/// 创建结点</span></div><div class="line">    SnapshotImpl* s = <span class="keyword">new</span> SnapshotImpl;</div><div class="line">    <span class="comment">/// 记录sequence</span></div><div class="line">    s-&gt;number_ = seq;</div><div class="line">    s-&gt;list_ = this;</div><div class="line">    s-&gt;next_ = &amp;list_;</div><div class="line">    s-&gt;prev_ = list_.prev_;</div><div class="line">    s-&gt;prev_-&gt;next_ = s;</div><div class="line">    s-&gt;next_-&gt;prev_ = s;</div><div class="line">    <span class="keyword">return</span> s;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// 从list中删除s所对应的节点</span></div><div class="line">  void Delete(<span class="keyword">const</span> SnapshotImpl* s) &#123;</div><div class="line">    assert(s-&gt;list_ == this);</div><div class="line">    s-&gt;prev_-&gt;next_ = s-&gt;next_;</div><div class="line">    s-&gt;next_-&gt;prev_ = s-&gt;prev_;</div><div class="line">    delete s;</div><div class="line">  &#125;</div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="comment">// Dummy head of doubly-linked list of snapshots</span></div><div class="line">  SnapshotImpl list_;</div><div class="line">&#125;;</div></pre></td></tr></table></figure>
       
     </div>
 
@@ -481,12 +429,6 @@
 
     <footer class="post-footer">
       
-        <div class="post-tags">
-          
-            <a href="/tags/C/" rel="tag"># C++</a>
-          
-        </div>
-      
 
       
       
@@ -496,8 +438,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/06/11/C-内存模型/" rel="next" title="C++内存模型">
-                <i class="fa fa-chevron-left"></i> C++内存模型
+              <a href="/2017/06/23/leveldb-WriteBatch解析/" rel="next" title="leveldb WriteBatch解析">
+                <i class="fa fa-chevron-left"></i> leveldb WriteBatch解析
               </a>
             
           </div>
@@ -505,10 +447,6 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/06/11/leveldb-data-block-读取解析/" rel="prev" title="leveldb data block 读取解析">
-                leveldb data block 读取解析 <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -668,7 +606,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#C-运行时类型识别"><span class="nav-text">C++ 运行时类型识别</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#dynamic-cast运算符"><span class="nav-text">dynamic_cast运算符</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#typeid运算符"><span class="nav-text">typeid运算符</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#type-info类"><span class="nav-text">type_info类</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#简介"><span class="nav-text">简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#实现"><span class="nav-text">实现</span></a></li></ol></div>
             
 
           </div>
