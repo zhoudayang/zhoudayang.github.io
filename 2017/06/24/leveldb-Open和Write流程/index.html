@@ -75,7 +75,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="Linux, C++, Lua, Python, Golang" />
+  <meta name="keywords" content="leveldb," />
 
 
 
@@ -92,6 +92,7 @@
 
 
 <meta name="description" content="Open总览在leveldb中，DB接口的实现在DBImpl对象中。打开数据库的时候，首先创建DBImpl对象，在这里会初始化各成员，对输入的option选项进行规范化，创建缓存sstable对象的table_cache_，同时创建VersionSet对象用于管理数据库版本。 1234567891011121314151617181920212223242526272829303132333435">
+<meta name="keywords" content="leveldb">
 <meta property="og:type" content="article">
 <meta property="og:title" content="leveldb Open和Write流程">
 <meta property="og:url" content="http://zhoudayang.github.io/2017/06/24/leveldb-Open和Write流程/index.html">
@@ -342,6 +343,28 @@
           </span>
 
           
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
 
           
             
@@ -418,6 +441,12 @@
 
     <footer class="post-footer">
       
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
 
       
       
@@ -436,6 +465,10 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/06/24/leveldb-compaction分析/" rel="prev" title="leveldb compaction分析">
+                leveldb compaction分析 <i class="fa fa-chevron-right"></i>
+              </a>
             
           </div>
         </div>
@@ -509,7 +542,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives/">
-                <span class="site-state-item-count">33</span>
+                <span class="site-state-item-count">34</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
