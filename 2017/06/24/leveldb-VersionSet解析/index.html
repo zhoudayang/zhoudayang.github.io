@@ -1,0 +1,851 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb" />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="VersionSetVersionSet负责整个leveldb中各个版本的控制事务。VersionSet维护了一个双向的环形链表，某个Version不再使用时会从链表中删除，其中管理的文件的引用计数也会相应变化，驱动将无用的文件从数据库路径下删除。下图很好地展示了这一点：  12345678910111213141516171819202122232425262728293031323334353">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb VersionSet解析">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/24/leveldb-VersionSet解析/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="VersionSetVersionSet负责整个leveldb中各个版本的控制事务。VersionSet维护了一个双向的环形链表，某个Version不再使用时会从链表中删除，其中管理的文件的引用计数也会相应变化，驱动将无用的文件从数据库路径下删除。下图很好地展示了这一点：  12345678910111213141516171819202122232425262728293031323334353">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79gy1fgwbd2p0fnj31kw0zs1kx.jpg">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/006tNc79gy1fgwcchih6pj30js03ljrm.jpg">
+<meta property="og:image" content="https://ws4.sinaimg.cn/large/006tNc79gy1fgwcgcu6h1j30js03l0sz.jpg">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79gy1fgwcix6gcxj30js03l0sz.jpg">
+<meta property="og:updated_time" content="2017-06-24T08:07:08.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb VersionSet解析">
+<meta name="twitter:description" content="VersionSetVersionSet负责整个leveldb中各个版本的控制事务。VersionSet维护了一个双向的环形链表，某个Version不再使用时会从链表中删除，其中管理的文件的引用计数也会相应变化，驱动将无用的文件从数据库路径下删除。下图很好地展示了这一点：  12345678910111213141516171819202122232425262728293031323334353">
+<meta name="twitter:image" content="https://ws3.sinaimg.cn/large/006tNc79gy1fgwbd2p0fnj31kw0zs1kx.jpg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '7ccbed52df595f2d66c7be0f9035d420',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/24/leveldb-VersionSet解析/"/>
+
+
+
+
+
+  <title>leveldb VersionSet解析 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/24/leveldb-VersionSet解析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb VersionSet解析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-24T16:07:08+08:00">
+                2017-06-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="VersionSet"><a href="#VersionSet" class="headerlink" title="VersionSet"></a>VersionSet</h1><p>VersionSet负责整个leveldb中各个版本的控制事务。VersionSet维护了一个双向的环形链表，某个Version不再使用时会从链表中删除，其中管理的文件的引用计数也会相应变化，驱动将无用的文件从数据库路径下删除。下图很好地展示了这一点：</p>
+<p><img src="https://ws3.sinaimg.cn/large/006tNc79gy1fgwbd2p0fnj31kw0zs1kx.jpg" alt=""></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div><div class="line">173</div><div class="line">174</div><div class="line">175</div><div class="line">176</div><div class="line">177</div><div class="line">178</div><div class="line">179</div><div class="line">180</div><div class="line">181</div><div class="line">182</div><div class="line">183</div><div class="line">184</div><div class="line">185</div><div class="line">186</div><div class="line">187</div><div class="line">188</div><div class="line">189</div><div class="line">190</div><div class="line">191</div><div class="line">192</div><div class="line">193</div><div class="line">194</div><div class="line">195</div><div class="line">196</div><div class="line">197</div><div class="line">198</div><div class="line">199</div><div class="line">200</div><div class="line">201</div><div class="line">202</div><div class="line">203</div><div class="line">204</div><div class="line">205</div><div class="line">206</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">VersionSet</span> &#123;</span></div><div class="line"> <span class="keyword">public</span>:</div><div class="line">  <span class="comment">/// constructor of VersionSet</span></div><div class="line">  VersionSet(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; dbname,</div><div class="line">             <span class="keyword">const</span> Options* options,</div><div class="line">             TableCache* table_cache,</div><div class="line">             <span class="keyword">const</span> InternalKeyComparator*);</div><div class="line"></div><div class="line">  <span class="comment">/// destructor of VersionSet</span></div><div class="line">  ~VersionSet();</div><div class="line"></div><div class="line">  <span class="comment">// Apply *edit to the current version to form a new descriptor that</span></div><div class="line">  <span class="comment">// is both saved to persistent state and installed as the new</span></div><div class="line">  <span class="comment">// current version.  Will release *mu while actually writing to the file.</span></div><div class="line">  <span class="comment">// REQUIRES: *mu is held on entry.</span></div><div class="line">  <span class="comment">// REQUIRES: no other thread concurrently calls LogAndApply()</span></div><div class="line">  <span class="comment">/// 应用当前version，生成新的log文件，保存持久状态，并且安装作为当前的version，</span></div><div class="line">  <span class="comment">/// 在真正写入到文件之后会release *mu</span></div><div class="line">  <span class="function">Status <span class="title">LogAndApply</span><span class="params">(VersionEdit* edit, port::Mutex* mu)</span></span></div><div class="line">      <span class="title">EXCLUSIVE_LOCKS_REQUIRED</span><span class="params">(mu)</span>;</div><div class="line"></div><div class="line">  <span class="comment">// Recover the last saved descriptor from persistent storage.</span></div><div class="line">  <span class="comment">/// 从存储中恢复最近保存的描述信息</span></div><div class="line">  <span class="function">Status <span class="title">Recover</span><span class="params">(<span class="keyword">bool</span> *save_manifest)</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Return the current version.</span></div><div class="line">  <span class="comment">/// 返回当前的版本</span></div><div class="line">  <span class="function">Version* <span class="title">current</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> current_; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return the current manifest file number</span></div><div class="line">  <span class="comment">/// 返回当前manifest文件数目</span></div><div class="line">  <span class="keyword">uint64_t</span> ManifestFileNumber() <span class="keyword">const</span> &#123; <span class="keyword">return</span> manifest_file_number_; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Allocate and return a new file number</span></div><div class="line">  <span class="comment">/// 分配并返回一个新的file number</span></div><div class="line">  <span class="keyword">uint64_t</span> NewFileNumber() &#123; <span class="keyword">return</span> next_file_number_++; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Arrange to reuse "file_number" unless a newer file number has</span></div><div class="line">  <span class="comment">// already been allocated.</span></div><div class="line">  <span class="comment">// REQUIRES: "file_number" was returned by a call to NewFileNumber().</span></div><div class="line">  <span class="comment">/// 已经ReuseFileNumber, 故而next_file_number_可以减去1</span></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">ReuseFileNumber</span><span class="params">(<span class="keyword">uint64_t</span> file_number)</span> </span>&#123;</div><div class="line">    <span class="keyword">if</span> (next_file_number_ == file_number + <span class="number">1</span>) &#123;</div><div class="line">      next_file_number_ = file_number;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return the number of Table files at the specified level.</span></div><div class="line">  <span class="comment">/// 返回指定level的table文件的number</span></div><div class="line">  <span class="function"><span class="keyword">int</span> <span class="title">NumLevelFiles</span><span class="params">(<span class="keyword">int</span> level)</span> <span class="keyword">const</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Return the combined file size of all files at the specified level.</span></div><div class="line">  <span class="comment">/// 返回指定level的所有文件合并的文件的大小</span></div><div class="line">  <span class="keyword">int64_t</span> NumLevelBytes(<span class="keyword">int</span> level) <span class="keyword">const</span>;</div><div class="line"></div><div class="line">  <span class="comment">// Return the last sequence number.</span></div><div class="line">  <span class="comment">/// 返回上一个sequence number</span></div><div class="line">  <span class="keyword">uint64_t</span> LastSequence() <span class="keyword">const</span> &#123; <span class="keyword">return</span> last_sequence_; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Set the last sequence number to s.</span></div><div class="line">  <span class="comment">/// 设置 last sequence number</span></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">SetLastSequence</span><span class="params">(<span class="keyword">uint64_t</span> s)</span> </span>&#123;</div><div class="line">    assert(s &gt;= last_sequence_);</div><div class="line">    last_sequence_ = s;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Mark the specified file number as used.</span></div><div class="line">  <span class="comment">/// 标记number指定的文件已经使用, 并据此更新next_file_number_</span></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">MarkFileNumberUsed</span><span class="params">(<span class="keyword">uint64_t</span> number)</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Return the current log file number.</span></div><div class="line">  <span class="comment">/// 返回当前log文件的number</span></div><div class="line">  <span class="keyword">uint64_t</span> LogNumber() <span class="keyword">const</span> &#123; <span class="keyword">return</span> log_number_; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return the log file number for the log file that is currently</span></div><div class="line">  <span class="comment">// being compacted, or zero if there is no such log file.</span></div><div class="line">  <span class="comment">/// 返回上一个log文件的number</span></div><div class="line">  <span class="keyword">uint64_t</span> PrevLogNumber() <span class="keyword">const</span> &#123; <span class="keyword">return</span> prev_log_number_; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Pick level and inputs for a new compaction.</span></div><div class="line">  <span class="comment">// Returns NULL if there is no compaction to be done.</span></div><div class="line">  <span class="comment">// Otherwise returns a pointer to a heap-allocated object that</span></div><div class="line">  <span class="comment">// describes the compaction.  Caller should delete the result.</span></div><div class="line">  <span class="comment">/// 选取文件进行Compaction操作</span></div><div class="line">  <span class="function">Compaction* <span class="title">PickCompaction</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Return a compaction object for compacting the range [begin,end] in</span></div><div class="line">  <span class="comment">// the specified level.  Returns NULL if there is nothing in that</span></div><div class="line">  <span class="comment">// level that overlaps the specified range.  Caller should delete</span></div><div class="line">  <span class="comment">// the result.</span></div><div class="line">  <span class="comment">/// 选取指定level上指定范围的文件进行Compaction操作</span></div><div class="line">  <span class="function">Compaction* <span class="title">CompactRange</span><span class="params">(</span></span></div><div class="line">      <span class="keyword">int</span> level,</div><div class="line">      <span class="keyword">const</span> InternalKey* begin,</div><div class="line">      <span class="keyword">const</span> InternalKey* end);</div><div class="line"></div><div class="line">  <span class="comment">// Return the maximum overlapping data (in bytes) at next level for any</span></div><div class="line">  <span class="comment">// file at a level &gt;= 1.</span></div><div class="line">  <span class="comment">/// 返回某level和上级文件最大的overlapping的数据大小 (level &gt;= 1)</span></div><div class="line">  <span class="keyword">int64_t</span> MaxNextLevelOverlappingBytes();</div><div class="line"></div><div class="line">  <span class="comment">// Create an iterator that reads over the compaction inputs for "*c".</span></div><div class="line">  <span class="comment">// The caller should delete the iterator when no longer needed.</span></div><div class="line">  <span class="comment">/// 在给定的compaction对象上创建iterator, 这是对compaction涉及到的sstable合并之后形成的</span></div><div class="line">  <span class="comment">/// 统一的iterator</span></div><div class="line">  <span class="function">Iterator* <span class="title">MakeInputIterator</span><span class="params">(Compaction* c)</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Returns true iff some level needs a compaction.</span></div><div class="line">  <span class="comment">/// 是否需要进行Compaction ?</span></div><div class="line">  <span class="function"><span class="keyword">bool</span> <span class="title">NeedsCompaction</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123;</div><div class="line">    Version* v = current_;</div><div class="line">    <span class="comment">/// 若当前版本的compaction_score &gt;= 1 且 需要进行compact的文件不为NULL 才会需要合并</span></div><div class="line">    <span class="keyword">return</span> (v-&gt;compaction_score_ &gt;= <span class="number">1</span>) || (v-&gt;file_to_compact_ != <span class="literal">NULL</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Add all files listed in any live version to *live.</span></div><div class="line">  <span class="comment">// May also mutate some internal state.</span></div><div class="line">  <span class="comment">/// 将当前存活的文件信息存入live之中</span></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">AddLiveFiles</span><span class="params">(<span class="built_in">std</span>::<span class="built_in">set</span>&lt;<span class="keyword">uint64_t</span>&gt;* live)</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Return the approximate offset in the database of the data for</span></div><div class="line">  <span class="comment">// "key" as of version "v".</span></div><div class="line">  <span class="comment">/// 返回key和version对应的数据在database之中的偏移位置，此值为估计值</span></div><div class="line">  <span class="keyword">uint64_t</span> ApproximateOffsetOf(Version* v, <span class="keyword">const</span> InternalKey&amp; key);</div><div class="line"></div><div class="line">  <span class="comment">// Return a human-readable short (single-line) summary of the number</span></div><div class="line">  <span class="comment">// of files per level.  Uses *scratch as backing store.</span></div><div class="line">  <span class="comment">/// 用于LevelSummary</span></div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">LevelSummaryStorage</span> &#123;</span></div><div class="line">    <span class="keyword">char</span> buffer[<span class="number">100</span>];</div><div class="line">  &#125;;</div><div class="line"></div><div class="line">  <span class="comment">/// 返回每个level上文件数目的总结</span></div><div class="line">  <span class="comment">/// 使用sratch用于backing store</span></div><div class="line">  <span class="function"><span class="keyword">const</span> <span class="keyword">char</span>* <span class="title">LevelSummary</span><span class="params">(LevelSummaryStorage* scratch)</span> <span class="keyword">const</span></span>;</div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="class"><span class="keyword">class</span> <span class="title">Builder</span>;</span></div><div class="line"></div><div class="line">  <span class="keyword">friend</span> <span class="class"><span class="keyword">class</span> <span class="title">Compaction</span>;</span></div><div class="line">  <span class="keyword">friend</span> <span class="class"><span class="keyword">class</span> <span class="title">Version</span>;</span></div><div class="line"></div><div class="line">  <span class="function"><span class="keyword">bool</span> <span class="title">ReuseManifest</span><span class="params">(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; dscname, <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; dscbase)</span></span>;</div><div class="line"></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">Finalize</span><span class="params">(Version* v)</span></span>;</div><div class="line"></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">GetRange</span><span class="params">(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;FileMetaData*&gt;&amp; inputs,</span></span></div><div class="line">                InternalKey* smallest,</div><div class="line">                InternalKey* largest);</div><div class="line"></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">GetRange2</span><span class="params">(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;FileMetaData*&gt;&amp; inputs1,</span></span></div><div class="line">                 <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;FileMetaData*&gt;&amp; inputs2,</div><div class="line">                 InternalKey* smallest,</div><div class="line">                 InternalKey* largest);</div><div class="line"></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">SetupOtherInputs</span><span class="params">(Compaction* c)</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Save current contents to *log</span></div><div class="line">  <span class="function">Status <span class="title">WriteSnapshot</span><span class="params">(<span class="built_in">log</span>::Writer* <span class="built_in">log</span>)</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">/// 添加version最为当前的version</span></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">AppendVersion</span><span class="params">(Version* v)</span></span>;</div><div class="line"></div><div class="line">  Env* <span class="keyword">const</span> env_;</div><div class="line">  <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span> dbname_; <span class="comment">// db name</span></div><div class="line">  <span class="keyword">const</span> Options* <span class="keyword">const</span> options_; <span class="comment">// options</span></div><div class="line">  TableCache* <span class="keyword">const</span> table_cache_; <span class="comment">// sstable cache</span></div><div class="line">  <span class="keyword">const</span> InternalKeyComparator icmp_; <span class="comment">// InternalKey comparator</span></div><div class="line">  <span class="keyword">uint64_t</span> next_file_number_; <span class="comment">// 下一个file number</span></div><div class="line">  <span class="keyword">uint64_t</span> manifest_file_number_; <span class="comment">// number of manifest file</span></div><div class="line">  <span class="keyword">uint64_t</span> last_sequence_; <span class="comment">// 上一个序号</span></div><div class="line">  <span class="keyword">uint64_t</span> log_number_; <span class="comment">// log文件的number</span></div><div class="line">  <span class="keyword">uint64_t</span> prev_log_number_;  <span class="comment">// 0 or backing store for memtable being compacted</span></div><div class="line"></div><div class="line">  <span class="comment">/*</span></div><div class="line">   为了重启db后可以恢复退出前的状态，需要将db中的状态保存下来，这些状态信息就保存在manifest文件中。</div><div class="line">   当db出现异常的时候，为了尽可能多的恢复，manifest中不会只保存当前的状态，而是将历史的状态都保存下来。</div><div class="line">   又考虑到每次状态的完全保存需要的空间和耗费的时间会较多，当前采用的方式是，只在manifest开始保存完整</div><div class="line">   的状态信息(VersionSet::WriteSnapshot())，接下来只保存每次compact产生的操作，重启db时，根据开头</div><div class="line">   的起始状态，依次将后续的VersionEdit replay，即可恢复到退出之前的状态。</div><div class="line">   */</div><div class="line">  <span class="comment">// Opened lazily</span></div><div class="line">  <span class="comment">// manifest文件的封装</span></div><div class="line">  WritableFile* descriptor_file_;</div><div class="line">  <span class="comment">// manifest文件的writer</span></div><div class="line">  <span class="built_in">log</span>::Writer* descriptor_log_;</div><div class="line">  <span class="comment">// 正在服务的Version链表</span></div><div class="line">  Version dummy_versions_;  <span class="comment">// Head of circular doubly-linked list of versions.</span></div><div class="line">  <span class="comment">// 当前最新的Version</span></div><div class="line">  Version* current_;        <span class="comment">// == dummy_versions_.prev_</span></div><div class="line"></div><div class="line">  <span class="comment">// Per-level key at which the next compaction at that level should start.</span></div><div class="line">  <span class="comment">// Either an empty string, or a valid InternalKey.</span></div><div class="line">  <span class="comment">/// 每一个level的下一次compaction开始进行的key</span></div><div class="line">  <span class="comment">/// empty string 或者 InternalKey</span></div><div class="line">  <span class="comment">/*</span></div><div class="line">   为了尽量均匀compact每个level，所以会将这一次compact的end-key作为下一次compact的start-key.</div><div class="line">   compactor_pointer_就保存着每个level下一次compact的start-key.除了current_外的Version，并不会做</div><div class="line">   compact，所以这个值并不保存在Version中。</div><div class="line">   */</div><div class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> compact_pointer_[config::kNumLevels];</div><div class="line"></div><div class="line">  <span class="comment">// No copying allowed</span></div><div class="line">  VersionSet(<span class="keyword">const</span> VersionSet&amp;);</div><div class="line">  <span class="keyword">void</span> <span class="keyword">operator</span>=(<span class="keyword">const</span> VersionSet&amp;);</div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<h2 id="重点成员函数"><a href="#重点成员函数" class="headerlink" title="重点成员函数"></a>重点成员函数</h2><p>上述成员函数中，LogAndApply将edit应用到当前的版本作为当前最新的版本，并且将edit写入到manifest文件之中，以便leveldb重新启动时能够恢复版本控制信息。而Recover函数则是从CURRENT文件之中获取MANIFEST文件名称，读取Version信息。重启的数据库只需要读取并应用VersionEdit到Version，保留一个版本的Version即可。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div></pre></td><td class="code"><pre><div class="line">Status VersionSet::Recover(<span class="keyword">bool</span> *save_manifest) &#123;</div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">LogReporter</span> :</span> <span class="keyword">public</span> <span class="built_in">log</span>::Reader::Reporter &#123;</div><div class="line">    Status* status;</div><div class="line">    <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Corruption</span><span class="params">(<span class="keyword">size_t</span> bytes, <span class="keyword">const</span> Status&amp; s)</span> </span>&#123;</div><div class="line">      <span class="keyword">if</span> (<span class="keyword">this</span>-&gt;status-&gt;ok()) *<span class="keyword">this</span>-&gt;status = s;</div><div class="line">    &#125;</div><div class="line">  &#125;;</div><div class="line"></div><div class="line">  <span class="comment">// Read "CURRENT" file, which contains a pointer to the current manifest file</span></div><div class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> current;</div><div class="line">  Status s = ReadFileToString(env_, CurrentFileName(dbname_), &amp;current);</div><div class="line">  <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">    <span class="keyword">return</span> s;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">if</span> (current.empty() || current[current.size()<span class="number">-1</span>] != <span class="string">'\n'</span>) &#123;</div><div class="line">    <span class="keyword">return</span> Status::Corruption(<span class="string">"CURRENT file does not end with newline"</span>);</div><div class="line">  &#125;</div><div class="line">  <span class="comment">/// 删除末尾的换行符</span></div><div class="line">  current.resize(current.size() - <span class="number">1</span>);</div><div class="line"></div><div class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> dscname = dbname_ + <span class="string">"/"</span> + current;</div><div class="line">  SequentialFile* file;</div><div class="line">  s = env_-&gt;NewSequentialFile(dscname, &amp;file);</div><div class="line">  <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">    <span class="keyword">return</span> s;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">bool</span> have_log_number = <span class="literal">false</span>;</div><div class="line">  <span class="keyword">bool</span> have_prev_log_number = <span class="literal">false</span>;</div><div class="line">  <span class="keyword">bool</span> have_next_file = <span class="literal">false</span>;</div><div class="line">  <span class="keyword">bool</span> have_last_sequence = <span class="literal">false</span>;</div><div class="line">  <span class="keyword">uint64_t</span> next_file = <span class="number">0</span>;</div><div class="line">  <span class="keyword">uint64_t</span> last_sequence = <span class="number">0</span>;</div><div class="line">  <span class="keyword">uint64_t</span> log_number = <span class="number">0</span>;</div><div class="line">  <span class="keyword">uint64_t</span> prev_log_number = <span class="number">0</span>;</div><div class="line">  <span class="function">Builder <span class="title">builder</span><span class="params">(<span class="keyword">this</span>, current_)</span></span>;</div><div class="line"></div><div class="line">  &#123;</div><div class="line">    LogReporter reporter;</div><div class="line">    reporter.status = &amp;s;</div><div class="line">    <span class="built_in">log</span>::<span class="function">Reader <span class="title">reader</span><span class="params">(file, &amp;reporter, <span class="literal">true</span><span class="comment">/*checksum*/</span>, <span class="number">0</span><span class="comment">/*initial_offset*/</span>)</span></span>;</div><div class="line">    Slice record;</div><div class="line">    <span class="built_in">std</span>::<span class="built_in">string</span> scratch;</div><div class="line">    <span class="keyword">while</span> (reader.ReadRecord(&amp;record, &amp;scratch) &amp;&amp; s.ok()) &#123;</div><div class="line">      VersionEdit edit;</div><div class="line">      <span class="comment">/// get VersionEdit</span></div><div class="line">      s = edit.DecodeFrom(record);</div><div class="line">      <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">        <span class="keyword">if</span> (edit.has_comparator_ &amp;&amp;</div><div class="line">            edit.comparator_ != icmp_.user_comparator()-&gt;Name()) &#123;</div><div class="line">          <span class="comment">/// 和现有的comparator不匹配</span></div><div class="line">          s = Status::InvalidArgument(</div><div class="line">              edit.comparator_ + <span class="string">" does not match existing comparator "</span>,</div><div class="line">              icmp_.user_comparator()-&gt;Name());</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">        <span class="comment">/// 对version应用edit更新</span></div><div class="line">        builder.Apply(&amp;edit);</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="keyword">if</span> (edit.has_log_number_) &#123;</div><div class="line">        log_number = edit.log_number_;</div><div class="line">        have_log_number = <span class="literal">true</span>;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="keyword">if</span> (edit.has_prev_log_number_) &#123;</div><div class="line">        prev_log_number = edit.prev_log_number_;</div><div class="line">        have_prev_log_number = <span class="literal">true</span>;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="keyword">if</span> (edit.has_next_file_number_) &#123;</div><div class="line">        next_file = edit.next_file_number_;</div><div class="line">        have_next_file = <span class="literal">true</span>;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="keyword">if</span> (edit.has_last_sequence_) &#123;</div><div class="line">        last_sequence = edit.last_sequence_;</div><div class="line">        have_last_sequence = <span class="literal">true</span>;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">/// 删除原有manifest文件</span></div><div class="line">  <span class="keyword">delete</span> file;</div><div class="line">  file = <span class="literal">NULL</span>;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">    <span class="keyword">if</span> (!have_next_file) &#123;</div><div class="line">      s = Status::Corruption(<span class="string">"no meta-nextfile entry in descriptor"</span>);</div><div class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!have_log_number) &#123;</div><div class="line">      s = Status::Corruption(<span class="string">"no meta-lognumber entry in descriptor"</span>);</div><div class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!have_last_sequence) &#123;</div><div class="line">      s = Status::Corruption(<span class="string">"no last-sequence-number entry in descriptor"</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (!have_prev_log_number) &#123;</div><div class="line">      prev_log_number = <span class="number">0</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/// 标记file number已经使用了</span></div><div class="line">    MarkFileNumberUsed(prev_log_number);</div><div class="line">    MarkFileNumberUsed(log_number);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">    Version* v = <span class="keyword">new</span> Version(<span class="keyword">this</span>);</div><div class="line">    <span class="comment">/// 保存version到v</span></div><div class="line">    builder.SaveTo(v);</div><div class="line">    <span class="comment">// Install recovered version</span></div><div class="line">    <span class="comment">/// 得到compaction操作得分</span></div><div class="line">    Finalize(v);</div><div class="line">    <span class="comment">///  此version作为当前version</span></div><div class="line">    AppendVersion(v);</div><div class="line">    manifest_file_number_ = next_file;</div><div class="line">    next_file_number_ = next_file + <span class="number">1</span>;</div><div class="line">    last_sequence_ = last_sequence;</div><div class="line">    log_number_ = log_number;</div><div class="line">    prev_log_number_ = prev_log_number;</div><div class="line"></div><div class="line">    <span class="comment">// See if we can reuse the existing MANIFEST file.</span></div><div class="line">    <span class="comment">/// 查看是否能够复用当前存在的MANIFEST文件</span></div><div class="line">    <span class="keyword">if</span> (ReuseManifest(dscname, current)) &#123;</div><div class="line">      <span class="comment">// No need to save new manifest</span></div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      <span class="comment">/// 需要建立manifest文件</span></div><div class="line">      *save_manifest = <span class="literal">true</span>;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">return</span> s;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="Compaction相关"><a href="#Compaction相关" class="headerlink" title="Compaction相关"></a>Compaction相关</h2><h3 id="PickCompaction"><a href="#PickCompaction" class="headerlink" title="PickCompaction"></a>PickCompaction</h3><p>每一次调用LogAndApply，应用VersionEdit到当前Version得到更新之后的Version都会调用Finalize评估每个level文件的<code>compaction_score_</code>。这是为了评估每个level所有sstable文件占用的总空间的大小，若超出限制就做好记录，将低level的文件推到更高的level上。</p>
+<p>首先，level-0上的文件总数超出限制<code>kL0_CompactionTrigger</code>，或者以下各level文件的数量超出下述范围，都会被认为是违背平衡，选择其中偏差最大的文件记录下来，后续进行compaction处理。</p>
+<figure class="highlight 1c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// level0 10M</span></div><div class="line"><span class="comment">// level1 10M</span></div><div class="line"><span class="comment">// level2 100M</span></div><div class="line"><span class="comment">// level3 1000M</span></div><div class="line"><span class="comment">// level4 10000M</span></div><div class="line"><span class="comment">// level5 100000M</span></div><div class="line"><span class="comment">// level6 1000000M</span></div><div class="line"><span class="comment">// level7 10000000M</span></div></pre></td></tr></table></figure>
+<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/// 计算Version内的均衡状态参数: compaction_score_和compaction_level_</span></div><div class="line"><span class="keyword">void</span> VersionSet::Finalize(Version* v) &#123;</div><div class="line">  <span class="comment">// Precomputed best level for next compaction</span></div><div class="line">  <span class="keyword">int</span> best_level = <span class="number">-1</span>;</div><div class="line">  <span class="keyword">double</span> best_score = <span class="number">-1</span>;</div><div class="line"></div><div class="line">  <span class="built_in">for</span> (<span class="keyword">int</span> level = <span class="number">0</span>; level &lt; <span class="built_in">config</span>::kNumLevels<span class="number">-1</span>; level++) &#123;</div><div class="line">    <span class="keyword">double</span> score;</div><div class="line">    <span class="built_in">if</span> (level == <span class="number">0</span>) &#123;</div><div class="line">      <span class="comment">// We treat level-0 specially by bounding the number of files</span></div><div class="line">      <span class="comment">// instead of number of bytes for two reasons:</span></div><div class="line">      <span class="comment">//</span></div><div class="line">      <span class="comment">// (1) With larger write-buffer sizes, it is nice not to do too</span></div><div class="line">      <span class="comment">// many level-0 compactions.</span></div><div class="line">      <span class="comment">//</span></div><div class="line">      <span class="comment">// (2) The files in level-0 are merged on every read and</span></div><div class="line">      <span class="comment">// therefore we wish to avoid too many files when the individual</span></div><div class="line">      <span class="comment">// file size is small (perhaps because of a small write-buffer</span></div><div class="line">      <span class="comment">// setting, or very high compression ratios, or lots of</span></div><div class="line">      <span class="comment">// overwrites/deletions).</span></div><div class="line">      <span class="comment">/// level0文件达到4</span></div><div class="line">      score = v-&gt;files_[level].<span class="built_in">size</span>() /</div><div class="line">          <span class="keyword">static_cast</span>&lt;<span class="keyword">double</span>&gt;(<span class="built_in">config</span>::kL0_CompactionTrigger);</div><div class="line">    &#125; <span class="built_in">else</span> &#123;</div><div class="line">      <span class="comment">// Compute the ratio of current size to size limit.</span></div><div class="line">      <span class="keyword">const</span> uint64_t level_bytes = TotalFileSize(v-&gt;files_[level]);</div><div class="line">      <span class="comment">/// 其他level文件大小之和达到预设大小</span></div><div class="line">      score =</div><div class="line">          <span class="keyword">static_cast</span>&lt;<span class="keyword">double</span>&gt;(level_bytes) / MaxBytesForLevel(options_, level);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="built_in">if</span> (score &gt; best_score) &#123;</div><div class="line">      best_level = level;</div><div class="line">      best_score = score;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// record compaction level and compaction score</span></div><div class="line">  v-&gt;compaction_level_ = best_level;</div><div class="line">  v-&gt;compaction_score_ = best_score;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>PickCompaction函数中优先处理<code>size_compaction</code>而非<code>seek_compaction</code>。对于<code>size_compaction</code>会选取上一次compaction结束的key之后的文件开始进行，对于<code>seek_compaction</code>会直接选取之前记录seek数量超标的文件。因为level-0的sstable文件可能会互相重叠，将区间重叠的所有level-0文件取出来。这样就完成了compaction level上输入的sstable文件的选取，还要借助SetupOtherInputs函数选取上一个level上的区间重叠的输入文件。</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div></pre></td><td class="code"><pre><div class="line">Compaction* VersionSet::PickCompaction() &#123;</div><div class="line">  Compaction* c;</div><div class="line">  int level;</div><div class="line"></div><div class="line">  <span class="comment">// We prefer compactions triggered by too much data in a level over</span></div><div class="line">  <span class="comment">// the compactions triggered by seeks.</span></div><div class="line">  <span class="comment">/// 相比seek_compaction, 我们优先处理size_compaction</span></div><div class="line">  <span class="comment">/// 相比由seek产生的不均衡，更优先compact由sstable size / count造成的不平衡</span></div><div class="line">  <span class="comment">/// 因为文件大小超标而需要进行Compaction操作</span></div><div class="line">  <span class="function"><span class="title">const</span> bool size_compaction = (current_-&gt;</span>compaction_score_ &gt;= <span class="number">1</span>);</div><div class="line">  <span class="comment">/// 因为seek次数过多而需要进行Compaction操作</span></div><div class="line">  <span class="function"><span class="title">const</span> bool seek_compaction = (current_-&gt;</span>file_to_compact_ != NULL);</div><div class="line">  <span class="keyword">if</span> (size_compaction) &#123;</div><div class="line">    <span class="function"><span class="title">level</span> = current_-&gt;</span>compaction_level_;</div><div class="line">    assert(level &gt;= <span class="number">0</span>);</div><div class="line">    assert(level+<span class="number">1</span> &lt; config::kNumLevels);</div><div class="line">    c = new Compaction(options_, level);</div><div class="line"></div><div class="line">    <span class="comment">// Pick the first file that comes after compact_pointer_[level]</span></div><div class="line">    <span class="comment">/// 选择大于compact_pointer_[level]的文件</span></div><div class="line">    <span class="function"><span class="title">for</span> (size_t i = 0; i &lt; current_-&gt;</span>files_[level].size(); i++) &#123;</div><div class="line">      F<span class="function"><span class="title">ileMetaData</span>* f = current_-&gt;</span>files_[level][i];</div><div class="line">      <span class="keyword">if</span> (compact_pointer_[level].empty() ||</div><div class="line">          <span class="function"><span class="title">icmp_</span>.Compare(f-&gt;</span>largest.Encode(), compact_pointer_[level]) &gt; <span class="number">0</span>) &#123;</div><div class="line">        <span class="function"><span class="title">c</span>-&gt;</span>inputs_[<span class="number">0</span>].push_back(f);</div><div class="line">        break;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">/// 没有输入，就使用对应level的第一个文件输入</span></div><div class="line">    <span class="function"><span class="title">if</span> (c-&gt;</span>inputs_[<span class="number">0</span>].empty()) &#123;</div><div class="line">      <span class="comment">// Wrap-around to the beginning of the key space</span></div><div class="line">      <span class="function"><span class="title">c</span>-&gt;</span><span class="function"><span class="title">inputs_</span>[0].push_back(current_-&gt;</span>files_[level][<span class="number">0</span>]);</div><div class="line">    &#125;</div><div class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (seek_compaction) &#123;</div><div class="line">    <span class="function"><span class="title">level</span> = current_-&gt;</span>file_to_compact_level_;</div><div class="line">    c = new Compaction(options_, level);</div><div class="line">    <span class="comment">/// 指定为因为seek而记录的file_to_compact_文件</span></div><div class="line">    <span class="function"><span class="title">c</span>-&gt;</span><span class="function"><span class="title">inputs_</span>[0].push_back(current_-&gt;</span>file_to_compact_);</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    return NULL;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// 输入的version</span></div><div class="line">  <span class="function"><span class="title">c</span>-&gt;</span>input_version_ = current_;</div><div class="line">  <span class="comment">/// reference it</span></div><div class="line">  <span class="function"><span class="title">c</span>-&gt;</span><span class="function"><span class="title">input_version_</span>-&gt;</span>Ref();</div><div class="line"></div><div class="line">  <span class="comment">// Files in level 0 may overlap each other, so pick up all overlapping ones</span></div><div class="line">  <span class="comment">/// 若为level0可能会互相重叠,取出在level-0中与确定compact的sstable有overlap的文件</span></div><div class="line">  <span class="comment">//// level0更新inputs_[0]</span></div><div class="line">  <span class="keyword">if</span> (level == <span class="number">0</span>) &#123;</div><div class="line">    InternalKey smallest, largest;</div><div class="line">    G<span class="function"><span class="title">etRange</span>(c-&gt;</span>inputs_[<span class="number">0</span>], &amp;smallest, &amp;largest);</div><div class="line">    <span class="comment">// Note that the next call will discard the file we placed in</span></div><div class="line">    <span class="comment">// c-&gt;inputs_[0] earlier and replace it with an overlapping set</span></div><div class="line">    <span class="comment">// which will include the picked file.</span></div><div class="line">    <span class="comment">/// 取出level0与smallest和largest重叠的文件</span></div><div class="line">    <span class="function"><span class="title">current_</span>-&gt;</span>G<span class="function"><span class="title">etOverlappingInputs</span>(0, &amp;smallest, &amp;largest, &amp;c-&gt;</span>inputs_[<span class="number">0</span>]);</div><div class="line">    <span class="function"><span class="title">assert</span>(!c-&gt;</span>inputs_[<span class="number">0</span>].empty());</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// 取得需要的其他sstable</span></div><div class="line">  SetupOtherInputs(c);</div><div class="line"></div><div class="line">  return c;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h3 id="CompactRange"><a href="#CompactRange" class="headerlink" title="CompactRange"></a>CompactRange</h3><p>CompactRange函数的存在是为了应对选取指定level和范围的sstable文件作为输入进行compaction的行为。其行为很简单，选择与指定范围重叠的文件作为compaction level输入的sstable文件。但是选取的文件总空间大小被限制在此level的文件大小限制之内。最后依然调用SetupOtherInputs选取level+1层次上区间重叠的sstable文件。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div></pre></td><td class="code"><pre><div class="line">Compaction* VersionSet::CompactRange(</div><div class="line">    <span class="keyword">int</span> level,</div><div class="line">    <span class="keyword">const</span> InternalKey* begin,</div><div class="line">    <span class="keyword">const</span> InternalKey* end) &#123;</div><div class="line">  <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;FileMetaData*&gt; inputs;</div><div class="line">  <span class="comment">/// 获取指定level，指定范围内的范围重叠的文件</span></div><div class="line">  current_-&gt;GetOverlappingInputs(level, begin, end, &amp;inputs);</div><div class="line">  <span class="comment">/// 如果指定区间内没有文件，直接返回NULL</span></div><div class="line">  <span class="keyword">if</span> (inputs.empty()) &#123;</div><div class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Avoid compacting too much in one shot in case the range is large.</span></div><div class="line">  <span class="comment">// But we cannot do this for level-0 since level-0 files can overlap</span></div><div class="line">  <span class="comment">// and we must not pick one file and drop another older file if the</span></div><div class="line">  <span class="comment">// two files overlap.</span></div><div class="line">  <span class="comment">/// 避免依次compact过多的sstable，控制一个level中参与compact的sstable size不大于MaxFileSizeForLevel()</span></div><div class="line">  <span class="comment">/// 当前是kTargetFileSize</span></div><div class="line"></div><div class="line">  <span class="keyword">if</span> (level &gt; <span class="number">0</span>) &#123;</div><div class="line">    <span class="keyword">const</span> <span class="keyword">uint64_t</span> limit = MaxFileSizeForLevel(options_, level);</div><div class="line">    <span class="keyword">uint64_t</span> total = <span class="number">0</span>;</div><div class="line">    <span class="keyword">for</span> (<span class="keyword">size_t</span> i = <span class="number">0</span>; i &lt; inputs.size(); i++) &#123;</div><div class="line">      <span class="keyword">uint64_t</span> s = inputs[i]-&gt;file_size;</div><div class="line">      total += s;</div><div class="line">      <span class="comment">/// 控制输入的文件的大小</span></div><div class="line">      <span class="keyword">if</span> (total &gt;= limit) &#123;</div><div class="line">        inputs.resize(i + <span class="number">1</span>);</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  Compaction* c = <span class="keyword">new</span> Compaction(options_, level);</div><div class="line">  <span class="comment">/// 输入文件的版本</span></div><div class="line">  c-&gt;input_version_ = current_;</div><div class="line">  <span class="comment">/// 增加引用计数</span></div><div class="line">  c-&gt;input_version_-&gt;Ref();</div><div class="line">  <span class="comment">/// 记录输入的文件</span></div><div class="line">  c-&gt;inputs_[<span class="number">0</span>] = inputs;</div><div class="line">  <span class="comment">/// 获取compaction操作正确的输入文件</span></div><div class="line">  SetupOtherInputs(c);</div><div class="line">  <span class="keyword">return</span> c;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h3 id="SetupOtherInputs"><a href="#SetupOtherInputs" class="headerlink" title="SetupOtherInputs"></a>SetupOtherInputs</h3><p>原则上，level+1 compaction操作输入的sstable文件只需要输入与level层区间重叠的文件，保证最后生成的level+1层的sstable文件内部不发生重叠即可。leveldb也是这么做的，但是做了一点操作在不违反非0 level的文件内部不会产生重叠的情况下尽可能扩大输入文件的范围。</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/// 取得需要的其他sstable文件</span></div><div class="line"><span class="comment">/// a. 从level-n中获得的sstable的key-range,然后获得与其有overlap的level-n+1中的sstable</span></div><div class="line"><span class="comment">/// b. 在不扩大已经获得的所有sstable的key-range的情况下，尝试添加level-n中的sstable</span></div><div class="line"><span class="comment">/// c. 获得grandparents_</span></div><div class="line"><span class="comment">/// d. 更新level-n中下一次要compact的start-key</span></div><div class="line">void VersionSet::SetupOtherInputs(Compaction* c) &#123;</div><div class="line">  <span class="function"><span class="title">const</span> int level = c-&gt;</span>level();</div><div class="line">  InternalKey smallest, largest;</div><div class="line">  <span class="comment">/// 获得compaction操作所在的level的key的范围</span></div><div class="line">  G<span class="function"><span class="title">etRange</span>(c-&gt;</span>inputs_[<span class="number">0</span>], &amp;smallest, &amp;largest);</div><div class="line">  <span class="comment">/// 获取level+1上与指定区间重叠的文件，加入c-&gt;inputs_[1]</span></div><div class="line">  <span class="function"><span class="title">current_</span>-&gt;</span>G<span class="function"><span class="title">etOverlappingInputs</span>(level+1, &amp;smallest, &amp;largest, &amp;c-&gt;</span>inputs_[<span class="number">1</span>]);</div><div class="line"></div><div class="line">  <span class="comment">// Get entire range covered by compaction</span></div><div class="line">  <span class="comment">/// 获取level和level+1上所有文件的区间范围</span></div><div class="line">  InternalKey all_start, all_limit;</div><div class="line">  G<span class="function"><span class="title">etRange2</span>(c-&gt;</span><span class="function"><span class="title">inputs_</span>[0], c-&gt;</span>inputs_[<span class="number">1</span>], &amp;all_start, &amp;all_limit);</div><div class="line"></div><div class="line">  <span class="comment">// See if we can grow the number of inputs in "level" without</span></div><div class="line">  <span class="comment">// changing the number of "level+1" files we pick up.</span></div><div class="line">  <span class="comment">/// 尽可能扩充选中的文件数量，又做到不违背大于1的level内部文件之间发生重叠</span></div><div class="line">  <span class="function"><span class="title">if</span> (!c-&gt;</span>inputs_[<span class="number">1</span>].empty()) &#123;</div><div class="line">    std::vector&lt;FileMetaData*&gt; expanded0;</div><div class="line">    <span class="comment">/// 获取更新范围之后的level上重叠的文件列表</span></div><div class="line">    <span class="function"><span class="title">current_</span>-&gt;</span>GetOverlappingInputs(level, &amp;all_start, &amp;all_limit, &amp;expanded0);</div><div class="line">    <span class="function"><span class="title">const</span> int64_t inputs0_size = TotalFileSize(c-&gt;</span>inputs_[<span class="number">0</span>]);</div><div class="line">    <span class="function"><span class="title">const</span> int64_t inputs1_size = TotalFileSize(c-&gt;</span>inputs_[<span class="number">1</span>]);</div><div class="line">    <span class="comment">/// 扩展范围的文件的大小</span></div><div class="line">    const int64_t expanded0_size = TotalFileSize(expanded0);</div><div class="line">    <span class="function"><span class="title">if</span> (expanded0.size() &gt; c-&gt;</span>inputs_[<span class="number">0</span>].size() &amp;&amp;</div><div class="line">        inputs1_size + expanded0_size &lt;</div><div class="line">            ExpandedCompactionByteSizeLimit(options_)) &#123; <span class="comment">/// 限制compaction操作涉及的文件大小</span></div><div class="line">      InternalKey new_start, new_limit;</div><div class="line">      <span class="comment">/// 获取expanded之后level文件的取值范围</span></div><div class="line">      GetRange(expanded0, &amp;new_start, &amp;new_limit);</div><div class="line">      std::vector&lt;FileMetaData*&gt; expanded1;</div><div class="line">      <span class="comment">/// 获取level+1上和[new_start,new_limit]重叠的文件列表</span></div><div class="line">      <span class="function"><span class="title">current_</span>-&gt;</span>GetOverlappingInputs(level+<span class="number">1</span>, &amp;new_start, &amp;new_limit,</div><div class="line">                                     &amp;expanded1);</div><div class="line">      <span class="comment">/// level+1上的文件没有发生扩展</span></div><div class="line">      <span class="function"><span class="title">if</span> (expanded1.size() == c-&gt;</span>inputs_[<span class="number">1</span>].size()) &#123;</div><div class="line">        L<span class="function"><span class="title">og</span>(options_-&gt;</span>info_log,</div><div class="line">            <span class="string">"Expanding@%d %d+%d (%ld+%ld bytes) to %d+%d (%ld+%ld bytes)\n"</span>,</div><div class="line">            level,</div><div class="line">            <span class="function"><span class="title">int</span>(c-&gt;</span>inputs_[<span class="number">0</span>].size()),</div><div class="line">            <span class="function"><span class="title">int</span>(c-&gt;</span>inputs_[<span class="number">1</span>].size()),</div><div class="line">            long(inputs0_size), long(inputs1_size),</div><div class="line">            int(expanded0.size()),</div><div class="line">            int(expanded1.size()),</div><div class="line">            long(expanded0_size), long(inputs1_size));</div><div class="line">        smallest = new_start;</div><div class="line">        largest = new_limit;</div><div class="line">        <span class="comment">/// 记录更新之后输入的文件</span></div><div class="line">        <span class="function"><span class="title">c</span>-&gt;</span>inputs_[<span class="number">0</span>] = expanded0;</div><div class="line">        <span class="function"><span class="title">c</span>-&gt;</span>inputs_[<span class="number">1</span>] = expanded1;</div><div class="line">        <span class="comment">/// 记录更新之后的level和level+1上的总区间范围到[all_start,all_limit]</span></div><div class="line">        G<span class="function"><span class="title">etRange2</span>(c-&gt;</span><span class="function"><span class="title">inputs_</span>[0], c-&gt;</span>inputs_[<span class="number">1</span>], &amp;all_start, &amp;all_limit);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Compute the set of grandparent files that overlap this compaction</span></div><div class="line">  <span class="comment">// (parent == level+1; grandparent == level+2)</span></div><div class="line">  <span class="comment">/// 记录grandparents_在[all_start, all_limit]范围内的重叠的文件</span></div><div class="line">  <span class="keyword">if</span> (level + <span class="number">2</span> &lt; config::kNumLevels) &#123;</div><div class="line">    <span class="comment">/// 和[all_start,all_limit]区间重叠的grandparent level 文件的列表存入grandparents_之中</span></div><div class="line">    <span class="function"><span class="title">current_</span>-&gt;</span>GetOverlappingInputs(level + <span class="number">2</span>, &amp;all_start, &amp;all_limit,</div><div class="line">                                   &amp;<span class="function"><span class="title">c</span>-&gt;</span>grandparents_);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// never happen</span></div><div class="line">  <span class="keyword">if</span> (<span class="literal">false</span>) &#123;</div><div class="line">    L<span class="function"><span class="title">og</span>(options_-&gt;</span>info_log, <span class="string">"Compacting %d '%s' .. '%s'"</span>,</div><div class="line">        level,</div><div class="line">        smallest.DebugString().c_str(),</div><div class="line">        largest.DebugString().c_str());</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Update the place where we will do the next compaction for this level.</span></div><div class="line">  <span class="comment">// We update this immediately instead of waiting for the VersionEdit</span></div><div class="line">  <span class="comment">// to be applied so that if the compaction fails, we will try a different</span></div><div class="line">  <span class="comment">// key range next time.</span></div><div class="line">  <span class="comment">/// 记录当前level compact操作后最大的key</span></div><div class="line">  compact_pointer_[level] = largest.Encode().ToString();</div><div class="line">  <span class="function"><span class="title">c</span>-&gt;</span>edit_.SetCompactPointer(level, largest);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p><code>if (!c-&gt;inputs_[1].empty()) {</code>之后的代码是干什么的呢？是为了尽可能在遵守现有规则的情况下扩大输入文件的范围。</p>
+<p><img src="https://ws1.sinaimg.cn/large/006tNc79gy1fgwcchih6pj30js03ljrm.jpg" alt=""></p>
+<p>上图中，根据level n的输入文件A，可以选中level n+1上与A区间重叠的3个文件作为输入一起进行compaction操作。我们可以发现实际上可以将level n上的E文件加入，而不会扩充level n+1层需要输入的文件。</p>
+<p>但是，在如图下述情况下，就不能把文件E加入作为level n上的输入文件。因为，这样就需要把level n+1上的F文件牵扯进来，这不是我们想要的。</p>
+<p><img src="https://ws4.sinaimg.cn/large/006tNc79gy1fgwcgcu6h1j30js03l0sz.jpg" alt=""></p>
+<p>可是，下述情况却是可以的，因为我们没有牵扯到level n+1上更多的文件。</p>
+<p><img src="https://ws3.sinaimg.cn/large/006tNc79gy1fgwcix6gcxj30js03l0sz.jpg" alt=""></p>
+<p>当然，扩充之后的文件空间大小之和也不可以超出限制：</p>
+<figure class="highlight lisp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">inputs1_size + expanded0_size &lt;</div><div class="line">            ExpandedCompactionByteSizeLimit(<span class="name">options_</span>)</div></pre></td></tr></table></figure>
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/24/leveldb-Version和VersionEdit/" rel="next" title="leveldb Version和VersionEdit">
+                <i class="fa fa-chevron-left"></i> leveldb Version和VersionEdit
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">32</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#VersionSet"><span class="nav-text">VersionSet</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#重点成员函数"><span class="nav-text">重点成员函数</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Compaction相关"><span class="nav-text">Compaction相关</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#PickCompaction"><span class="nav-text">PickCompaction</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#CompactRange"><span class="nav-text">CompactRange</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SetupOtherInputs"><span class="nav-text">SetupOtherInputs</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

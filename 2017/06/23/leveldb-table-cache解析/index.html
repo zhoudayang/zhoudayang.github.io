@@ -91,21 +91,17 @@
 
 
 
-<meta name="description" content="介绍在leveldb之中，包括put，delete等操作都是基于对WriteBatch的操作。当多线程同时调用put时，会将put操作组合起来合并成为一个WriteBatch对象，统一写入到memtable之中。 WriteBatch的具体格式如下所示： 从图中可以发现，WriteBatch由sequence number，count和records构成，其中count记载了record的数目。s">
+<meta name="description" content="简介leveldb在打开sstable的时候，会将这个sstable对应的table 句柄存入cache。cache内部基于LRU算法进行管理，默认cache的容积为990，也就是说leveldb默认情况下最多能同时打开的sstable文件的数目为990个。在执行compaction操作时，创建的sstable也会加入此cache。同样，在执行sstable上的查找时，所打开的sstable文件也">
 <meta name="keywords" content="leveldb">
 <meta property="og:type" content="article">
-<meta property="og:title" content="leveldb WriteBatch解析">
-<meta property="og:url" content="http://zhoudayang.github.io/2017/06/23/leveldb-WriteBatch解析/index.html">
+<meta property="og:title" content="leveldb table_cache解析">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/23/leveldb-table-cache解析/index.html">
 <meta property="og:site_name" content="zhouyang&#39;s blog">
-<meta property="og:description" content="介绍在leveldb之中，包括put，delete等操作都是基于对WriteBatch的操作。当多线程同时调用put时，会将put操作组合起来合并成为一个WriteBatch对象，统一写入到memtable之中。 WriteBatch的具体格式如下所示： 从图中可以发现，WriteBatch由sequence number，count和records构成，其中count记载了record的数目。s">
-<meta property="og:image" content="https://ww2.sinaimg.cn/large/a15b4afegy1fgv2xvt003j20ib02sq2r">
-<meta property="og:image" content="https://ww2.sinaimg.cn/large/a15b4afegy1fgv34gonm5j20f602tmwy">
-<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tKfTcly1fgv3rcwo4dj30bz032a9u.jpg">
-<meta property="og:updated_time" content="2017-06-23T03:56:18.000Z">
+<meta property="og:description" content="简介leveldb在打开sstable的时候，会将这个sstable对应的table 句柄存入cache。cache内部基于LRU算法进行管理，默认cache的容积为990，也就是说leveldb默认情况下最多能同时打开的sstable文件的数目为990个。在执行compaction操作时，创建的sstable也会加入此cache。同样，在执行sstable上的查找时，所打开的sstable文件也">
+<meta property="og:updated_time" content="2017-06-23T08:47:55.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="leveldb WriteBatch解析">
-<meta name="twitter:description" content="介绍在leveldb之中，包括put，delete等操作都是基于对WriteBatch的操作。当多线程同时调用put时，会将put操作组合起来合并成为一个WriteBatch对象，统一写入到memtable之中。 WriteBatch的具体格式如下所示： 从图中可以发现，WriteBatch由sequence number，count和records构成，其中count记载了record的数目。s">
-<meta name="twitter:image" content="https://ww2.sinaimg.cn/large/a15b4afegy1fgv2xvt003j20ib02sq2r">
+<meta name="twitter:title" content="leveldb table_cache解析">
+<meta name="twitter:description" content="简介leveldb在打开sstable的时候，会将这个sstable对应的table 句柄存入cache。cache内部基于LRU算法进行管理，默认cache的容积为990，也就是说leveldb默认情况下最多能同时打开的sstable文件的数目为990个。在执行compaction操作时，创建的sstable也会加入此cache。同样，在执行sstable上的查找时，所打开的sstable文件也">
 
 
 
@@ -133,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/23/leveldb-WriteBatch解析/"/>
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/23/leveldb-table-cache解析/"/>
 
 
 
 
 
-  <title>leveldb WriteBatch解析 | zhouyang's blog</title>
+  <title>leveldb table_cache解析 | zhouyang's blog</title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -307,7 +303,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/23/leveldb-WriteBatch解析/">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/23/leveldb-table-cache解析/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Zhou Yang">
@@ -324,7 +320,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">leveldb WriteBatch解析</h1>
+          <h1 class="post-title" itemprop="name headline">leveldb table_cache解析</h1>
         
 
         <div class="post-meta">
@@ -336,7 +332,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-23T11:56:18+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-23T16:47:55+08:00">
                 2017-06-23
               </time>
             
@@ -398,22 +394,15 @@
       
 
       
-        <h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h1><p>在leveldb之中，包括put，delete等操作都是基于对WriteBatch的操作。当多线程同时调用put时，会将put操作组合起来合并成为一个WriteBatch对象，统一写入到memtable之中。</p>
-<p>WriteBatch的具体格式如下所示：<br><img src="https://ww2.sinaimg.cn/large/a15b4afegy1fgv2xvt003j20ib02sq2r" alt="WriteBatch"></p>
-<p>从图中可以发现，WriteBatch由sequence number，count和records构成，其中count记载了record的数目。sequence number是第一条record所对应的sequence number。</p>
-<p>记录的类型有两种，分别对应添加和删除两种操作，这两种记录的格式如下所示：</p>
-<ul>
-<li><p>Put<br><img src="https://ww2.sinaimg.cn/large/a15b4afegy1fgv34gonm5j20f602tmwy" alt=""></p>
-</li>
-<li><p>Delete</p>
-</li>
-</ul>
-<p><img src="https://ws3.sinaimg.cn/large/006tKfTcly1fgv3rcwo4dj30bz032a9u.jpg" alt=""></p>
-<h1 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h1><p>在WriteBatch之中，内部使用一个string存放所有的记录。按照WriteBatch的格式定义，对于Put和Delete操作，很容易理解以下代码。</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> WriteBatch::Put(<span class="keyword">const</span> Slice&amp; key, <span class="keyword">const</span> Slice&amp; value) &#123;</div><div class="line">  <span class="comment">/// 更新count值</span></div><div class="line">  WriteBatchInternal::SetCount(<span class="keyword">this</span>, WriteBatchInternal::Count(<span class="keyword">this</span>) + <span class="number">1</span>);</div><div class="line">  <span class="comment">/// 类型为kTypeValue</span></div><div class="line">  rep_.push_back(<span class="keyword">static_cast</span>&lt;<span class="keyword">char</span>&gt;(kTypeValue));</div><div class="line">  <span class="comment">/// key</span></div><div class="line">  PutLengthPrefixedSlice(&amp;rep_, key);</div><div class="line">  <span class="comment">/// value</span></div><div class="line">  PutLengthPrefixedSlice(&amp;rep_, value);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> WriteBatch::Delete(<span class="keyword">const</span> Slice&amp; key) &#123;</div><div class="line">  <span class="comment">/// 更新Count值</span></div><div class="line">  WriteBatchInternal::SetCount(<span class="keyword">this</span>, WriteBatchInternal::Count(<span class="keyword">this</span>) + <span class="number">1</span>);</div><div class="line">  <span class="comment">/// 类型为kTypeDeletion</span></div><div class="line">  rep_.push_back(<span class="keyword">static_cast</span>&lt;<span class="keyword">char</span>&gt;(kTypeDeletion));</div><div class="line">  <span class="comment">/// 存储key</span></div><div class="line">  PutLengthPrefixedSlice(&amp;rep_, key);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>在WriteBatch之中，还提供了Iterate操作，其实质上是从前往后依次遍历WriteBatch之中内部存储的记录，将所记录的操作通过handler在memtable上执行。如果执行的record数目与count不同，说明发生了错误。</p>
-<figure class="highlight zephir"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div></pre></td><td class="code"><pre><div class="line">Status WriteBatch::Iterate(Handler* handler) <span class="keyword">const</span> &#123;</div><div class="line">  Slice input(rep_);</div><div class="line">  <span class="comment">/// rep_的大小不可能小于kHeader</span></div><div class="line">  <span class="keyword">if</span> (input.size() &lt; kHeader) &#123;</div><div class="line">    <span class="keyword">return</span> Status::Corruption(<span class="string">"malformed WriteBatch (too small)"</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  input.remove_prefix(kHeader);</div><div class="line">  Slice key, value;</div><div class="line">  <span class="keyword">int</span> found = <span class="number">0</span>;</div><div class="line">  <span class="keyword">while</span> (!input.<span class="keyword">empty</span>()) &#123;</div><div class="line">    found++;</div><div class="line">    <span class="keyword">char</span> tag = input[<span class="number">0</span>];</div><div class="line">    input.remove_prefix(<span class="number">1</span>);</div><div class="line">    <span class="keyword">switch</span> (tag) &#123;</div><div class="line">      <span class="keyword">case</span> kTypeValue:</div><div class="line">        <span class="keyword">if</span> (GetLengthPrefixedSlice(&amp;input, &amp;key) &amp;&amp;</div><div class="line">            GetLengthPrefixedSlice(&amp;input, &amp;value)) &#123;</div><div class="line">          <span class="comment">/// 向memtable中进行插入</span></div><div class="line">          handler-&gt;Put(key, value);</div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">          <span class="keyword">return</span> Status::Corruption(<span class="string">"bad WriteBatch Put"</span>);</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      <span class="keyword">case</span> kTypeDeletion:</div><div class="line">        <span class="keyword">if</span> (GetLengthPrefixedSlice(&amp;input, &amp;key)) &#123;</div><div class="line">          <span class="comment">/// 从memtable之中删除</span></div><div class="line">          handler-&gt;Delete(key);</div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">          <span class="keyword">return</span> Status::Corruption(<span class="string">"bad WriteBatch Delete"</span>);</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      <span class="keyword">default</span>:</div><div class="line">        <span class="keyword">return</span> Status::Corruption(<span class="string">"unknown WriteBatch tag"</span>);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">/// iterate的数量不一致</span></div><div class="line">  <span class="keyword">if</span> (found != WriteBatchInternal::Count(this)) &#123;</div><div class="line">    <span class="keyword">return</span> Status::Corruption(<span class="string">"WriteBatch has wrong count"</span>);</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="keyword">return</span> Status::OK();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-
+        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>leveldb在打开sstable的时候，会将这个sstable对应的table 句柄存入cache。cache内部基于LRU算法进行管理，默认cache的容积为990，也就是说leveldb默认情况下最多能同时打开的sstable文件的数目为990个。在执行compaction操作时，创建的sstable也会加入此cache。同样，在执行sstable上的查找时，所打开的sstable文件也会存入table cache之中。在leveldb中，默认执行随机文件读写操作是基于<code>PosixMmapReadableFile</code>。若table cache之中的一条记录离开了，会执行下述函数：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/// delete table, file, and TableAndFile object allocated on heap</span></div><div class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">DeleteEntry</span><span class="params">(<span class="keyword">const</span> Slice&amp; key, <span class="keyword">void</span>* value)</span> </span>&#123;</div><div class="line">  TableAndFile* tf = <span class="keyword">reinterpret_cast</span>&lt;TableAndFile*&gt;(value);</div><div class="line">  <span class="keyword">delete</span> tf-&gt;table;</div><div class="line">  <span class="comment">/// 此处关闭了打开的文件</span></div><div class="line">  <span class="keyword">delete</span> tf-&gt;file;</div><div class="line">  <span class="keyword">delete</span> tf;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>leveldb基于lru cache限制了打开文件的数目，减少了对内存的占用。</p>
+<h1 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h1><p>TableCache使用<code>file_number</code>作为key来存储sstable的句柄信息。在执行查找table操作时，若没有找到对应的记录，会根据输入的<code>file_number</code>打开对应的sstable文件，并且将其存入TableCache之中。</p>
+<figure class="highlight stata"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div></pre></td><td class="code"><pre><div class="line">Status TableCache::FindTable(uint64_t file_number, uint64_t file_size,</div><div class="line">                             Cache::Handle** handle) &#123;</div><div class="line">  Status s;</div><div class="line">  <span class="comment">/// use file_number as key</span></div><div class="line">  <span class="keyword">char</span> buf[sizeof(file_number)];</div><div class="line">  EncodeFixed64(buf, file_number);</div><div class="line">  Slice key(buf, sizeof(buf));</div><div class="line"><span class="comment">  *handle = cache_-&gt;Lookup(key);</span></div><div class="line">  <span class="keyword">if</span> (*handle == NULL) &#123;</div><div class="line">    std::string fname = TableFileName(dbname_, file_number);</div><div class="line">    RandomAccessFile* <span class="keyword">file</span> = NULL;</div><div class="line">    <span class="keyword">Table</span>* <span class="keyword">table</span> = NULL;</div><div class="line">    <span class="comment">///首先尝试ldb文件，再尝试sst文件</span></div><div class="line">    s = env_-&gt;NewRandomAccessFile(fname, &amp;<span class="keyword">file</span>);</div><div class="line">    <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">      std::string old_fname = SSTTableFileName(dbname_, file_number);</div><div class="line">      <span class="keyword">if</span> (env_-&gt;NewRandomAccessFile(old_fname, &amp;<span class="keyword">file</span>).ok()) &#123;</div><div class="line">        s = Status::OK();</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">      <span class="comment">/// 打开sstable</span></div><div class="line">      s = <span class="keyword">Table</span>::<span class="keyword">Open</span>(*options_, <span class="keyword">file</span>, file_size, &amp;<span class="keyword">table</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">      <span class="keyword">assert</span>(<span class="keyword">table</span> == NULL);</div><div class="line">      delete <span class="keyword">file</span>;</div><div class="line">      <span class="comment">// We do not cache error results so that if the error is transient,</span></div><div class="line">      <span class="comment">// or somebody repairs the file, we recover automatically.</span></div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      <span class="comment">/// 记录sstable，file object</span></div><div class="line">      TableAndFile* tf = new TableAndFile;</div><div class="line">      tf-&gt;<span class="keyword">file</span> = <span class="keyword">file</span>;</div><div class="line">      tf-&gt;<span class="keyword">table</span> = <span class="keyword">table</span>;</div><div class="line">      <span class="comment">/// 占用cache_的空间为1，表示一条记录。</span></div><div class="line">      <span class="comment">/// 通过cache_控制打开的文件的数目</span></div><div class="line"><span class="comment">      *handle = cache_-&gt;Insert(key, tf, 1, &amp;DeleteEntry);</span></div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> s;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>从TableCache之中删除记录，将输入的<code>file_number</code>作为key，在TableCache中删除对应的记录。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/// 从cache中删除file_number对应的记录</span></div><div class="line"><span class="keyword">void</span> TableCache::Evict(<span class="keyword">uint64_t</span> file_number) &#123;</div><div class="line">  <span class="keyword">char</span> buf[<span class="keyword">sizeof</span>(file_number)];</div><div class="line">  EncodeFixed64(buf, file_number);</div><div class="line">  cache_-&gt;Erase(Slice(buf, <span class="keyword">sizeof</span>(buf)));</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>获取<code>file_number</code>指定文件的sstable的Iterator，首先执行FindTable获取对应sstable的句柄，然后返回sstable的Iterator。在Iterator存活期间，此记录在TableCache之中不能被删除。在Iterator被析构时，需要执行Release操作，通知Cache此sstable对应的记录可以被安全地清理。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line">Iterator* TableCache::NewIterator(<span class="keyword">const</span> ReadOptions&amp; options,</div><div class="line">                                  <span class="keyword">uint64_t</span> file_number,</div><div class="line">                                  <span class="keyword">uint64_t</span> file_size,</div><div class="line">                                  Table** tableptr) &#123;</div><div class="line">  <span class="keyword">if</span> (tableptr != <span class="literal">NULL</span>) &#123;</div><div class="line">    *tableptr = <span class="literal">NULL</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  Cache::Handle* handle = <span class="literal">NULL</span>;</div><div class="line">  Status s = FindTable(file_number, file_size, &amp;handle);</div><div class="line">  <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">    <span class="keyword">return</span> NewErrorIterator(s);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// 获取sstable对象</span></div><div class="line">  Table* table = <span class="keyword">reinterpret_cast</span>&lt;TableAndFile*&gt;(cache_-&gt;Value(handle))-&gt;table;</div><div class="line">  Iterator* result = table-&gt;NewIterator(options);</div><div class="line">  <span class="comment">// when destruct, release from cache</span></div><div class="line">  result-&gt;RegisterCleanup(&amp;UnrefEntry, cache_, handle);</div><div class="line">  <span class="keyword">if</span> (tableptr != <span class="literal">NULL</span>) &#123;</div><div class="line">    <span class="comment">/// 记录对应的sstable</span></div><div class="line">    *tableptr = table;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> result;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/// 注册的清理函数</span></div><div class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">UnrefEntry</span><span class="params">(<span class="keyword">void</span>* arg1, <span class="keyword">void</span>* arg2)</span> </span>&#123;</div><div class="line">  <span class="comment">/// get cache ptr</span></div><div class="line">  Cache* cache = <span class="keyword">reinterpret_cast</span>&lt;Cache*&gt;(arg1);</div><div class="line">  <span class="comment">/// get cache data</span></div><div class="line">  Cache::Handle* h = <span class="keyword">reinterpret_cast</span>&lt;Cache::Handle*&gt;(arg2);</div><div class="line">  <span class="comment">/// release data to cache</span></div><div class="line">  cache-&gt;Release(h);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
       
     </div>
 
@@ -455,8 +444,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/06/23/leveldb-memtable解析/" rel="next" title="leveldb memtable解析">
-                <i class="fa fa-chevron-left"></i> leveldb memtable解析
+              <a href="/2017/06/23/leveldb-snapshot解析/" rel="next" title="leveldb snapshot解析">
+                <i class="fa fa-chevron-left"></i> leveldb snapshot解析
               </a>
             
           </div>
@@ -465,8 +454,8 @@
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2017/06/23/leveldb-snapshot解析/" rel="prev" title="leveldb snapshot解析">
-                leveldb snapshot解析 <i class="fa fa-chevron-right"></i>
+              <a href="/2017/06/24/leveldb-Version和VersionEdit/" rel="prev" title="leveldb Version和VersionEdit">
+                leveldb Version和VersionEdit <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>
@@ -627,7 +616,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#介绍"><span class="nav-text">介绍</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#实现"><span class="nav-text">实现</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#简介"><span class="nav-text">简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#实现"><span class="nav-text">实现</span></a></li></ol></div>
             
 
           </div>
