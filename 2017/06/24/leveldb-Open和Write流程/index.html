@@ -1,0 +1,820 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Linux, C++, Lua, Python, Golang" />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="Open总览在leveldb中，DB接口的实现在DBImpl对象中。打开数据库的时候，首先创建DBImpl对象，在这里会初始化各成员，对输入的option选项进行规范化，创建缓存sstable对象的table_cache_，同时创建VersionSet对象用于管理数据库版本。 1234567891011121314151617181920212223242526272829303132333435">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb Open和Write流程">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/24/leveldb-Open和Write流程/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="Open总览在leveldb中，DB接口的实现在DBImpl对象中。打开数据库的时候，首先创建DBImpl对象，在这里会初始化各成员，对输入的option选项进行规范化，创建缓存sstable对象的table_cache_，同时创建VersionSet对象用于管理数据库版本。 1234567891011121314151617181920212223242526272829303132333435">
+<meta property="og:updated_time" content="2017-06-24T08:58:25.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb Open和Write流程">
+<meta name="twitter:description" content="Open总览在leveldb中，DB接口的实现在DBImpl对象中。打开数据库的时候，首先创建DBImpl对象，在这里会初始化各成员，对输入的option选项进行规范化，创建缓存sstable对象的table_cache_，同时创建VersionSet对象用于管理数据库版本。 1234567891011121314151617181920212223242526272829303132333435">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '7ccbed52df595f2d66c7be0f9035d420',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/24/leveldb-Open和Write流程/"/>
+
+
+
+
+
+  <title>leveldb Open和Write流程 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/24/leveldb-Open和Write流程/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb Open和Write流程</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-24T16:58:25+08:00">
+                2017-06-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="Open"><a href="#Open" class="headerlink" title="Open"></a>Open</h1><h2 id="总览"><a href="#总览" class="headerlink" title="总览"></a>总览</h2><p>在leveldb中，DB接口的实现在DBImpl对象中。打开数据库的时候，首先创建DBImpl对象，在这里会初始化各成员，对输入的option选项进行规范化，创建缓存sstable对象的<code>table_cache_</code>，同时创建VersionSet对象用于管理数据库版本。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line">DBImpl::DBImpl(<span class="keyword">const</span> Options&amp; raw_options, <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; dbname)</div><div class="line">    : env_(raw_options.env),</div><div class="line">      internal_comparator_(raw_options.comparator),</div><div class="line">      internal_filter_policy_(raw_options.filter_policy),</div><div class="line">      options_(SanitizeOptions(dbname, &amp;internal_comparator_,</div><div class="line">                               &amp;internal_filter_policy_, raw_options)),</div><div class="line">      <span class="comment">/// 是否拥有info_log</span></div><div class="line">      owns_info_log_(options_.info_log != raw_options.info_log),</div><div class="line">      <span class="comment">/// 是否拥有cache</span></div><div class="line">      owns_cache_(options_.block_cache != raw_options.block_cache),</div><div class="line">      dbname_(dbname),</div><div class="line">      db_lock_(<span class="literal">NULL</span>),</div><div class="line">      shutting_down_(<span class="literal">NULL</span>),</div><div class="line">      bg_cv_(&amp;mutex_), <span class="comment">// background condition variable</span></div><div class="line">      mem_(<span class="literal">NULL</span>), <span class="comment">// memtable</span></div><div class="line">      imm_(<span class="literal">NULL</span>), <span class="comment">// immutable memtable</span></div><div class="line">      logfile_(<span class="literal">NULL</span>), <span class="comment">// log file descriptor</span></div><div class="line">      logfile_number_(<span class="number">0</span>), <span class="comment">// log file number</span></div><div class="line">      log_(<span class="literal">NULL</span>), <span class="comment">// logger</span></div><div class="line">      seed_(<span class="number">0</span>),</div><div class="line">      tmp_batch_(<span class="keyword">new</span> WriteBatch), <span class="comment">// temp batch</span></div><div class="line">      bg_compaction_scheduled_(<span class="literal">false</span>), <span class="comment">// 当前是否正有后台compaction正在运行</span></div><div class="line">      manual_compaction_(<span class="literal">NULL</span>) &#123; <span class="comment">// 指代手动compaction操作</span></div><div class="line">  has_imm_.Release_Store(<span class="literal">NULL</span>); <span class="comment">// no immutable memtable</span></div><div class="line"></div><div class="line">  <span class="comment">// Reserve ten files or so for other uses and give the rest to TableCache.</span></div><div class="line">  <span class="comment">/// 990</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">int</span> table_cache_size = options_.max_open_files - kNumNonTableCacheFiles;</div><div class="line">  <span class="comment">/// sstable handle cache</span></div><div class="line">  table_cache_ = <span class="keyword">new</span> TableCache(dbname_, &amp;options_, table_cache_size);</div><div class="line"></div><div class="line">  <span class="comment">// create version set object</span></div><div class="line">  versions_ = <span class="keyword">new</span> VersionSet(dbname_, &amp;options_, table_cache_,</div><div class="line">                             &amp;internal_comparator_);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>接下来进入Recover函数，首先尝试对LOCK文件进行上锁，确保只有一个leveldb实例正在数据库路径上运行。若CURRENT文件并不存在，则表明数据库未初始化，根据设置，若启用了<code>create_if_missing</code>选项，则会进行初始化操作。紧接着从manifest文件之中得到之前数据库实例最新的版本信息。根据版本信息，就可以检查数据库路径下是否存在文件缺失。若无缺失，则从log文件之中恢复memtable内保存的数据。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div></pre></td><td class="code"><pre><div class="line">Status DBImpl::Recover(VersionEdit* edit, <span class="keyword">bool</span> *save_manifest) &#123;</div><div class="line">  mutex_.AssertHeld();</div><div class="line"></div><div class="line">  <span class="comment">// Ignore error from CreateDir since the creation of the DB is</span></div><div class="line">  <span class="comment">// committed only when the descriptor is created, and this directory</span></div><div class="line">  <span class="comment">// may already exist from a previous failed creation attempt.</span></div><div class="line">  <span class="comment">/// 创建路径，名称为dbname_</span></div><div class="line">  env_-&gt;CreateDir(dbname_);</div><div class="line">  assert(db_lock_ == <span class="literal">NULL</span>);</div><div class="line">  <span class="comment">/// 持有文件锁, 表明当前数据库正在工作中</span></div><div class="line">  Status s = env_-&gt;LockFile(LockFileName(dbname_), &amp;db_lock_);</div><div class="line">  <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">    <span class="keyword">return</span> s;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// current文件不存在</span></div><div class="line">  <span class="keyword">if</span> (!env_-&gt;FileExists(CurrentFileName(dbname_))) &#123;</div><div class="line">    <span class="comment">/// 当缺失时创建</span></div><div class="line">    <span class="keyword">if</span> (options_.create_if_missing) &#123;</div><div class="line">      <span class="comment">/// 初始化数据库</span></div><div class="line">      s = NewDB();</div><div class="line">      <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">        <span class="keyword">return</span> s;</div><div class="line">      &#125;</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      <span class="comment">/// 数据库不存在</span></div><div class="line">      <span class="keyword">return</span> Status::InvalidArgument(</div><div class="line">          dbname_, <span class="string">"does not exist (create_if_missing is false)"</span>);</div><div class="line">    &#125;</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="comment">/// 数据库已经存在</span></div><div class="line">    <span class="keyword">if</span> (options_.error_if_exists) &#123;</div><div class="line">      <span class="keyword">return</span> Status::InvalidArgument(</div><div class="line">          dbname_, <span class="string">"exists (error_if_exists is true)"</span>);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 从manifest文件之中恢复Version设置</span></div><div class="line">  s = versions_-&gt;Recover(save_manifest);</div><div class="line">  <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">    <span class="keyword">return</span> s;</div><div class="line">  &#125;</div><div class="line">  <span class="function">SequenceNumber <span class="title">max_sequence</span><span class="params">(<span class="number">0</span>)</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Recover from all newer log files than the ones named in the</span></div><div class="line">  <span class="comment">// descriptor (new log files may have been added by the previous</span></div><div class="line">  <span class="comment">// incarnation without registering them in the descriptor).</span></div><div class="line">  <span class="comment">//</span></div><div class="line">  <span class="comment">// Note that PrevLogNumber() is no longer used, but we pay</span></div><div class="line">  <span class="comment">// attention to it in case we are recovering a database</span></div><div class="line">  <span class="comment">// produced by an older version of leveldb.</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint64_t</span> min_log = versions_-&gt;LogNumber();</div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint64_t</span> prev_log = versions_-&gt;PrevLogNumber();</div><div class="line">  <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="built_in">std</span>::<span class="built_in">string</span>&gt; filenames;</div><div class="line">  <span class="comment">/// 获取数据库路径下的所有文件</span></div><div class="line">  s = env_-&gt;GetChildren(dbname_, &amp;filenames);</div><div class="line">  <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">    <span class="keyword">return</span> s;</div><div class="line">  &#125;</div><div class="line">  <span class="built_in">std</span>::<span class="built_in">set</span>&lt;<span class="keyword">uint64_t</span>&gt; expected;</div><div class="line">  <span class="comment">/// 得到当前所有文件对应的numbers</span></div><div class="line">  versions_-&gt;AddLiveFiles(&amp;expected);</div><div class="line">  <span class="keyword">uint64_t</span> number;</div><div class="line">  FileType type;</div><div class="line">  <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="keyword">uint64_t</span>&gt; logs;</div><div class="line">  <span class="keyword">for</span> (<span class="keyword">size_t</span> i = <span class="number">0</span>; i &lt; filenames.size(); i++) &#123;</div><div class="line">    <span class="keyword">if</span> (ParseFileName(filenames[i], &amp;number, &amp;type)) &#123;</div><div class="line">      expected.erase(number);</div><div class="line">      <span class="keyword">if</span> (type == kLogFile &amp;&amp; ((number &gt;= min_log) || (number == prev_log)))</div><div class="line">        <span class="comment">/// 记录log文件对应的number</span></div><div class="line">        logs.push_back(number);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">/// 缺失了文件, 崩溃</span></div><div class="line">  <span class="keyword">if</span> (!expected.empty()) &#123;</div><div class="line">    <span class="keyword">char</span> buf[<span class="number">50</span>];</div><div class="line">    <span class="built_in">snprintf</span>(buf, <span class="keyword">sizeof</span>(buf), <span class="string">"%d missing files; e.g."</span>,</div><div class="line">             <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(expected.size()));</div><div class="line">    <span class="keyword">return</span> Status::Corruption(buf, TableFileName(dbname_, *(expected.begin())));</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Recover in the order in which the logs were generated</span></div><div class="line">  <span class="built_in">std</span>::sort(logs.begin(), logs.end());</div><div class="line">  <span class="keyword">for</span> (<span class="keyword">size_t</span> i = <span class="number">0</span>; i &lt; logs.size(); i++) &#123;</div><div class="line">    <span class="comment">/// 从log文件之中恢复          是最后一个log文件吗？</span></div><div class="line">    s = RecoverLogFile(logs[i], (i == logs.size() - <span class="number">1</span>), save_manifest, edit,</div><div class="line">                       &amp;max_sequence);</div><div class="line">    <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">      <span class="keyword">return</span> s;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// The previous incarnation may not have written any MANIFEST</span></div><div class="line">    <span class="comment">// records after allocating this log number.  So we manually</span></div><div class="line">    <span class="comment">// update the file number allocation counter in VersionSet.</span></div><div class="line">    <span class="comment">/// 标识此log文件编号已经使用</span></div><div class="line">    versions_-&gt;MarkFileNumberUsed(logs[i]);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// 设置最大的序列号</span></div><div class="line">  <span class="keyword">if</span> (versions_-&gt;LastSequence() &lt; max_sequence) &#123;</div><div class="line">    versions_-&gt;SetLastSequence(max_sequence);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">return</span> Status::OK();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>恢复完成之后，若memtable为NULL，创建并且为其设置log。写入到memtable的数据都会追加到log文件之中以记录。然后更新版本信息，写入到manifest文件。最后尝试删除无用的文件，同时触发compaction操作。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div></pre></td><td class="code"><pre><div class="line">Status DB::Open(<span class="keyword">const</span> Options&amp; options, <span class="keyword">const</span> std::string&amp; dbname,</div><div class="line">                DB** dbptr) &#123;</div><div class="line">  *dbptr = NULL;</div><div class="line">  <span class="comment">// 创建DBImpl对象</span></div><div class="line">  DBImpl* <span class="keyword">impl</span> = new DBImpl(options, dbname);</div><div class="line">  <span class="keyword">impl</span>-&gt;mutex_.Lock();</div><div class="line">  VersionEdit edit;</div><div class="line">  <span class="comment">// Recover handles create_if_missing, error_if_exists</span></div><div class="line">  <span class="built_in">bool</span> save_manifest = <span class="literal">false</span>;</div><div class="line">  <span class="comment">/// 尝试读取record, 从log文件之中恢复</span></div><div class="line">  Status s = <span class="keyword">impl</span>-&gt;Recover(&amp;edit, &amp;save_manifest);</div><div class="line">  <span class="keyword">if</span> (s.ok() &amp;&amp; <span class="keyword">impl</span>-&gt;mem_ == NULL) &#123;</div><div class="line">    <span class="comment">// Create new log and a corresponding memtable.</span></div><div class="line">    uint64_t new_log_number = <span class="keyword">impl</span>-&gt;versions_-&gt;NewFileNumber();</div><div class="line">    WritableFile* lfile;</div><div class="line">    s = options.env-&gt;NewWritableFile(LogFileName(dbname, new_log_number),</div><div class="line">                                     &amp;lfile);</div><div class="line">    <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">      edit.SetLogNumber(new_log_number);</div><div class="line">      <span class="comment">/// set logfile_</span></div><div class="line">      <span class="keyword">impl</span>-&gt;logfile_ = lfile;</div><div class="line">      <span class="comment">/// set logfile_number_</span></div><div class="line">      <span class="keyword">impl</span>-&gt;logfile_number_ = new_log_number;</div><div class="line">      <span class="comment">/// set log_</span></div><div class="line">      <span class="keyword">impl</span>-&gt;log_ = new log::Writer(lfile);</div><div class="line">      <span class="comment">/// set memtable</span></div><div class="line">      <span class="keyword">impl</span>-&gt;mem_ = new MemTable(<span class="keyword">impl</span>-&gt;internal_comparator_);</div><div class="line">      <span class="comment">/// 增加引用计数</span></div><div class="line">      <span class="keyword">impl</span>-&gt;mem_-&gt;Ref();</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">/// save_manifest记录了当前是否需要进行compaction操作</span></div><div class="line">  <span class="keyword">if</span> (s.ok() &amp;&amp; save_manifest) &#123;</div><div class="line">    edit.SetPrevLogNumber(<span class="number">0</span>);  <span class="comment">// No older logs needed after recovery.</span></div><div class="line">    edit.SetLogNumber(<span class="keyword">impl</span>-&gt;logfile_number_);</div><div class="line">    <span class="comment">// 将edit应用到当前version，并且保存到manifest文件</span></div><div class="line">    s = <span class="keyword">impl</span>-&gt;versions_-&gt;LogAndApply(&amp;edit, &amp;<span class="keyword">impl</span>-&gt;mutex_);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">    <span class="comment">/// 删除无用文件</span></div><div class="line">    <span class="keyword">impl</span>-&gt;DeleteObsoleteFiles();</div><div class="line">    <span class="comment">// 触发compaction操作</span></div><div class="line">    <span class="keyword">impl</span>-&gt;MaybeScheduleCompaction();</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">impl</span>-&gt;mutex_.Unlock();</div><div class="line">  <span class="keyword">if</span> (s.ok()) &#123;</div><div class="line">    assert(<span class="keyword">impl</span>-&gt;mem_ != NULL);</div><div class="line">    *dbptr = <span class="keyword">impl</span>;</div><div class="line">  &#125; <span class="keyword">else</span> &#123;</div><div class="line">    delete <span class="keyword">impl</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> s;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="RecoverLogFile"><a href="#RecoverLogFile" class="headerlink" title="RecoverLogFile"></a>RecoverLogFile</h2><p>从log文件中恢复时，会从log文件之中遍历读取WriteBatch数据，将其中记载的操作作用在memtable上面。若memtable的大小超出设定值，则将memtable dump成为level-0 table。在遍历log文件的过程之中，会根据当前log文件设置<code>log_</code>和<code>logfile_number_</code>。只有当设定允许重用log文件，且不存在从memtable dump到sstable，才会允许复用log文件。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">Status DBImpl::RecoverLogFile(<span class="keyword">uint64_t</span> log_number, <span class="keyword">bool</span> last_log,</div><div class="line">                              <span class="keyword">bool</span>* save_manifest, VersionEdit* edit,</div><div class="line">                              SequenceNumber* max_sequence) &#123;</div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">LogReporter</span> :</span> <span class="keyword">public</span> <span class="built_in">log</span>::Reader::Reporter &#123;</div><div class="line">    Env* env;</div><div class="line">    Logger* info_log;</div><div class="line">    <span class="keyword">const</span> <span class="keyword">char</span>* fname;</div><div class="line">    Status* status;  <span class="comment">// NULL if options_.paranoid_checks==false</span></div><div class="line">    <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Corruption</span><span class="params">(<span class="keyword">size_t</span> bytes, <span class="keyword">const</span> Status&amp; s)</span> </span>&#123;</div><div class="line">      Log(info_log, <span class="string">"%s%s: dropping %d bytes; %s"</span>,</div><div class="line">          (<span class="keyword">this</span>-&gt;status == <span class="literal">NULL</span> ? <span class="string">"(ignoring error) "</span> : <span class="string">""</span>),</div><div class="line">          fname, <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(bytes), s.ToString().c_str());</div><div class="line">      <span class="keyword">if</span> (<span class="keyword">this</span>-&gt;status != <span class="literal">NULL</span> &amp;&amp; <span class="keyword">this</span>-&gt;status-&gt;ok()) *<span class="keyword">this</span>-&gt;status = s;</div><div class="line">    &#125;</div><div class="line">  &#125;;</div><div class="line"></div><div class="line">  mutex_.AssertHeld();</div><div class="line"></div><div class="line">  <span class="comment">// Open the log file</span></div><div class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> fname = LogFileName(dbname_, log_number);</div><div class="line">  SequentialFile* file;</div><div class="line">  Status status = env_-&gt;NewSequentialFile(fname, &amp;file);</div><div class="line">  <span class="keyword">if</span> (!status.ok()) &#123;</div><div class="line">    <span class="comment">/// 输出此错误，忽略并返回</span></div><div class="line">    MaybeIgnoreError(&amp;status);</div><div class="line">    <span class="keyword">return</span> status;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Create the log reader.</span></div><div class="line">  LogReporter reporter;</div><div class="line">  reporter.env = env_;</div><div class="line">  reporter.info_log = options_.info_log;</div><div class="line">  reporter.fname = fname.c_str();</div><div class="line">  reporter.status = (options_.paranoid_checks ? &amp;status : <span class="literal">NULL</span>);</div><div class="line">  <span class="comment">// We intentionally make log::Reader do checksumming even if</span></div><div class="line">  <span class="comment">// paranoid_checks==false so that corruptions cause entire commits</span></div><div class="line">  <span class="comment">// to be skipped instead of propagating bad information (like overly</span></div><div class="line">  <span class="comment">// large sequence numbers).</span></div><div class="line">  <span class="built_in">log</span>::<span class="function">Reader <span class="title">reader</span><span class="params">(file, &amp;reporter, <span class="literal">true</span><span class="comment">/*checksum*/</span>,</span></span></div><div class="line">                     <span class="number">0</span><span class="comment">/*initial_offset*/</span>);</div><div class="line">  Log(options_.info_log, <span class="string">"Recovering log #%llu"</span>,</div><div class="line">      (<span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="keyword">long</span>) log_number);</div><div class="line"></div><div class="line">  <span class="comment">// Read all the records and add to a memtable</span></div><div class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> scratch;</div><div class="line">  Slice record;</div><div class="line">  WriteBatch batch;</div><div class="line">  <span class="keyword">int</span> compactions = <span class="number">0</span>; <span class="comment">// compaction执行的次数</span></div><div class="line">  MemTable* mem = <span class="literal">NULL</span>;</div><div class="line">  <span class="keyword">while</span> (reader.ReadRecord(&amp;record, &amp;scratch) &amp;&amp;</div><div class="line">         status.ok()) &#123;</div><div class="line">    <span class="comment">// log record太短了，连一个WriteBatch的头部长度都不够</span></div><div class="line">    <span class="keyword">if</span> (record.size() &lt; <span class="number">12</span>) &#123;</div><div class="line">      reporter.Corruption(</div><div class="line">          record.size(), Status::Corruption(<span class="string">"log record too small"</span>));</div><div class="line">      <span class="keyword">continue</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">/// log实际上存储的就是WriteBatch</span></div><div class="line">    WriteBatchInternal::SetContents(&amp;batch, record);</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (mem == <span class="literal">NULL</span>) &#123;</div><div class="line">      <span class="comment">// create memtable</span></div><div class="line">      mem = <span class="keyword">new</span> MemTable(internal_comparator_);</div><div class="line">      mem-&gt;Ref();</div><div class="line">    &#125;</div><div class="line">    <span class="comment">/// 向memtable之中插入记录</span></div><div class="line">    status = WriteBatchInternal::InsertInto(&amp;batch, mem);</div><div class="line">    MaybeIgnoreError(&amp;status);</div><div class="line">    <span class="keyword">if</span> (!status.ok()) &#123;</div><div class="line">      <span class="keyword">break</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">const</span> SequenceNumber last_seq =</div><div class="line">        WriteBatchInternal::Sequence(&amp;batch) +</div><div class="line">        WriteBatchInternal::Count(&amp;batch) - <span class="number">1</span>;</div><div class="line">    <span class="keyword">if</span> (last_seq &gt; *max_sequence) &#123;</div><div class="line">      <span class="comment">///更新max_sequence</span></div><div class="line">      *max_sequence = last_seq;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/// memtable的内存使用量超出4MB</span></div><div class="line">    <span class="keyword">if</span> (mem-&gt;ApproximateMemoryUsage() &gt; options_.write_buffer_size) &#123;</div><div class="line">      compactions++;</div><div class="line">      *save_manifest = <span class="literal">true</span>;</div><div class="line">      <span class="comment">/// 将memtable dump成为level0 table</span></div><div class="line">      status = WriteLevel0Table(mem, edit, <span class="literal">NULL</span>);</div><div class="line">      <span class="comment">/// 清空memtable</span></div><div class="line">      mem-&gt;Unref();</div><div class="line">      mem = <span class="literal">NULL</span>;</div><div class="line">      <span class="keyword">if</span> (!status.ok()) &#123;</div><div class="line">        <span class="comment">// Reflect errors immediately so that conditions like full</span></div><div class="line">        <span class="comment">// file-systems cause the DB::Open() to fail.</span></div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">delete</span> file;</div><div class="line"></div><div class="line">  <span class="comment">// See if we should keep reusing the last log file.</span></div><div class="line">  <span class="keyword">if</span> (status.ok() &amp;&amp; options_.reuse_logs &amp;&amp; last_log &amp;&amp; compactions == <span class="number">0</span>) &#123;</div><div class="line">    assert(logfile_ == <span class="literal">NULL</span>);</div><div class="line">    assert(log_ == <span class="literal">NULL</span>);</div><div class="line">    assert(mem_ == <span class="literal">NULL</span>);</div><div class="line">    <span class="keyword">uint64_t</span> lfile_size;</div><div class="line">    <span class="keyword">if</span> (env_-&gt;GetFileSize(fname, &amp;lfile_size).ok() &amp;&amp;</div><div class="line">        env_-&gt;NewAppendableFile(fname, &amp;logfile_).ok()) &#123;</div><div class="line">      Log(options_.info_log, <span class="string">"Reusing old log %s \n"</span>, fname.c_str());</div><div class="line">      log_ = <span class="keyword">new</span> <span class="built_in">log</span>::Writer(logfile_, lfile_size);</div><div class="line">      logfile_number_ = log_number;</div><div class="line">      <span class="keyword">if</span> (mem != <span class="literal">NULL</span>) &#123;</div><div class="line">        mem_ = mem;</div><div class="line">        mem = <span class="literal">NULL</span>;</div><div class="line">      &#125; <span class="keyword">else</span> &#123;</div><div class="line">        <span class="comment">/// 创建memtable</span></div><div class="line">        <span class="comment">// mem can be NULL if lognum exists but was empty.</span></div><div class="line">        mem_ = <span class="keyword">new</span> MemTable(internal_comparator_);</div><div class="line">        mem_-&gt;Ref();</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (mem != <span class="literal">NULL</span>) &#123;</div><div class="line">    <span class="comment">// mem did not get reused; compact it.</span></div><div class="line">    <span class="keyword">if</span> (status.ok()) &#123;</div><div class="line">      <span class="comment">/// 需要保存manifest文件</span></div><div class="line">      *save_manifest = <span class="literal">true</span>;</div><div class="line">      <span class="comment">/// 将memtable dump成为level0 table</span></div><div class="line">      status = WriteLevel0Table(mem, edit, <span class="literal">NULL</span>);</div><div class="line">    &#125;</div><div class="line">    mem-&gt;Unref();</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">return</span> status;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="Write"><a href="#Write" class="headerlink" title="Write"></a>Write</h1><p>在leveldb之中，Put和Delete操作都会将操作记录在WriteBatch之中，转换为Write操作。</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// Convenience methods</span></div><div class="line">Status DBImpl::Put(<span class="keyword">const</span> WriteOptions&amp; o, <span class="keyword">const</span> Slice&amp; key, <span class="keyword">const</span> Slice&amp; val) &#123;</div><div class="line">  <span class="keyword">return</span> DB::Put(o, key, val);</div><div class="line">&#125;</div><div class="line"></div><div class="line">Status DBImpl::Delete(<span class="keyword">const</span> WriteOptions&amp; options, <span class="keyword">const</span> Slice&amp; key) &#123;</div><div class="line">  <span class="keyword">return</span> DB::Delete(options, key);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>可能会有多个线程同时进行Write操作。leveldb会将WriteBatch操作加入队列之中，只有队列头部所在的线程来负责插入。leveldb中的写操作不是瓶颈，但是可能出现过量的写影响度的效率，所以采取一些措施来限制写。</p>
+<figure class="highlight zephir"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div></pre></td><td class="code"><pre><div class="line">Status DBImpl::MakeRoomForWrite(<span class="keyword">bool</span> force) &#123;</div><div class="line">  mutex_.AssertHeld();</div><div class="line">  assert(!writers_.<span class="keyword">empty</span>());</div><div class="line">  <span class="keyword">bool</span> allow_delay = !force;</div><div class="line">  Status s;</div><div class="line">  <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</div><div class="line">    <span class="keyword">if</span> (!bg_error_.ok()) &#123;</div><div class="line">      <span class="comment">// Yield previous error</span></div><div class="line">      s = bg_error_;</div><div class="line">      <span class="keyword">break</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">///如果当前level-0中文件的数目达到kL0_SlowdownWritesTrigger阈值，则sleep进行delay。此delay只进行一次。</span></div><div class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (</div><div class="line">        allow_delay &amp;&amp;</div><div class="line">        versions_-&gt;NumLevelFiles(<span class="number">0</span>) &gt;= config::kL0_SlowdownWritesTrigger) &#123;</div><div class="line">      <span class="comment">// We are getting close to hitting a hard limit on the number of</span></div><div class="line">      <span class="comment">// L0 files.  Rather than delaying a single write by several</span></div><div class="line">      <span class="comment">// seconds when we hit the hard limit, start delaying each</span></div><div class="line">      <span class="comment">// individual write by 1ms to reduce latency variance.  Also,</span></div><div class="line">      <span class="comment">// this delay hands over some CPU to the compaction thread in</span></div><div class="line">      <span class="comment">// case it is sharing the same core as the writer.</span></div><div class="line">      mutex_.Unlock();</div><div class="line">      env_-&gt;SleepForMicroseconds(<span class="number">1000</span>);</div><div class="line">      allow_delay = <span class="keyword">false</span>;  <span class="comment">// Do not delay a single write more than once</span></div><div class="line">      mutex_.Lock();</div><div class="line">    &#125;</div><div class="line">      <span class="comment">/// 若当前memtable的size没有达到阈值write_buffer_size,则允许此次写</span></div><div class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (!force &amp;&amp;</div><div class="line">               (mem_-&gt;ApproximateMemoryUsage() &lt;= options_.write_buffer_size)) &#123;</div><div class="line">      <span class="comment">// There is room in current memtable</span></div><div class="line">      <span class="keyword">break</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">/// 如果memtable已经达到阈值，并且immutable memtable仍然存在，等待compact dump完成</span></div><div class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (imm_ != <span class="keyword">NULL</span>) &#123;</div><div class="line">      <span class="comment">// We have filled up the current memtable, but the previous</span></div><div class="line">      <span class="comment">// one is still being compacted, so we wait.</span></div><div class="line">      Log(options_.info_log, <span class="string">"Current memtable full; waiting...\n"</span>);</div><div class="line">      bg_cv_.Wait();</div><div class="line">    &#125;</div><div class="line">    <span class="comment">/// 若level-0中文件数目达到kL0_StopWritesTrigger阈值，等待compact memtable完成</span></div><div class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (versions_-&gt;NumLevelFiles(<span class="number">0</span>) &gt;= config::kL0_StopWritesTrigger) &#123;</div><div class="line">      <span class="comment">// There are too many level-0 files.</span></div><div class="line">      Log(options_.info_log, <span class="string">"Too many L0 files; waiting...\n"</span>);</div><div class="line">      bg_cv_.Wait();</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      <span class="comment">/// 将当前memtable转为immutable memtable, 生成新的memtable和log file，主动触发compact，允许此次写</span></div><div class="line">      <span class="comment">// Attempt to switch to a new memtable and trigger compaction of old</span></div><div class="line">      assert(versions_-&gt;PrevLogNumber() == <span class="number">0</span>);</div><div class="line">      uint64_t new_log_number = versions_-&gt;NewFileNumber();</div><div class="line">      WritableFile* lfile = <span class="keyword">NULL</span>;</div><div class="line">      s = env_-&gt;NewWritableFile(LogFileName(dbname_, new_log_number), &amp;lfile);</div><div class="line">      <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">        <span class="comment">// Avoid chewing through file number space in a tight loop.</span></div><div class="line">        versions_-&gt;ReuseFileNumber(new_log_number);</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      &#125;</div><div class="line">      delete log_;</div><div class="line">      delete logfile_;</div><div class="line">      logfile_ = lfile;</div><div class="line">      logfile_number_ = new_log_number;</div><div class="line">      log_ = <span class="keyword">new</span> log::Writer(lfile);</div><div class="line">      imm_ = mem_;</div><div class="line">      has_imm_.Release_Store(imm_);</div><div class="line">      mem_ = <span class="keyword">new</span> MemTable(internal_comparator_);</div><div class="line">      mem_-&gt;Ref();</div><div class="line">      force = <span class="keyword">false</span>;   <span class="comment">// Do not force another compaction if have room</span></div><div class="line">      <span class="comment">/// 进行compact，将immutable memtable进行compact处理</span></div><div class="line">      MaybeScheduleCompaction();</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> s;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<ol>
+<li>如果当前level-0的文件数目达到<code>kL0_SlowdownWritesTrigger</code>阈值，则sleep进行delay，此操作只进行一次。</li>
+<li>如果当前memtable的空间没有达到阈值<code>write_buffer_size</code>，则允许此次写。</li>
+<li>如果memtable大小达到阈值，且immutable memtable仍存在，则等待compaction操作完成。</li>
+<li>如果level-0中的文件数目达到<code>kL0_StopWritesTrigger</code>阈值，则等待compaction完成。</li>
+<li>上述条件均不满足，即memtable已经写满，且immutable memtable不存在，则将当前的memtable转为immutable memtable，生成新的memtable和log file，触发compaction操作。</li>
+</ol>
+<p>限制写入速度之后，将WriteBatch写入log文件，并将其中的操作应用在memtable之上，更新sequence number。</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div></pre></td><td class="code"><pre><div class="line">Status DBImpl::Write(<span class="keyword">const</span> WriteOptions&amp; options, WriteBatch* my_batch) &#123;</div><div class="line">  Writer w(&amp;mutex_);</div><div class="line">  w.batch = my_batch;</div><div class="line">  <span class="comment">/// 需要进行sync操作吗？</span></div><div class="line">  w.sync = options.sync;</div><div class="line">  w.done = <span class="keyword">false</span>;</div><div class="line"></div><div class="line">  MutexLock l(&amp;mutex_);</div><div class="line">  <span class="comment">/// 将操作加入队列之中</span></div><div class="line">  writers_.push_back(&amp;w);</div><div class="line">  <span class="comment">/// 若不为队列中的第一项, 等待操作完成, 只有第一个插入才执行后续的操作</span></div><div class="line">  <span class="keyword">while</span> (!w.done &amp;&amp; &amp;w != writers_.front()) &#123;</div><div class="line">    w.cv.Wait();</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">if</span> (w.done) &#123;</div><div class="line">    <span class="keyword">return</span> w.status;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// 有新的数据被添加进写入队列，为了控制写入队列的大小，进行下述操作</span></div><div class="line">  <span class="comment">// May temporarily unlock and wait.</span></div><div class="line">  Status status = MakeRoomForWrite(my_batch == <span class="keyword">NULL</span>);</div><div class="line">  uint64_t last_sequence = versions_-&gt;LastSequence();</div><div class="line">  Writer* last_writer = &amp;w;</div><div class="line">  <span class="comment">/// NULL batch被用作compaction</span></div><div class="line">  <span class="keyword">if</span> (status.ok() &amp;&amp; my_batch != <span class="keyword">NULL</span>) &#123;  <span class="comment">// NULL batch is for compactions</span></div><div class="line">    WriteBatch* updates = BuildBatchGroup(&amp;last_writer);</div><div class="line">    <span class="comment">// 设置WriteBatch的SequenceNumber</span></div><div class="line">    WriteBatchInternal::SetSequence(updates, last_sequence + <span class="number">1</span>);</div><div class="line">    last_sequence += WriteBatchInternal::Count(updates);</div><div class="line"></div><div class="line">    <span class="comment">// Add to log and apply to memtable.  We can release the lock</span></div><div class="line">    <span class="comment">// during this phase since &amp;w is currently responsible for logging</span></div><div class="line">    <span class="comment">// and protects against concurrent loggers and concurrent writes</span></div><div class="line">    <span class="comment">// into mem_.</span></div><div class="line">    &#123;</div><div class="line">      mutex_.Unlock();</div><div class="line">      <span class="comment">///将writeBatch中的数据记录log</span></div><div class="line">      status = log_-&gt;AddRecord(WriteBatchInternal::Contents(updates));</div><div class="line">      bool sync_error = <span class="keyword">false</span>;</div><div class="line">      <span class="keyword">if</span> (status.ok() &amp;&amp; options.sync) &#123;</div><div class="line">        <span class="comment">/// 若设置了sync，则对log文件执行sync操作</span></div><div class="line">        status = logfile_-&gt;Sync();</div><div class="line">        <span class="keyword">if</span> (!status.ok()) &#123;</div><div class="line">          sync_error = <span class="keyword">true</span>;</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">      <span class="keyword">if</span> (status.ok()) &#123;</div><div class="line">        <span class="comment">/// 将更新写入memtable之中</span></div><div class="line">        status = WriteBatchInternal::InsertInto(updates, mem_);</div><div class="line">      &#125;</div><div class="line">      mutex_.Lock();</div><div class="line">      <span class="keyword">if</span> (sync_error) &#123;</div><div class="line">        <span class="comment">// The state of the log file is indeterminate: the log record we</span></div><div class="line">        <span class="comment">// just added may or may not show up when the DB is re-opened.</span></div><div class="line">        <span class="comment">// So we force the DB into a mode where all future writes fail.</span></div><div class="line">        <span class="comment">/// 记录后台错误</span></div><div class="line">        RecordBackgroundError(status);</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">/// 对tmp_batch_进行清空处理</span></div><div class="line">    <span class="keyword">if</span> (updates == tmp_batch_) tmp_batch_-&gt;Clear();</div><div class="line"></div><div class="line">    versions_-&gt;SetLastSequence(last_sequence);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</div><div class="line">    Writer* ready = writers_.front();</div><div class="line">    writers_.pop_front();</div><div class="line">    <span class="keyword">if</span> (ready != &amp;w) &#123;</div><div class="line">      ready-&gt;status = status;</div><div class="line">      ready-&gt;done = <span class="keyword">true</span>;</div><div class="line">      <span class="comment">/// 通知等待线程，已经完成</span></div><div class="line">      ready-&gt;cv.Signal();</div><div class="line">    &#125;</div><div class="line">    <span class="comment">/// 直到一组WriteBatch全部处理完毕</span></div><div class="line">    <span class="keyword">if</span> (ready == last_writer) <span class="keyword">break</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Notify new head of write queue</span></div><div class="line">  <span class="keyword">if</span> (!writers_.<span class="keyword">empty</span>()) &#123;</div><div class="line">    <span class="comment">/// 通知当前处在队列头的线程，进行插入处理</span></div><div class="line">    writers_.front()-&gt;cv.Signal();</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">return</span> status;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/24/leveldb-VersionSet解析/" rel="next" title="leveldb VersionSet解析">
+                <i class="fa fa-chevron-left"></i> leveldb VersionSet解析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">33</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Open"><span class="nav-text">Open</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#总览"><span class="nav-text">总览</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RecoverLogFile"><span class="nav-text">RecoverLogFile</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Write"><span class="nav-text">Write</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
