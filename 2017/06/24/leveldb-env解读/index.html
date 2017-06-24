@@ -1,0 +1,844 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="创建Env对象在leveldb之中，创建默认的env对象使用的是pthread_once操作保证初始化操作只执行一次。此操作可以用来实现singleton。 12345static void InitDefaultEnv() &amp;#123; default_env = new PosixEnv; &amp;#125;Env* Env::Default() &amp;#123;  pthread_once(&amp;amp;">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb env解读">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/24/leveldb-env解读/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="创建Env对象在leveldb之中，创建默认的env对象使用的是pthread_once操作保证初始化操作只执行一次。此操作可以用来实现singleton。 12345static void InitDefaultEnv() &amp;#123; default_env = new PosixEnv; &amp;#125;Env* Env::Default() &amp;#123;  pthread_once(&amp;amp;">
+<meta property="og:updated_time" content="2017-06-24T11:26:14.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb env解读">
+<meta name="twitter:description" content="创建Env对象在leveldb之中，创建默认的env对象使用的是pthread_once操作保证初始化操作只执行一次。此操作可以用来实现singleton。 12345static void InitDefaultEnv() &amp;#123; default_env = new PosixEnv; &amp;#125;Env* Env::Default() &amp;#123;  pthread_once(&amp;amp;">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '7ccbed52df595f2d66c7be0f9035d420',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/24/leveldb-env解读/"/>
+
+
+
+
+
+  <title>leveldb env解读 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/24/leveldb-env解读/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb env解读</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-24T19:26:14+08:00">
+                2017-06-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="创建Env对象"><a href="#创建Env对象" class="headerlink" title="创建Env对象"></a>创建Env对象</h1><p>在leveldb之中，创建默认的env对象使用的是<code>pthread_once</code>操作保证初始化操作只执行一次。此操作可以用来实现singleton。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">InitDefaultEnv</span><span class="params">()</span> </span>&#123; default_env = <span class="keyword">new</span> PosixEnv; &#125;</div><div class="line">Env* Env::Default() &#123;</div><div class="line">  pthread_once(&amp;once, InitDefaultEnv);</div><div class="line">  <span class="keyword">return</span> default_env;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="简单的任务调度"><a href="#简单的任务调度" class="headerlink" title="简单的任务调度"></a>简单的任务调度</h1><p>在PosixEnv中，实现了一个简单的任务调度，实质上是一个基于多生产者，单消费者的任务调度，生产者与消费者之间通过阻塞队列完成任务的传递分发。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> PosixEnv::Schedule(<span class="keyword">void</span> (*<span class="function"><span class="keyword">function</span>)(<span class="params">void*</span>), <span class="title">void</span>* <span class="title">arg</span>) </span>&#123;</div><div class="line">  PthreadCall(<span class="string">"lock"</span>, pthread_mutex_lock(&amp;mu_));</div><div class="line"></div><div class="line">  <span class="comment">// Start background thread if necessary</span></div><div class="line">  <span class="keyword">if</span> (!started_bgthread_) &#123;</div><div class="line">    started_bgthread_ = <span class="literal">true</span>;</div><div class="line">    PthreadCall(</div><div class="line">        <span class="string">"create thread"</span>,</div><div class="line">        pthread_create(&amp;bgthread_, NULL,  &amp;PosixEnv::BGThreadWrapper, <span class="keyword">this</span>));</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// If the queue is currently empty, the background thread may currently be</span></div><div class="line">  <span class="comment">// waiting.</span></div><div class="line">  <span class="keyword">if</span> (queue_.empty()) &#123;</div><div class="line">    PthreadCall(<span class="string">"signal"</span>, pthread_cond_signal(&amp;bgsignal_));</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Add to priority queue</span></div><div class="line">  queue_.push_back(BGItem());</div><div class="line">  queue_.back().function = <span class="function"><span class="keyword">function</span>;</span></div><div class="line">  <span class="title">queue_</span>.<span class="title">back</span>(<span class="params"></span>).<span class="title">arg</span> = <span class="title">arg</span>;</div><div class="line"></div><div class="line">  <span class="title">PthreadCall</span>(<span class="params"><span class="string">"unlock"</span>, pthread_mutex_unlock(&amp;mu_</span>));</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在schedule之中，如果没有创建后台线程，会创建一个后台线程用于处理任务。后台线程会执行BGThread函数，在此函数之内循环从阻塞队列中取出任务，执行任务对应的函数。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> PosixEnv::BGThread() &#123;</div><div class="line">  <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</div><div class="line">    <span class="comment">// Wait until there is an item that is ready to run</span></div><div class="line">    PthreadCall(<span class="string">"lock"</span>, pthread_mutex_lock(&amp;mu_));</div><div class="line">    <span class="keyword">while</span> (queue_.empty()) &#123;</div><div class="line">      PthreadCall(<span class="string">"wait"</span>, pthread_cond_wait(&amp;bgsignal_, &amp;mu_));</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">void</span> (*<span class="function"><span class="keyword">function</span>)(<span class="params">void*</span>) = <span class="title">queue_</span>.<span class="title">front</span>(<span class="params"></span>).<span class="title">function</span>;</span></div><div class="line">    <span class="title">void</span>* <span class="title">arg</span> = <span class="title">queue_</span>.<span class="title">front</span>(<span class="params"></span>).<span class="title">arg</span>;</div><div class="line">    <span class="title">queue_</span>.<span class="title">pop_front</span>(<span class="params"></span>);</div><div class="line"></div><div class="line">    <span class="title">PthreadCall</span>(<span class="params"><span class="string">"unlock"</span>, pthread_mutex_unlock(&amp;mu_</span>));</div><div class="line">    (<span class="params">*function</span>)(<span class="params">arg</span>);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="一些系统调用"><a href="#一些系统调用" class="headerlink" title="一些系统调用"></a>一些系统调用</h1><h2 id="查看文件是否存在"><a href="#查看文件是否存在" class="headerlink" title="查看文件是否存在"></a>查看文件是否存在</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">virtual</span> <span class="keyword">bool</span> <span class="title">FileExists</span><span class="params">(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; fname)</span> </span>&#123;</div><div class="line">  <span class="keyword">return</span> access(fname.c_str(), F_OK) == <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="获取文件大小"><a href="#获取文件大小" class="headerlink" title="获取文件大小"></a>获取文件大小</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">virtual</span> Status <span class="title">GetFileSize</span><span class="params">(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; fname, <span class="keyword">uint64_t</span>* size)</span> </span>&#123;</div><div class="line">   Status s;</div><div class="line">   <span class="class"><span class="keyword">struct</span> <span class="title">stat</span> <span class="title">sbuf</span>;</span></div><div class="line">   <span class="keyword">if</span> (stat(fname.c_str(), &amp;sbuf) != <span class="number">0</span>) &#123;</div><div class="line">     *size = <span class="number">0</span>;</div><div class="line">     s = IOError(fname, errno);</div><div class="line">   &#125; <span class="keyword">else</span> &#123;</div><div class="line">     *size = sbuf.st_size;</div><div class="line">   &#125;</div><div class="line">   <span class="keyword">return</span> s;</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+<h2 id="重命名文件"><a href="#重命名文件" class="headerlink" title="重命名文件"></a>重命名文件</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">virtual</span> Status <span class="title">RenameFile</span><span class="params">(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; src, <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; target)</span> </span>&#123;</div><div class="line">   Status result;</div><div class="line">   <span class="keyword">if</span> (rename(src.c_str(), target.c_str()) != <span class="number">0</span>) &#123;</div><div class="line">     result = IOError(src, errno);</div><div class="line">   &#125;</div><div class="line">   <span class="keyword">return</span> result;</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+<h2 id="获取路径中的内容"><a href="#获取路径中的内容" class="headerlink" title="获取路径中的内容"></a>获取路径中的内容</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">virtual</span> Status <span class="title">GetChildren</span><span class="params">(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; dir,</span></span></div><div class="line">                           <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="built_in">std</span>::<span class="built_in">string</span>&gt;* result) &#123;</div><div class="line">  result-&gt;clear();</div><div class="line">  DIR* d = opendir(dir.c_str());</div><div class="line">  <span class="keyword">if</span> (d == <span class="literal">NULL</span>) &#123;</div><div class="line">    <span class="keyword">return</span> IOError(dir, errno);</div><div class="line">  &#125;</div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">dirent</span>* <span class="title">entry</span>;</span></div><div class="line">  <span class="keyword">while</span> ((entry = readdir(d)) != <span class="literal">NULL</span>) &#123;</div><div class="line">    result-&gt;push_back(entry-&gt;d_name);</div><div class="line">  &#125;</div><div class="line">  closedir(d);</div><div class="line">  <span class="keyword">return</span> Status::OK();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="锁定文件"><a href="#锁定文件" class="headerlink" title="锁定文件"></a>锁定文件</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> <span class="title">LockOrUnlock</span><span class="params">(<span class="keyword">int</span> fd, <span class="keyword">bool</span> lock)</span> </span>&#123;</div><div class="line">  errno = <span class="number">0</span>;</div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">flock</span> <span class="title">f</span>;</span></div><div class="line">  <span class="built_in">memset</span>(&amp;f, <span class="number">0</span>, <span class="keyword">sizeof</span>(f));</div><div class="line">  f.l_type = (lock ? F_WRLCK : F_UNLCK);</div><div class="line">  f.l_whence = SEEK_SET;</div><div class="line">  f.l_start = <span class="number">0</span>;</div><div class="line">  f.l_len = <span class="number">0</span>;        <span class="comment">// Lock/unlock entire file</span></div><div class="line">  <span class="keyword">return</span> fcntl(fd, F_SETLK, &amp;f);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="sync-文件"><a href="#sync-文件" class="headerlink" title="sync 文件"></a>sync 文件</h2><figure class="highlight rust"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">virtual</span> Status <span class="built_in">Sync</span>() &#123;</div><div class="line">   <span class="comment">// Ensure new files referred to by the manifest are in the filesystem.</span></div><div class="line">   Status s = SyncDirIfManifest();</div><div class="line">   <span class="keyword">if</span> (!s.ok()) &#123;</div><div class="line">     <span class="keyword">return</span> s;</div><div class="line">   &#125;</div><div class="line">   <span class="keyword">if</span> (fflush_unlocked(file_) != <span class="number">0</span> ||</div><div class="line">       fdatasync(fileno(file_)) != <span class="number">0</span>) &#123;</div><div class="line">     s = Status::IOError(filename_, strerror(errno));</div><div class="line">   &#125;</div><div class="line">   <span class="keyword">return</span> s;</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/24/leveldb-coding解读/" rel="next" title="leveldb coding解读">
+                <i class="fa fa-chevron-left"></i> leveldb coding解读
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/06/24/leveldb杂项/" rel="prev" title="leveldb杂项">
+                leveldb杂项 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">45</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#创建Env对象"><span class="nav-text">创建Env对象</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#简单的任务调度"><span class="nav-text">简单的任务调度</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#一些系统调用"><span class="nav-text">一些系统调用</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#查看文件是否存在"><span class="nav-text">查看文件是否存在</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#获取文件大小"><span class="nav-text">获取文件大小</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#重命名文件"><span class="nav-text">重命名文件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#获取路径中的内容"><span class="nav-text">获取路径中的内容</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#锁定文件"><span class="nav-text">锁定文件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#sync-文件"><span class="nav-text">sync 文件</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

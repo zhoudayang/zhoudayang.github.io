@@ -1,0 +1,854 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="muduo," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="功能解析这是一个简单的对sockfd的wrapper类，主要借助C++的RAII机制实现sockfd的自动管理。当Socket对象被析构的时候会自动关闭sockfd。 重点函数可以适当关注一下以下方法，特别是对于tcp信息的获取，设置TCP_NODELAY，SO_REUSEADDR，SO_REUSEPORT，SO_KEEPALIVE 12345678910111213141516171819202">
+<meta name="keywords" content="muduo">
+<meta property="og:type" content="article">
+<meta property="og:title" content="muduo InetAddress">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/24/muduo-InetAddress/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="功能解析这是一个简单的对sockfd的wrapper类，主要借助C++的RAII机制实现sockfd的自动管理。当Socket对象被析构的时候会自动关闭sockfd。 重点函数可以适当关注一下以下方法，特别是对于tcp信息的获取，设置TCP_NODELAY，SO_REUSEADDR，SO_REUSEPORT，SO_KEEPALIVE 12345678910111213141516171819202">
+<meta property="og:updated_time" content="2017-06-24T11:50:22.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="muduo InetAddress">
+<meta name="twitter:description" content="功能解析这是一个简单的对sockfd的wrapper类，主要借助C++的RAII机制实现sockfd的自动管理。当Socket对象被析构的时候会自动关闭sockfd。 重点函数可以适当关注一下以下方法，特别是对于tcp信息的获取，设置TCP_NODELAY，SO_REUSEADDR，SO_REUSEPORT，SO_KEEPALIVE 12345678910111213141516171819202">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '7ccbed52df595f2d66c7be0f9035d420',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/24/muduo-InetAddress/"/>
+
+
+
+
+
+  <title>muduo InetAddress | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/24/muduo-InetAddress/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">muduo InetAddress</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-24T19:50:22+08:00">
+                2017-06-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/muduo/" itemprop="url" rel="index">
+                    <span itemprop="name">muduo</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="功能解析"><a href="#功能解析" class="headerlink" title="功能解析"></a>功能解析</h1><p>这是一个简单的对sockfd的wrapper类，主要借助C++的RAII机制实现sockfd的自动管理。当Socket对象被析构的时候会自动关闭sockfd。</p>
+<h1 id="重点函数"><a href="#重点函数" class="headerlink" title="重点函数"></a>重点函数</h1><p>可以适当关注一下以下方法，特别是对于tcp信息的获取，设置<code>TCP_NODELAY，SO_REUSEADDR，SO_REUSEPORT，SO_KEEPALIVE</code></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">bool</span> Socket::getTcpInfo(struct tcp_info* tcpi) <span class="keyword">const</span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">socklen_t</span> len = <span class="keyword">sizeof</span>(*tcpi);</div><div class="line">  bzero(tcpi, len);</div><div class="line">  <span class="keyword">return</span> ::getsockopt(sockfd_, SOL_TCP, TCP_INFO, tcpi, &amp;len) == <span class="number">0</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">bool</span> Socket::getTcpInfoString(<span class="keyword">char</span>* buf, <span class="keyword">int</span> len) <span class="keyword">const</span></div><div class="line">&#123;</div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">tcp_info</span> <span class="title">tcpi</span>;</span></div><div class="line">  <span class="keyword">bool</span> ok = getTcpInfo(&amp;tcpi);</div><div class="line">  <span class="keyword">if</span> (ok)</div><div class="line">  &#123;</div><div class="line">    <span class="built_in">snprintf</span>(buf, len, <span class="string">"unrecovered=%u "</span></div><div class="line">             <span class="string">"rto=%u ato=%u snd_mss=%u rcv_mss=%u "</span></div><div class="line">             <span class="string">"lost=%u retrans=%u rtt=%u rttvar=%u "</span></div><div class="line">             <span class="string">"sshthresh=%u cwnd=%u total_retrans=%u"</span>,</div><div class="line">             tcpi.tcpi_retransmits,  <span class="comment">// Number of unrecovered [RTO] timeouts</span></div><div class="line">             tcpi.tcpi_rto,          <span class="comment">// Retransmit timeout in usec</span></div><div class="line">             tcpi.tcpi_ato,          <span class="comment">// Predicted tick of soft clock in usec</span></div><div class="line">             tcpi.tcpi_snd_mss,</div><div class="line">             tcpi.tcpi_rcv_mss,</div><div class="line">             tcpi.tcpi_lost,         <span class="comment">// Lost packets</span></div><div class="line">             tcpi.tcpi_retrans,      <span class="comment">// Retransmitted packets out</span></div><div class="line">             tcpi.tcpi_rtt,          <span class="comment">// Smoothed round trip time in usec</span></div><div class="line">             tcpi.tcpi_rttvar,       <span class="comment">// Medium deviation</span></div><div class="line">             tcpi.tcpi_snd_ssthresh,</div><div class="line">             tcpi.tcpi_snd_cwnd,</div><div class="line">             tcpi.tcpi_total_retrans);  <span class="comment">// Total retransmits for entire connection</span></div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> ok;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Socket::bindAddress(<span class="keyword">const</span> InetAddress&amp; addr)</div><div class="line">&#123;</div><div class="line">  sockets::bindOrDie(sockfd_, addr.getSockAddr());</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Socket::listen()</div><div class="line">&#123;</div><div class="line">  sockets::listenOrDie(sockfd_);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">int</span> Socket::accept(InetAddress* peeraddr)</div><div class="line">&#123;</div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">sockaddr_in6</span> <span class="title">addr</span>;</span></div><div class="line">  bzero(&amp;addr, <span class="keyword">sizeof</span> addr);</div><div class="line">  <span class="keyword">int</span> connfd = sockets::accept(sockfd_, &amp;addr);</div><div class="line">  <span class="keyword">if</span> (connfd &gt;= <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    peeraddr-&gt;setSockAddrInet6(addr);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> connfd;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Socket::shutdownWrite()</div><div class="line">&#123;</div><div class="line">  sockets::shutdownWrite(sockfd_);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Socket::setTcpNoDelay(<span class="keyword">bool</span> on)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">int</span> optval = on ? <span class="number">1</span> : <span class="number">0</span>;</div><div class="line">  ::setsockopt(sockfd_, IPPROTO_TCP, TCP_NODELAY,</div><div class="line">               &amp;optval, <span class="keyword">static_cast</span>&lt;<span class="keyword">socklen_t</span>&gt;(<span class="keyword">sizeof</span> optval));</div><div class="line">  <span class="comment">// FIXME CHECK</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Socket::setReuseAddr(<span class="keyword">bool</span> on)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">int</span> optval = on ? <span class="number">1</span> : <span class="number">0</span>;</div><div class="line">  ::setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR,</div><div class="line">               &amp;optval, <span class="keyword">static_cast</span>&lt;<span class="keyword">socklen_t</span>&gt;(<span class="keyword">sizeof</span> optval));</div><div class="line">  <span class="comment">// FIXME CHECK</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Socket::setReusePort(<span class="keyword">bool</span> on)</div><div class="line">&#123;</div><div class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> SO_REUSEPORT</span></div><div class="line">  <span class="keyword">int</span> optval = on ? <span class="number">1</span> : <span class="number">0</span>;</div><div class="line">  <span class="keyword">int</span> ret = ::setsockopt(sockfd_, SOL_SOCKET, SO_REUSEPORT,</div><div class="line">                         &amp;optval, <span class="keyword">static_cast</span>&lt;<span class="keyword">socklen_t</span>&gt;(<span class="keyword">sizeof</span> optval));</div><div class="line">  <span class="keyword">if</span> (ret &lt; <span class="number">0</span> &amp;&amp; on)</div><div class="line">  &#123;</div><div class="line">    LOG_SYSERR &lt;&lt; <span class="string">"SO_REUSEPORT failed."</span>;</div><div class="line">  &#125;</div><div class="line"><span class="meta">#<span class="meta-keyword">else</span></span></div><div class="line">  <span class="keyword">if</span> (on)</div><div class="line">  &#123;</div><div class="line">    LOG_ERROR &lt;&lt; <span class="string">"SO_REUSEPORT is not supported."</span>;</div><div class="line">  &#125;</div><div class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">void</span> Socket::setKeepAlive(<span class="keyword">bool</span> on)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">int</span> optval = on ? <span class="number">1</span> : <span class="number">0</span>;</div><div class="line">  ::setsockopt(sockfd_, SOL_SOCKET, SO_KEEPALIVE,</div><div class="line">               &amp;optval, <span class="keyword">static_cast</span>&lt;<span class="keyword">socklen_t</span>&gt;(<span class="keyword">sizeof</span> optval));</div><div class="line">  <span class="comment">// FIXME CHECK</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="SO-REUSEADDR和SO-REUSEPORT"><a href="#SO-REUSEADDR和SO-REUSEPORT" class="headerlink" title="SO_REUSEADDR和SO_REUSEPORT"></a>SO_REUSEADDR和SO_REUSEPORT</h1><h2 id="SO-REUSEPORT功能"><a href="#SO-REUSEPORT功能" class="headerlink" title="SO_REUSEPORT功能"></a>SO_REUSEPORT功能</h2><ol>
+<li>允许多个套接字 bind()/listen() 同一个TCP/UDP端口<br>每一个线程拥有自己的服务器套接字</li>
+<li>在服务器套接字上没有了锁的竞争，因为每个进程一个服务器套接字</li>
+<li>内核层面实现负载均衡</li>
+<li>安全层面，监听同一个端口的套接字只能位于同一个用户下面</li>
+</ol>
+<h2 id="SO-REUSEADDR提供如下四个功能："><a href="#SO-REUSEADDR提供如下四个功能：" class="headerlink" title="SO_REUSEADDR提供如下四个功能："></a>SO_REUSEADDR提供如下四个功能：</h2><ol>
+<li>SO_REUSEADDR允许启动一个监听服务器并捆绑其众所周知端口，即使以前建立的将此端口用做他们的本地端口的连接仍存在。这通常是重启监听服务器时出现，若不设置此选项，则bind时将出错。</li>
+<li>SO_REUSEADDR允许在同一端口上启动同一服务器的多个实例，只要每个实例捆绑一个不同的本地IP地址即可。对于TCP，我们根本不可能启动捆绑相同IP地址和相同端口号的多个服务器。</li>
+<li>SO_REUSEADDR允许单个进程捆绑同一端口到多个套接口上，只要每个捆绑指定不同的本地IP地址即可。这一般不用于TCP服务器。</li>
+<li>SO_REUSEADDR允许完全重复的捆绑：当一个IP地址和端口绑定到某个套接口上时，还允许此IP地址和端口捆绑到另一个套接口上。一般来说，这个特性仅在支持多播的系统上才有，而且只对UDP套接口而言（TCP不支持多播）。</li>
+</ol>
+<h2 id="SO-REUSEPORT选项有如下语义："><a href="#SO-REUSEPORT选项有如下语义：" class="headerlink" title="SO_REUSEPORT选项有如下语义："></a>SO_REUSEPORT选项有如下语义：</h2><ol>
+<li>此选项允许完全重复捆绑，但仅在想捆绑相同IP地址和端口的套接口都指定了此套接口选项才行。</li>
+<li>如果被捆绑的IP地址是一个多播地址，则SO_REUSEADDR和SO_REUSEPORT等效。</li>
+</ol>
+<h2 id="man"><a href="#man" class="headerlink" title="man"></a>man</h2><figure class="highlight routeros"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">SO_REUSEADDR</div><div class="line">      Indicates that the rules used <span class="keyword">in</span> validating  addresses  supplied</div><div class="line">      <span class="keyword">in</span>  a  bind(2)  call should allow reuse of local addresses.  <span class="keyword">For</span></div><div class="line">      AF_INET sockets this means that a socket may bind,  except  when</div><div class="line">      there  is an active listening socket bound <span class="keyword">to</span> the address.  When</div><div class="line">      the listening socket is bound <span class="keyword">to</span> INADDR_ANY with a specific<span class="built_in"> port</span></div><div class="line">      then  it  is  <span class="keyword">not</span>  possible  <span class="keyword">to</span>  bind <span class="keyword">to</span> this<span class="built_in"> port </span><span class="keyword">for</span> any local</div><div class="line">      address.  Argument is an integer boolean flag.</div></pre></td></tr></table></figure>
+<figure class="highlight applescript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">SO_REUSEPORT</div><div class="line">    One <span class="keyword">of</span> <span class="keyword">the</span> features merged <span class="keyword">in</span> <span class="keyword">the</span> <span class="number">3.9</span> development cycle was TCP <span class="keyword">and</span> UDP support <span class="keyword">for</span> <span class="keyword">the</span> SO_REUSEPORT socket option; <span class="keyword">that</span> support was implemented <span class="keyword">in</span> a series <span class="keyword">of</span> patches <span class="keyword">by</span> Tom Herbert. The new socket option allows multiple sockets <span class="keyword">on</span> <span class="keyword">the</span> same host <span class="keyword">to</span> bind <span class="keyword">to</span> <span class="keyword">the</span> same port, <span class="keyword">and</span> <span class="keyword">is</span> intended <span class="keyword">to</span> improve <span class="keyword">the</span> performance <span class="keyword">of</span> multithreaded network server applications <span class="built_in">running</span> <span class="keyword">on</span> top <span class="keyword">of</span> multicore systems.</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/muduo/" rel="tag"># muduo</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/24/muduo-socket解析/" rel="next" title="muduo socket解析">
+                <i class="fa fa-chevron-left"></i> muduo socket解析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/06/24/muduo-EventLoop解析/" rel="prev" title="muduo EventLoop解析">
+                muduo EventLoop解析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">45</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#功能解析"><span class="nav-text">功能解析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#重点函数"><span class="nav-text">重点函数</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SO-REUSEADDR和SO-REUSEPORT"><span class="nav-text">SO_REUSEADDR和SO_REUSEPORT</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#SO-REUSEPORT功能"><span class="nav-text">SO_REUSEPORT功能</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#SO-REUSEADDR提供如下四个功能："><span class="nav-text">SO_REUSEADDR提供如下四个功能：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#SO-REUSEPORT选项有如下语义："><span class="nav-text">SO_REUSEPORT选项有如下语义：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#man"><span class="nav-text">man</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

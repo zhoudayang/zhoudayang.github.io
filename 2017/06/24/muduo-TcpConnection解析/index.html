@@ -1,0 +1,857 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="muduo," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="TcpConnectionTcpConnection实现了对连接的抽象，连接建立，连接断开，发送数据，接收数据的操作也都封装在其中，其中的难点是对连接关闭的处理。 连接建立123456789101112131415161718192021222324252627TcpConnection::TcpConnection(EventLoop* loop,">
+<meta name="keywords" content="muduo">
+<meta property="og:type" content="article">
+<meta property="og:title" content="muduo TcpConnection解析">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/24/muduo-TcpConnection解析/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="TcpConnectionTcpConnection实现了对连接的抽象，连接建立，连接断开，发送数据，接收数据的操作也都封装在其中，其中的难点是对连接关闭的处理。 连接建立123456789101112131415161718192021222324252627TcpConnection::TcpConnection(EventLoop* loop,">
+<meta property="og:updated_time" content="2017-06-24T11:42:00.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="muduo TcpConnection解析">
+<meta name="twitter:description" content="TcpConnectionTcpConnection实现了对连接的抽象，连接建立，连接断开，发送数据，接收数据的操作也都封装在其中，其中的难点是对连接关闭的处理。 连接建立123456789101112131415161718192021222324252627TcpConnection::TcpConnection(EventLoop* loop,">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '7ccbed52df595f2d66c7be0f9035d420',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/24/muduo-TcpConnection解析/"/>
+
+
+
+
+
+  <title>muduo TcpConnection解析 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/24/muduo-TcpConnection解析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">muduo TcpConnection解析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-24T19:42:00+08:00">
+                2017-06-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/muduo/" itemprop="url" rel="index">
+                    <span itemprop="name">muduo</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="TcpConnection"><a href="#TcpConnection" class="headerlink" title="TcpConnection"></a>TcpConnection</h1><p>TcpConnection实现了对连接的抽象，连接建立，连接断开，发送数据，接收数据的操作也都封装在其中，其中的难点是对连接关闭的处理。</p>
+<h1 id="连接建立"><a href="#连接建立" class="headerlink" title="连接建立"></a>连接建立</h1><figure class="highlight rust"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">TcpConnection::TcpConnection(EventLoop* <span class="keyword">loop</span>,</div><div class="line">                             <span class="keyword">const</span> string&amp; nameArg,</div><div class="line">                             int sockfd,</div><div class="line">                             <span class="keyword">const</span> InetAddress&amp; localAddr,</div><div class="line">                             <span class="keyword">const</span> InetAddress&amp; peerAddr)</div><div class="line">  : loop_(CHECK_NOTNULL(<span class="keyword">loop</span>)),</div><div class="line">    name_(nameArg),</div><div class="line">    state_(kConnecting),</div><div class="line">    reading_(<span class="literal">true</span>),</div><div class="line">    socket_(new Socket(sockfd)),</div><div class="line">    channel_(new Channel(<span class="keyword">loop</span>, sockfd)),</div><div class="line">    localAddr_(localAddr),</div><div class="line">    peerAddr_(peerAddr),</div><div class="line">    highWaterMark_(<span class="number">64</span>*<span class="number">1024</span>*<span class="number">1024</span>)</div><div class="line">&#123;</div><div class="line">  channel_-&gt;setReadCallback(</div><div class="line">      std::bind(&amp;TcpConnection::handleRead, this, _1));</div><div class="line">  channel_-&gt;setWriteCallback(</div><div class="line">      std::bind(&amp;TcpConnection::handleWrite, this));</div><div class="line">  channel_-&gt;setCloseCallback(</div><div class="line">      std::bind(&amp;TcpConnection::handleClose, this));</div><div class="line">  channel_-&gt;setErrorCallback(</div><div class="line">      std::bind(&amp;TcpConnection::handleError, this));</div><div class="line">  LOG_DEBUG &lt;&lt; <span class="string">"TcpConnection::ctor["</span> &lt;&lt;  name_ &lt;&lt; <span class="string">"] at "</span> &lt;&lt; this</div><div class="line">            &lt;&lt; <span class="string">" fd="</span> &lt;&lt; sockfd;</div><div class="line">  socket_-&gt;setKeepAlive(<span class="literal">true</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>从代码中可知，TcpConnection也是基于Channel实现的。在构造函数中记录了loop句柄，使用Socket对象管理sockfd。对于io事件，读事件绑定的回调函数是handleRead函数，写事件绑定的回调函数是handleWrite, close事件绑定的回调函数是handleClose, error事件绑定的回调函数是handleError。同时，在构造函数的末尾开启了socket的keepalive选项。在构造函数之中设置了连接的当前状态是kConnecting，表示正在连接。</p>
+<p>连接完成之后，可以通过调用函数connectEstablished来设定当前状态为已经连接并且调用连接所对应的回调函数。</p>
+<figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="selector-tag">void</span> <span class="selector-tag">TcpConnection</span><span class="selector-pseudo">::connectEstablished()</span></div><div class="line">&#123;</div><div class="line">  <span class="selector-tag">loop_-</span>&gt;<span class="selector-tag">assertInLoopThread</span>();</div><div class="line">  <span class="selector-tag">assert</span>(state_ == kConnecting);</div><div class="line">  <span class="selector-tag">setState</span>(kConnected);</div><div class="line">  <span class="selector-tag">channel_-</span>&gt;<span class="selector-tag">tie</span>(shared_from_this());</div><div class="line">  <span class="selector-tag">channel_-</span>&gt;<span class="selector-tag">enableReading</span>();</div><div class="line">  <span class="comment">// call connection callback function to notify TcpConnectionPtr user</span></div><div class="line">  <span class="selector-tag">connectionCallback_</span>(shared_from_this());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>为了保证Channel在执行TcpConnection中相关io事件的回调函数的过程中，不会因为TcpConnection对象在相关回调调用过程中被析构而造成为channel设定的回调函数失效，这里使用了Channel内置的tie方法记录TcpConnection的weak_ptr，调用回调期间将weak_ptr提升为shared_ptr来保证上述情况不会发生。因为有这种用法，TcpConnection对象必须使用shared_ptr进行管理。</p>
+<h1 id="读取数据"><a href="#读取数据" class="headerlink" title="读取数据"></a>读取数据</h1><figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">void TcpConnection::handleRead(Timestamp receiveTime)</div><div class="line">&#123;</div><div class="line">  loop_-&gt;assertInLoopThread()<span class="comment">;</span></div><div class="line">  int savedErrno = <span class="number">0</span><span class="comment">;</span></div><div class="line">  ssize_t n = inputBuffer_.readFd(channel_-&gt;fd(), &amp;savedErrno)<span class="comment">;</span></div><div class="line">  if (n &gt; <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    messageCallback_(<span class="keyword">shared_from_this(), </span>&amp;inputBuffer_, receiveTime)<span class="comment">;</span></div><div class="line">  &#125;</div><div class="line">  else if (n == <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    handleClose()<span class="comment">;</span></div><div class="line">  &#125;</div><div class="line">  else</div><div class="line">  &#123;</div><div class="line">    errno = savedErrno<span class="comment">;</span></div><div class="line">    LOG_SYSERR &lt;&lt; <span class="string">"TcpConnection::handleRead"</span><span class="comment">;</span></div><div class="line">    handleError()<span class="comment">;</span></div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>当有可读事件发生时，调用handleRead函数。若read返回0，代表对方关闭了连接，调用handleClose函数，若read返回值大于0，使用当前时间，inputBuffer以及本对象的shared_ptr调用message回调。</p>
+<figure class="highlight ceylon"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> TcpConnection::handleClose()</div><div class="line">&#123;</div><div class="line">  loop<span class="number">_</span>-&gt;assertInLoopThread();</div><div class="line">  LOG<span class="number">_T</span>RACE &lt;&lt; <span class="string">"fd = "</span> &lt;&lt; channel<span class="number">_</span>-&gt;fd() &lt;&lt; <span class="string">" state = "</span> &lt;&lt; stateToString();</div><div class="line">  <span class="keyword">assert</span>(state<span class="number">_</span> == kConnected || state<span class="number">_</span> == kDisconnecting);</div><div class="line">  <span class="comment">// we don't close fd, leave it to dtor, so we can find leaks easily.</span></div><div class="line">  setState(kDisconnected);</div><div class="line">  channel<span class="number">_</span>-&gt;disableAll();</div><div class="line"></div><div class="line">  TcpConnectionPtr guardThis(<span class="keyword">shared</span><span class="number">_f</span>rom<span class="number">_</span><span class="keyword">this</span>());</div><div class="line">  connectionCallback<span class="number">_</span>(guardThis);</div><div class="line">  <span class="comment">// must be the last line</span></div><div class="line">  closeCallback<span class="number">_</span>(guardThis);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>handleClose之中将当前状态设置为DisConnected, channel不再关注任何io事件，调用connection以及close回调通知TcpConnection对象的所有者，连接已经关闭了。</p>
+<p>需要留意的是，在调用close回调的时候，可能TcpConnection的所有者就直接将TcpConnection <strong>丢弃</strong>，因而这里做了guard处理。</p>
+<h1 id="写入数据"><a href="#写入数据" class="headerlink" title="写入数据"></a>写入数据</h1><p><strong>我们一定要保证所有的io操作都需要在io线程之中完成，这样才能实现线程安全。</strong>数据的发送主要分为两种情况，一种是当前没有数据要发送，那么首先在io线程中尝试发送，将剩余没有发送的数据存入outputBuffer，关注可写事件。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> TcpConnection::sendInLoop(<span class="keyword">const</span> <span class="keyword">void</span>* data, <span class="keyword">size_t</span> len)</div><div class="line">&#123;</div><div class="line">  loop_-&gt;assertInLoopThread();</div><div class="line">  <span class="keyword">ssize_t</span> nwrote = <span class="number">0</span>;</div><div class="line">  <span class="keyword">size_t</span> remaining = len;</div><div class="line">  <span class="keyword">bool</span> faultError = <span class="literal">false</span>;</div><div class="line">  <span class="keyword">if</span> (state_ == kDisconnected)</div><div class="line">  &#123;</div><div class="line">    LOG_WARN &lt;&lt; <span class="string">"disconnected, give up writing"</span>;</div><div class="line">    <span class="keyword">return</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// if no thing in output queue, try writing directly</span></div><div class="line">  <span class="keyword">if</span> (!channel_-&gt;isWriting() &amp;&amp; outputBuffer_.readableBytes() == <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    nwrote = sockets::write(channel_-&gt;fd(), data, len);</div><div class="line">    <span class="keyword">if</span> (nwrote &gt;= <span class="number">0</span>)</div><div class="line">    &#123;</div><div class="line">      remaining = len - nwrote;</div><div class="line">      <span class="keyword">if</span> (remaining == <span class="number">0</span> &amp;&amp; writeCompleteCallback_)</div><div class="line">      &#123;</div><div class="line">        loop_-&gt;queueInLoop(<span class="built_in">std</span>::bind(writeCompleteCallback_, shared_from_this()));</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span> <span class="comment">// nwrote &lt; 0</span></div><div class="line">    &#123;</div><div class="line">      nwrote = <span class="number">0</span>;</div><div class="line">      <span class="keyword">if</span> (errno != EWOULDBLOCK)</div><div class="line">      &#123;</div><div class="line">        LOG_SYSERR &lt;&lt; <span class="string">"TcpConnection::sendInLoop"</span>;</div><div class="line">        <span class="keyword">if</span> (errno == EPIPE || errno == ECONNRESET) <span class="comment">// <span class="doctag">FIXME:</span> any others?</span></div><div class="line">        &#123;</div><div class="line">          faultError = <span class="literal">true</span>;</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  assert(remaining &lt;= len);</div><div class="line">  <span class="keyword">if</span> (!faultError &amp;&amp; remaining &gt; <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">size_t</span> oldLen = outputBuffer_.readableBytes();</div><div class="line">    <span class="keyword">if</span> (oldLen + remaining &gt;= highWaterMark_</div><div class="line">        &amp;&amp; oldLen &lt; highWaterMark_</div><div class="line">        &amp;&amp; highWaterMarkCallback_)</div><div class="line">    &#123;</div><div class="line">      loop_-&gt;queueInLoop(<span class="built_in">std</span>::bind(highWaterMarkCallback_, shared_from_this(), oldLen + remaining));</div><div class="line">    &#125;</div><div class="line">    outputBuffer_.append(<span class="keyword">static_cast</span>&lt;<span class="keyword">const</span> <span class="keyword">char</span>*&gt;(data)+nwrote, remaining);</div><div class="line">    <span class="keyword">if</span> (!channel_-&gt;isWriting())</div><div class="line">    &#123;</div><div class="line">      channel_-&gt;enableWriting();</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  &#125;</div></pre></td></tr></table></figure>
+<p>请注意，这里有对高水位回调函数的调用，高水位回调函数在outputBuffer的size大于HighWaterMark_的时候会被调用。</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line">void TcpConnection::handleWrite()</div><div class="line">&#123;</div><div class="line">  loop_-&gt;assertInLoopThread();</div><div class="line">  <span class="keyword">if</span> (channel_-&gt;isWriting())</div><div class="line">  &#123;</div><div class="line">    ssize_t n = sockets::write(channel_-&gt;fd(),</div><div class="line">                               outputBuffer_.peek(),</div><div class="line">                               outputBuffer_.readableBytes());</div><div class="line">    <span class="keyword">if</span> (n &gt; <span class="number">0</span>)</div><div class="line">    &#123;</div><div class="line">      outputBuffer_.retrieve(n);</div><div class="line">      <span class="keyword">if</span> (outputBuffer_.readableBytes() == <span class="number">0</span>)</div><div class="line">      &#123;</div><div class="line">        channel_-&gt;disableWriting();</div><div class="line">        <span class="keyword">if</span> (writeCompleteCallback_)</div><div class="line">        &#123;</div><div class="line">          loop_-&gt;queueInLoop(std::bind(writeCompleteCallback_, shared_from_this()));</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">if</span> (state_ == kDisconnecting)</div><div class="line">        &#123;</div><div class="line">          shutdownInLoop();</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span></div><div class="line">    &#123;</div><div class="line">      LOG_SYSERR &lt;&lt; <span class="string">"TcpConnection::handleWrite"</span>;</div><div class="line">      <span class="comment">// if (state_ == kDisconnecting)</span></div><div class="line">      <span class="comment">// &#123;</span></div><div class="line">      <span class="comment">//   shutdownInLoop();</span></div><div class="line">      <span class="comment">// &#125;</span></div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    LOG_TRACE &lt;&lt; <span class="string">"Connection fd = "</span> &lt;&lt; channel_-&gt;fd()</div><div class="line">              &lt;&lt; <span class="string">" is down, no more writing"</span>;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在handleWrite中继续发送剩余的数据，当发送完毕之后，会调用WriteComplete回调函数，通知TcpConnection所有者所有数据都已发送完毕。发送完所有数据会不再关注可写事件，否则会造成busy loop。</p>
+<h1 id="连接关闭"><a href="#连接关闭" class="headerlink" title="连接关闭"></a>连接关闭</h1><p>关闭连接不可直接close对应的sockfd，否则积压在链路中未被对方应用程序接收的数据可能丢失。对此muduo的处理是首先shutdown write。关闭写之后，对方read就会返回0，此时对方就会关闭连接，这样本地sockfd就会read返回0，此时调用handleClose完成最终的连接关闭操作。这种主动的连接关闭策略是一种比较文雅的关闭方式，能够保证链路中的数据能够被对方完整的接收到。</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">void TcpConnection::shutdownInLoop()</div><div class="line">&#123;</div><div class="line">  <span class="function"><span class="title">loop_</span>-&gt;</span>assertInLoopThread();</div><div class="line">  <span class="function"><span class="title">if</span> (!channel_-&gt;</span>isWriting())</div><div class="line">  &#123;</div><div class="line">    <span class="comment">// we are not writing</span></div><div class="line">    <span class="function"><span class="title">socket_</span>-&gt;</span>shutdownWrite();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>对应文雅的连接关闭方式，也有比较粗暴的连接关闭手段，那就是直接forceClose。forceClose的操作和对方关闭连接导致本地连接read返回0的操作其实是一致的。</p>
+<figure class="highlight coq"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">void TcpConnection::forceCloseInLoop()</div><div class="line">&#123;</div><div class="line">  loop_-&gt;assertInLoopThread();</div><div class="line">  <span class="keyword">if</span> (state_ == kConnected |<span class="type">| state_</span> == kDisconnecting)</div><div class="line">  &#123;</div><div class="line">    // <span class="built_in">as</span> <span class="keyword">if</span> we received <span class="number">0</span> byte <span class="built_in">in</span> handleRead();</div><div class="line">    handleClose();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>TcpConnection对象的主要使用者是TcpServer和TcpClient，当TcpServer对象被析构的时候，其所拥有的所有连接对象也应该被析构。但是没有那么简单，我们需要保证TcpConnection对象在析构的时候，其对应的Channel也从Poller之中移除了。</p>
+<figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="selector-tag">void</span> <span class="selector-tag">TcpConnection</span><span class="selector-pseudo">::connectDestroyed()</span></div><div class="line">&#123;</div><div class="line">  <span class="selector-tag">loop_-</span>&gt;<span class="selector-tag">assertInLoopThread</span>();</div><div class="line">  <span class="selector-tag">if</span> (state_ == kConnected)</div><div class="line">  &#123;</div><div class="line">    <span class="selector-tag">setState</span>(kDisconnected);</div><div class="line">    <span class="selector-tag">channel_-</span>&gt;<span class="selector-tag">disableAll</span>();</div><div class="line"></div><div class="line">    <span class="selector-tag">connectionCallback_</span>(shared_from_this());</div><div class="line">  &#125;</div><div class="line">  <span class="selector-tag">channel_-</span>&gt;<span class="selector-tag">remove</span>();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>因而TcpServer在析构的时候，会对他所拥有的所有TcpConnection逐一调用connectDestroyed，保证所有的channel都被正确移除了。</p>
+<p>当然，在TcpServer移除连接的时候，也会做上述处理。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/muduo/" rel="tag"># muduo</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/24/muduo-TcpClient解析/" rel="next" title="muduo TcpClient解析">
+                <i class="fa fa-chevron-left"></i> muduo TcpClient解析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/06/24/muduo-TcpServer解析/" rel="prev" title="muduo TcpServer解析">
+                muduo TcpServer解析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">45</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#TcpConnection"><span class="nav-text">TcpConnection</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#连接建立"><span class="nav-text">连接建立</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#读取数据"><span class="nav-text">读取数据</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#写入数据"><span class="nav-text">写入数据</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#连接关闭"><span class="nav-text">连接关闭</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

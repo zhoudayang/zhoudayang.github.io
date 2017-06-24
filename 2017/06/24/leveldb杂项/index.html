@@ -1,0 +1,846 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="leveldb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="slice在leveldb内部使用中，使用了内置的类型Slice用来表示字符串。Slice可以和const char*, string之间相互转换，是一种比较轻量级的字符串表示方式。Slice类似muduo之中的StringPiece数据类型。 12345678910111213141516171819202122232425262728293031323334353637383940414243">
+<meta name="keywords" content="leveldb">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb杂项">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/24/leveldb杂项/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="slice在leveldb内部使用中，使用了内置的类型Slice用来表示字符串。Slice可以和const char*, string之间相互转换，是一种比较轻量级的字符串表示方式。Slice类似muduo之中的StringPiece数据类型。 12345678910111213141516171819202122232425262728293031323334353637383940414243">
+<meta property="og:updated_time" content="2017-06-24T11:26:43.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="leveldb杂项">
+<meta name="twitter:description" content="slice在leveldb内部使用中，使用了内置的类型Slice用来表示字符串。Slice可以和const char*, string之间相互转换，是一种比较轻量级的字符串表示方式。Slice类似muduo之中的StringPiece数据类型。 12345678910111213141516171819202122232425262728293031323334353637383940414243">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '7ccbed52df595f2d66c7be0f9035d420',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/24/leveldb杂项/"/>
+
+
+
+
+
+  <title>leveldb杂项 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/24/leveldb杂项/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">leveldb杂项</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-24T19:26:43+08:00">
+                2017-06-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index">
+                    <span itemprop="name">leveldb</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="slice"><a href="#slice" class="headerlink" title="slice"></a>slice</h1><p>在leveldb内部使用中，使用了内置的类型Slice用来表示字符串。Slice可以和<code>const char*</code>, <code>string</code>之间相互转换，是一种比较轻量级的字符串表示方式。Slice类似muduo之中的StringPiece数据类型。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div></pre></td><td class="code"><pre><div class="line"><span class="comment">//</span></div><div class="line"><span class="comment">// Created by zy on 17-5-22.</span></div><div class="line"><span class="comment">//</span></div><div class="line"></div><div class="line"><span class="meta">#<span class="meta-keyword">pragma</span> once</span></div><div class="line"></div><div class="line"></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;assert.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stddef.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></div><div class="line"></div><div class="line"><span class="keyword">namespace</span> leveldb &#123;</div><div class="line"></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">Slice</span> &#123;</span></div><div class="line"> <span class="keyword">public</span>:</div><div class="line">  <span class="comment">// Create an empty slice.</span></div><div class="line">  Slice() : data_(<span class="string">""</span>), size_(<span class="number">0</span>) &#123; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Create a slice that refers to d[0,n-1].</span></div><div class="line">  Slice(<span class="keyword">const</span> <span class="keyword">char</span>* d, <span class="keyword">size_t</span> n) : data_(d), size_(n) &#123; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Create a slice that refers to the contents of "s"</span></div><div class="line">  Slice(<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; s) : data_(s.data()), size_(s.size()) &#123; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Create a slice that refers to s[0,strlen(s)-1]</span></div><div class="line">  Slice(<span class="keyword">const</span> <span class="keyword">char</span>* s) : data_(s), size_(<span class="built_in">strlen</span>(s)) &#123; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return a pointer to the beginning of the referenced data</span></div><div class="line">  <span class="function"><span class="keyword">const</span> <span class="keyword">char</span>* <span class="title">data</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> data_; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return the length (in bytes) of the referenced data</span></div><div class="line">  <span class="keyword">size_t</span> size() <span class="keyword">const</span> &#123; <span class="keyword">return</span> size_; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return true iff the length of the referenced data is zero</span></div><div class="line">  <span class="function"><span class="keyword">bool</span> <span class="title">empty</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> size_ == <span class="number">0</span>; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return the ith byte in the referenced data.</span></div><div class="line">  <span class="comment">// REQUIRES: n &lt; size()</span></div><div class="line">  <span class="keyword">char</span> <span class="keyword">operator</span>[](<span class="keyword">size_t</span> n) <span class="keyword">const</span> &#123;</div><div class="line">    assert(n &lt; size());</div><div class="line">    <span class="keyword">return</span> data_[n];</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Change this slice to refer to an empty array</span></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">clear</span><span class="params">()</span> </span>&#123; data_ = <span class="string">""</span>; size_ = <span class="number">0</span>; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Drop the first "n" bytes from this slice.</span></div><div class="line">  <span class="function"><span class="keyword">void</span> <span class="title">remove_prefix</span><span class="params">(<span class="keyword">size_t</span> n)</span> </span>&#123;</div><div class="line">    assert(n &lt;= size());</div><div class="line">    data_ += n;</div><div class="line">    size_ -= n;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return a string that contains the copy of the referenced data.</span></div><div class="line">  <span class="built_in">std</span>::<span class="function"><span class="built_in">string</span> <span class="title">ToString</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> <span class="built_in">std</span>::<span class="built_in">string</span>(data_, size_); &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Three-way comparison.  Returns value:</span></div><div class="line">  <span class="comment">//   &lt;  0 iff "*this" &lt;  "b",</span></div><div class="line">  <span class="comment">//   == 0 iff "*this" == "b",</span></div><div class="line">  <span class="comment">//   &gt;  0 iff "*this" &gt;  "b"</span></div><div class="line">  <span class="function"><span class="keyword">int</span> <span class="title">compare</span><span class="params">(<span class="keyword">const</span> Slice&amp; b)</span> <span class="keyword">const</span></span>;</div><div class="line"></div><div class="line">  <span class="comment">// Return true iff "x" is a prefix of "*this"</span></div><div class="line">  <span class="function"><span class="keyword">bool</span> <span class="title">starts_with</span><span class="params">(<span class="keyword">const</span> Slice&amp; x)</span> <span class="keyword">const</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> ((size_ &gt;= x.size_) &amp;&amp;</div><div class="line">        (<span class="built_in">memcmp</span>(data_, x.data_, x.size_) == <span class="number">0</span>));</div><div class="line">  &#125;</div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* data_;</div><div class="line">  <span class="keyword">size_t</span> size_;</div><div class="line"></div><div class="line">  <span class="comment">// Intentionally copyable</span></div><div class="line">&#125;;</div><div class="line"></div><div class="line"><span class="keyword">inline</span> <span class="keyword">bool</span> <span class="keyword">operator</span>==(<span class="keyword">const</span> Slice&amp; x, <span class="keyword">const</span> Slice&amp; y) &#123;</div><div class="line">  <span class="keyword">return</span> ((x.size() == y.size()) &amp;&amp;</div><div class="line">      (<span class="built_in">memcmp</span>(x.data(), y.data(), x.size()) == <span class="number">0</span>));</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">inline</span> <span class="keyword">bool</span> <span class="keyword">operator</span>!=(<span class="keyword">const</span> Slice&amp; x, <span class="keyword">const</span> Slice&amp; y) &#123;</div><div class="line">  <span class="keyword">return</span> !(x == y);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">inline</span> <span class="keyword">int</span> Slice::compare(<span class="keyword">const</span> Slice&amp; b) <span class="keyword">const</span> &#123;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">size_t</span> min_len = (size_ &lt; b.size_) ? size_ : b.size_;</div><div class="line">  <span class="keyword">int</span> r = <span class="built_in">memcmp</span>(data_, b.data_, min_len);</div><div class="line">  <span class="keyword">if</span> (r == <span class="number">0</span>) &#123;</div><div class="line">    <span class="keyword">if</span> (size_ &lt; b.size_) r = <span class="number">-1</span>;</div><div class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (size_ &gt; b.size_) r = +<span class="number">1</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> r;</div><div class="line">&#125;</div><div class="line"></div><div class="line">&#125;  <span class="comment">// namespace leveldb</span></div></pre></td></tr></table></figure>
+<h1 id="Status"><a href="#Status" class="headerlink" title="Status"></a>Status</h1><p>在leveldb中，使用自定义类型Status来表示当前状态。Status内部数据成员如下所示：</p>
+<figure class="highlight smali"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">// OK status has a NULL state_.  Otherwise, state_ is a new[]<span class="built_in"> array</span></div><div class="line">  // of the following form:</div><div class="line">  //    state_[0..3] == length of message</div><div class="line">  //    state_[4]    == code</div><div class="line">  //    state_[5..]  == message</div><div class="line"> <span class="built_in"> const </span>char* state_;</div></pre></td></tr></table></figure>
+<p>可见这是一种非常精简的数据表示方式，使用<code>const char* state_</code>存储一些复合的数据，包括状态码，字符串长度，字符串。这种表示方式简单明了，可以借鉴。特别是如果当前状态为<code>kOk</code>，那么state_设定为NULL，这样充分节省了空间(因为状态除非出错，一般都为<code>kOk</code>)。</p>
+<p>Status具体实现非常简单，以下仅贴出代码说明:</p>
+<p>status.h</p>
+<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">pragma</span> once</span></div><div class="line"></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">"leveldb/slice.h"</span></span></div><div class="line"></div><div class="line"><span class="keyword">namespace</span> leveldb &#123;</div><div class="line"></div><div class="line">class Status &#123;</div><div class="line"> <span class="keyword">public</span>:</div><div class="line">  <span class="comment">// Create a success status.</span></div><div class="line">  Status() : state_(NULL) &#123; &#125;</div><div class="line">  ~Status() &#123; <span class="keyword">delete</span>[] state_; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Copy the specified status.</span></div><div class="line">  Status(<span class="keyword">const</span> Status&amp; s);</div><div class="line">  <span class="keyword">void</span> <span class="keyword">operator</span>=(<span class="keyword">const</span> Status&amp; s);</div><div class="line"></div><div class="line">  <span class="comment">// Return a success status.</span></div><div class="line">  <span class="keyword">static</span> Status OK() &#123; <span class="built_in">return</span> Status(); &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return error status of an appropriate type.</span></div><div class="line">  <span class="keyword">static</span> Status NotFound(<span class="keyword">const</span> Slice&amp; msg, <span class="keyword">const</span> Slice&amp; msg2 = Slice()) &#123;</div><div class="line">    <span class="built_in">return</span> Status(kNotFound, msg, msg2);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">static</span> Status Corruption(<span class="keyword">const</span> Slice&amp; msg, <span class="keyword">const</span> Slice&amp; msg2 = Slice()) &#123;</div><div class="line">    <span class="built_in">return</span> Status(kCorruption, msg, msg2);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">static</span> Status NotSupported(<span class="keyword">const</span> Slice&amp; msg, <span class="keyword">const</span> Slice&amp; msg2 = Slice()) &#123;</div><div class="line">    <span class="built_in">return</span> Status(kNotSupported, msg, msg2);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">static</span> Status InvalidArgument(<span class="keyword">const</span> Slice&amp; msg, <span class="keyword">const</span> Slice&amp; msg2 = Slice()) &#123;</div><div class="line">    <span class="built_in">return</span> Status(kInvalidArgument, msg, msg2);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">static</span> Status IOError(<span class="keyword">const</span> Slice&amp; msg, <span class="keyword">const</span> Slice&amp; msg2 = Slice()) &#123;</div><div class="line">    <span class="built_in">return</span> Status(kIOError, msg, msg2);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Returns true iff the status indicates success.</span></div><div class="line">  <span class="keyword">bool</span> ok() <span class="keyword">const</span> &#123; <span class="built_in">return</span> (state_ == NULL); &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Returns true iff the status indicates a NotFound error.</span></div><div class="line">  <span class="keyword">bool</span> IsNotFound() <span class="keyword">const</span> &#123; <span class="built_in">return</span> code() == kNotFound; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Returns true iff the status indicates a Corruption error.</span></div><div class="line">  <span class="keyword">bool</span> IsCorruption() <span class="keyword">const</span> &#123; <span class="built_in">return</span> code() == kCorruption; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Returns true iff the status indicates an IOError.</span></div><div class="line">  <span class="keyword">bool</span> IsIOError() <span class="keyword">const</span> &#123; <span class="built_in">return</span> code() == kIOError; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Returns true iff the status indicates a NotSupportedError.</span></div><div class="line">  <span class="keyword">bool</span> IsNotSupportedError() <span class="keyword">const</span> &#123; <span class="built_in">return</span> code() == kNotSupported; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Returns true iff the status indicates an InvalidArgument.</span></div><div class="line">  <span class="keyword">bool</span> IsInvalidArgument() <span class="keyword">const</span> &#123; <span class="built_in">return</span> code() == kInvalidArgument; &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Return a string representation of this status suitable for printing.</span></div><div class="line">  <span class="comment">// Returns the string "OK" for success.</span></div><div class="line">  std::<span class="keyword">string</span> ToString() <span class="keyword">const</span>;</div><div class="line"></div><div class="line"> <span class="keyword">private</span>:</div><div class="line">  <span class="comment">// OK status has a NULL state_.  Otherwise, state_ is a new[] array</span></div><div class="line">  <span class="comment">// of the following form:</span></div><div class="line">  <span class="comment">//    state_[0..3] == length of message</span></div><div class="line">  <span class="comment">//    state_[4]    == code</span></div><div class="line">  <span class="comment">//    state_[5..]  == message</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* state_;</div><div class="line"></div><div class="line">  <span class="keyword">enum</span> Code &#123;</div><div class="line">    kOk = <span class="number">0</span>,</div><div class="line">    kNotFound = <span class="number">1</span>,</div><div class="line">    kCorruption = <span class="number">2</span>,</div><div class="line">    kNotSupported = <span class="number">3</span>,</div><div class="line">    kInvalidArgument = <span class="number">4</span>,</div><div class="line">    kIOError = <span class="number">5</span></div><div class="line">  &#125;;</div><div class="line"></div><div class="line">  Code code() <span class="keyword">const</span> &#123;</div><div class="line">    <span class="built_in">return</span> (state_ == NULL) ? kOk : <span class="keyword">static_cast</span>&lt;Code&gt;(state_[<span class="number">4</span>]);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  Status(Code code, <span class="keyword">const</span> Slice&amp; msg, <span class="keyword">const</span> Slice&amp; msg2);</div><div class="line">  <span class="keyword">static</span> <span class="keyword">const</span> <span class="keyword">char</span>* CopyState(<span class="keyword">const</span> <span class="keyword">char</span>* s);</div><div class="line">&#125;;</div><div class="line"></div><div class="line"><span class="keyword">inline</span> Status::Status(<span class="keyword">const</span> Status&amp; s) &#123;</div><div class="line">  state_ = (s.state_ == NULL) ? NULL : CopyState(s.state_);</div><div class="line">&#125;</div><div class="line"><span class="keyword">inline</span> <span class="keyword">void</span> Status::<span class="keyword">operator</span>=(<span class="keyword">const</span> Status&amp; s) &#123;</div><div class="line">  <span class="comment">// The following condition catches both aliasing (when this == &amp;s),</span></div><div class="line">  <span class="comment">// and the common case where both s and *this are ok.</span></div><div class="line">  <span class="built_in">if</span> (state_ != s.state_) &#123;</div><div class="line">    <span class="keyword">delete</span>[] state_;</div><div class="line">    state_ = (s.state_ == NULL) ? NULL : CopyState(s.state_);</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line">&#125;  <span class="comment">// namespace leveldb</span></div></pre></td></tr></table></figure>
+<p>status.cc</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">"port/port.h"</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">"leveldb/status.h"</span></span></div><div class="line"></div><div class="line"><span class="keyword">namespace</span> leveldb</div><div class="line">&#123;</div><div class="line"><span class="comment">// 4byte 1byte message......</span></div><div class="line"><span class="comment">// length code message contents</span></div><div class="line"><span class="keyword">const</span> <span class="keyword">char</span> *Status::CopyState(<span class="keyword">const</span> <span class="keyword">char</span> *state)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">uint32_t</span> size;</div><div class="line">  <span class="built_in">memcmp</span>(&amp;size, state, <span class="keyword">sizeof</span>(size));</div><div class="line">  <span class="keyword">char</span> *result = <span class="keyword">new</span> <span class="keyword">char</span>[size + <span class="number">5</span>];</div><div class="line">  <span class="built_in">memcpy</span>(result, state, size + <span class="number">5</span>);</div><div class="line">  <span class="keyword">return</span> result;</div><div class="line">&#125;</div><div class="line"></div><div class="line">Status::Status(Code code, <span class="keyword">const</span> Slice &amp;msg, <span class="keyword">const</span> Slice &amp;msg2)</div><div class="line">&#123;</div><div class="line">  assert(code != kOk);</div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> len1 = msg.size();</div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> len2 = msg2.size();</div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> size = len1 + (len2 ? (<span class="number">2</span> + len2) : <span class="number">0</span>);</div><div class="line">  <span class="keyword">char</span> *result = <span class="keyword">new</span> <span class="keyword">char</span>[size + <span class="number">5</span>];</div><div class="line">  <span class="built_in">memcpy</span>(result, &amp;size, <span class="keyword">sizeof</span>(size));</div><div class="line">  result[<span class="number">4</span>] = <span class="keyword">static_cast</span>&lt;<span class="keyword">char</span>&gt;(code);</div><div class="line">  <span class="built_in">memcpy</span>(result + <span class="number">5</span>, msg.data(), len1);</div><div class="line">  <span class="keyword">if</span> (len2)</div><div class="line">  &#123;</div><div class="line">    result[<span class="number">5</span> + len1] = <span class="string">':'</span>;</div><div class="line">    result[<span class="number">6</span> + len1] = <span class="string">' '</span>;</div><div class="line">    <span class="built_in">memcpy</span>(result + <span class="number">7</span> + len1, msg2.data(), len2);</div><div class="line">  &#125;</div><div class="line">  state_ = result;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="built_in">std</span>::<span class="built_in">string</span> Status::ToString() <span class="keyword">const</span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">if</span> (state_ == <span class="literal">NULL</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">return</span> <span class="string">"OK"</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    <span class="keyword">char</span> tmp[<span class="number">30</span>];</div><div class="line">    <span class="keyword">const</span> <span class="keyword">char</span> *type;</div><div class="line">    <span class="keyword">switch</span> (code())</div><div class="line">    &#123;</div><div class="line">      <span class="keyword">case</span> kOk:type = <span class="string">"OK"</span>;</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      <span class="keyword">case</span> kNotFound:type = <span class="string">"NotFound: "</span>;</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      <span class="keyword">case</span> kCorruption:type = <span class="string">"Corruption: "</span>;</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      <span class="keyword">case</span> kNotSupported:type = <span class="string">"Not implemented: "</span>;</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      <span class="keyword">case</span> kInvalidArgument:type = <span class="string">"Invalid argument: "</span>;</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      <span class="keyword">case</span> kIOError:type = <span class="string">"IO error: "</span>;</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">      <span class="keyword">default</span>:</div><div class="line">        <span class="built_in">snprintf</span>(tmp, <span class="keyword">sizeof</span>(tmp), <span class="string">"Unknown code(%d): "</span>,</div><div class="line">                 <span class="keyword">static_cast</span>&lt;<span class="keyword">int</span>&gt;(code()));</div><div class="line">        type = tmp;</div><div class="line">        <span class="keyword">break</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="built_in">std</span>::<span class="function"><span class="built_in">string</span> <span class="title">result</span><span class="params">(type)</span></span>;</div><div class="line">    <span class="keyword">uint32_t</span> length;</div><div class="line">    <span class="built_in">memcpy</span>(&amp;length, state_, <span class="keyword">sizeof</span>(length));</div><div class="line">    result.append(state_ + <span class="number">5</span>, length);</div><div class="line">    <span class="keyword">return</span> result;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">&#125;</div><div class="line"></div><div class="line">&#125;   <span class="comment">//  namespace leveldb</span></div></pre></td></tr></table></figure>
+<h1 id="hash"><a href="#hash" class="headerlink" title="hash"></a>hash</h1><p>在leveldb内部实现之中，hash采用的是murmur hash算法，这种hash实现能够最大化减小hash碰撞，值得学习。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">uint32_t</span> Hash(<span class="keyword">const</span> <span class="keyword">char</span>* data, <span class="keyword">size_t</span> n, <span class="keyword">uint32_t</span> seed) &#123;</div><div class="line">  <span class="comment">// Similar to murmur hash</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> m = <span class="number">0xc6a4a793</span>;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> r = <span class="number">24</span>;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* limit = data + n;</div><div class="line">  <span class="keyword">uint32_t</span> h = seed ^ (n * m);</div><div class="line"></div><div class="line">  <span class="comment">// Pick up four bytes at a time</span></div><div class="line">  <span class="keyword">while</span> (data + <span class="number">4</span> &lt;= limit) &#123;</div><div class="line">    <span class="keyword">uint32_t</span> w = DecodeFixed32(data);</div><div class="line">    data += <span class="number">4</span>;</div><div class="line">    h += w;</div><div class="line">    h *= m;</div><div class="line">    h ^= (h &gt;&gt; <span class="number">16</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// Pick up remaining bytes</span></div><div class="line">  <span class="keyword">switch</span> (limit - data) &#123;</div><div class="line">    <span class="keyword">case</span> <span class="number">3</span>:</div><div class="line">      h += <span class="keyword">static_cast</span>&lt;<span class="keyword">unsigned</span> <span class="keyword">char</span>&gt;(data[<span class="number">2</span>]) &lt;&lt; <span class="number">16</span>;</div><div class="line">    <span class="keyword">case</span> <span class="number">2</span>:</div><div class="line">      h += <span class="keyword">static_cast</span>&lt;<span class="keyword">unsigned</span> <span class="keyword">char</span>&gt;(data[<span class="number">1</span>]) &lt;&lt; <span class="number">8</span>;</div><div class="line">    <span class="keyword">case</span> <span class="number">1</span>:</div><div class="line">      h += <span class="keyword">static_cast</span>&lt;<span class="keyword">unsigned</span> <span class="keyword">char</span>&gt;(data[<span class="number">0</span>]);</div><div class="line">      h *= m;</div><div class="line">      h ^= (h &gt;&gt; r);</div><div class="line">      <span class="keyword">break</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> h;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>至此，leveldb util相关的代码分析完毕，下面转入对table定义的分析。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/24/leveldb-env解读/" rel="next" title="leveldb env解读">
+                <i class="fa fa-chevron-left"></i> leveldb env解读
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/06/24/muduo-TcpClient解析/" rel="prev" title="muduo TcpClient解析">
+                muduo TcpClient解析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">45</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#slice"><span class="nav-text">slice</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Status"><span class="nav-text">Status</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#hash"><span class="nav-text">hash</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,848 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="muduo," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="线程安全回调在很多情况下，需要将函数操作转移到io线程之中进行，muduo EventLoop支持queueInLoop 和 runInLoop 调用，视调用线程情况，将回调函数暂时存放在vector之中，在时间循环的末尾统一进行调用处理。 为了保证输入的回调函数能够尽快完成，不然这些回调函数可能需要等到poller超时返回之后才能得以运行。muduo在事件循环中使用了eventFd，对于可能阻塞">
+<meta name="keywords" content="muduo">
+<meta property="og:type" content="article">
+<meta property="og:title" content="muduo EventLoop解析">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/06/24/muduo-EventLoop解析/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="线程安全回调在很多情况下，需要将函数操作转移到io线程之中进行，muduo EventLoop支持queueInLoop 和 runInLoop 调用，视调用线程情况，将回调函数暂时存放在vector之中，在时间循环的末尾统一进行调用处理。 为了保证输入的回调函数能够尽快完成，不然这些回调函数可能需要等到poller超时返回之后才能得以运行。muduo在事件循环中使用了eventFd，对于可能阻塞">
+<meta property="og:updated_time" content="2017-06-24T11:51:41.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="muduo EventLoop解析">
+<meta name="twitter:description" content="线程安全回调在很多情况下，需要将函数操作转移到io线程之中进行，muduo EventLoop支持queueInLoop 和 runInLoop 调用，视调用线程情况，将回调函数暂时存放在vector之中，在时间循环的末尾统一进行调用处理。 为了保证输入的回调函数能够尽快完成，不然这些回调函数可能需要等到poller超时返回之后才能得以运行。muduo在事件循环中使用了eventFd，对于可能阻塞">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'O9P846Q7QC',
+      apiKey: '7ccbed52df595f2d66c7be0f9035d420',
+      indexName: 'imzy',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/06/24/muduo-EventLoop解析/"/>
+
+
+
+
+
+  <title>muduo EventLoop解析 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/06/24/muduo-EventLoop解析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">muduo EventLoop解析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-24T19:51:41+08:00">
+                2017-06-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/muduo/" itemprop="url" rel="index">
+                    <span itemprop="name">muduo</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="线程安全回调"><a href="#线程安全回调" class="headerlink" title="线程安全回调"></a>线程安全回调</h1><p>在很多情况下，需要将函数操作转移到io线程之中进行，muduo EventLoop支持queueInLoop 和 runInLoop 调用，视调用线程情况，将回调函数暂时存放在vector之中，在时间循环的末尾统一进行调用处理。</p>
+<p>为了保证输入的回调函数能够尽快完成，不然这些回调函数可能需要等到poller超时返回之后才能得以运行。muduo在事件循环中使用了eventFd，对于可能阻塞在Poller的情况，会向eventFd写入1，触发Poller调用返回，从而使回调函数得以执行。</p>
+<p>当然，可能在其他线程之中调用queueInLoop函数，为了线程安全，存入新的回调函数的时候需要进行加锁处理。</p>
+<h1 id="定时回调实现"><a href="#定时回调实现" class="headerlink" title="定时回调实现"></a>定时回调实现</h1><h2 id="核心思想"><a href="#核心思想" class="headerlink" title="核心思想"></a>核心思想</h2><p>在muduo之中，对于定时回调的实现主要代码在<code>TimerQueue.cc</code> 以及<code>TimerQueue.h</code>之中。其核心思路是使用timerFd。timerFd用于通知事件循环最近一次的超时事件发生了，然后在对timerFd包装的channel的read回调函数之中，会对所有当前超时所对应的回调函数，一一调用。对于需要反复设置的定时器，也做好处理，保证timerFd能在合适的时间触发可读事件。</p>
+<h2 id="新增回调函数"><a href="#新增回调函数" class="headerlink" title="新增回调函数"></a>新增回调函数</h2><p>为了方便的拿到最近一个超时的时刻，并且应对多个回调函数对应一个超时条件的情况，在muduo之中使用set存放他所管理的时间回调函数，如下所示：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">typedef</span> <span class="built_in">std</span>::pair&lt;Timestamp, Timer*&gt; Entry;</div><div class="line"><span class="keyword">typedef</span> <span class="built_in">std</span>::<span class="built_in">set</span>&lt;Entry&gt; TimerList;</div><div class="line">TimerList timers_;</div></pre></td></tr></table></figure>
+<p>如果要新增回调函数，首先将其插入到timers_之中，如果发现在加入新的定时回调之后，最早超时的时刻有变，那么重新设置timerFd，保证新增的回调函数能在准确的时间被调用。</p>
+<h2 id="cancel定时回调"><a href="#cancel定时回调" class="headerlink" title="cancel定时回调"></a>cancel定时回调</h2><p>如果当前事件循环正在调用定时回调函数，那么在此期间不可cancel定时回调，否则会引发未定义行为。我们只需要做好记录，确保要cancel的回调函数不会被重新设置。相反，若事件循环当前没有调用超时回调函数，那么直接将对应的定时回调从对应的数据结构之中删除即可。</p>
+<p>这里的问题在于，如果在正在调用定时回调函数的时候来cancel，可能会造成cancel失败，这里的cancel并不是强保证。但是cancel之后，总能保证在后续reset处理之后不会再调用cancel的定时回调函数。</p>
+<h1 id="boost-any"><a href="#boost-any" class="headerlink" title="boost::any"></a>boost::any</h1><p>有时候需要在不同线程的EventLoop之中记录一些EventLoop相关的信息，和muduo::TcpConnection一样，这里使用了boost::any.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">setContext</span><span class="params">(<span class="keyword">const</span> boost::any&amp; context)</span></span></div><div class="line">&#123; context_ = context; &#125;</div><div class="line"></div><div class="line"><span class="keyword">const</span> boost::<span class="function">any&amp; <span class="title">getContext</span><span class="params">()</span> <span class="keyword">const</span></span></div><div class="line">&#123; <span class="keyword">return</span> context_; &#125;</div><div class="line"></div><div class="line">boost::<span class="function">any* <span class="title">getMutableContext</span><span class="params">()</span></span></div><div class="line">&#123; <span class="keyword">return</span> &amp;context_; &#125;</div><div class="line"></div><div class="line">boost::any context_;</div></pre></td></tr></table></figure>
+<h1 id="一些转调用"><a href="#一些转调用" class="headerlink" title="一些转调用"></a>一些转调用</h1><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">updateChannel</span><span class="params">(Channel* channel)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">removeChannel</span><span class="params">(Channel* channel)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">hasChannel</span><span class="params">(Channel* channel)</span></span>;</div><div class="line"><span class="comment">// 转调用Poller之中的定义</span></div><div class="line">其调用流程是Channel -&gt; EventLoop -&gt; Poller</div></pre></td></tr></table></figure>
+<h1 id="loop分析"><a href="#loop分析" class="headerlink" title="loop分析"></a>loop分析</h1><p>事件循环的退出很简单，一旦<code>quit_</code>为false，那么循环便无法继续。</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">void</span> <span class="string">EventLoop:</span>:loop()</div><div class="line">&#123;</div><div class="line">  <span class="keyword">assert</span>(!looping_);</div><div class="line">  assertInLoopThread();</div><div class="line">  looping_ = <span class="literal">true</span>;</div><div class="line">  quit_ = <span class="literal">false</span>;  <span class="comment">// <span class="doctag">FIXME:</span> what if someone calls quit() before loop() ?</span></div><div class="line">  LOG_TRACE &lt;&lt; <span class="string">"EventLoop "</span> &lt;&lt; <span class="keyword">this</span> &lt;&lt; <span class="string">" start looping"</span>;</div><div class="line"></div><div class="line">  <span class="keyword">while</span> (!quit_)</div><div class="line">  &#123;</div><div class="line">    activeChannels_.clear();</div><div class="line">    pollReturnTime_ = poller_-&gt;poll(kPollTimeMs, &amp;activeChannels_);</div><div class="line">    ++iteration_;</div><div class="line">    <span class="keyword">if</span> (<span class="string">Logger:</span>:logLevel() &lt;= <span class="string">Logger:</span>:TRACE)</div><div class="line">    &#123;</div><div class="line">      printActiveChannels();</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// TODO sort channel by priority</span></div><div class="line">    eventHandling_ = <span class="literal">true</span>;</div><div class="line">    <span class="keyword">for</span> (<span class="string">ChannelList:</span>:iterator it = activeChannels_.begin();</div><div class="line">        it != activeChannels_.end(); ++it)</div><div class="line">    &#123;</div><div class="line">      currentActiveChannel_ = *it;</div><div class="line">      currentActiveChannel_-&gt;handleEvent(pollReturnTime_);</div><div class="line">    &#125;</div><div class="line">    currentActiveChannel_ = NULL;</div><div class="line">    eventHandling_ = <span class="literal">false</span>;</div><div class="line">    doPendingFunctors();</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  LOG_TRACE &lt;&lt; <span class="string">"EventLoop "</span> &lt;&lt; <span class="keyword">this</span> &lt;&lt; <span class="string">" stop looping"</span>;</div><div class="line">  looping_ = <span class="literal">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>事件循环之中主要做两件事，调用poller获取当前的activeChannel, 然后调用这些channel的回调函数。接着处理之前从外面调入的为了保证线程安全需要在io线程之中调用的回调函数。此过程循环进行，直到显示调用quit退出事件循环。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/muduo/" rel="tag"># muduo</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/24/muduo-InetAddress/" rel="next" title="muduo InetAddress">
+                <i class="fa fa-chevron-left"></i> muduo InetAddress
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/06/24/muduo-EventLoopThread相关/" rel="prev" title="muduo EventLoopThread相关">
+                muduo EventLoopThread相关 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">45</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#线程安全回调"><span class="nav-text">线程安全回调</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#定时回调实现"><span class="nav-text">定时回调实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#核心思想"><span class="nav-text">核心思想</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#新增回调函数"><span class="nav-text">新增回调函数</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#cancel定时回调"><span class="nav-text">cancel定时回调</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#boost-any"><span class="nav-text">boost::any</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#一些转调用"><span class="nav-text">一些转调用</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#loop分析"><span class="nav-text">loop分析</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
