@@ -1,0 +1,879 @@
+<!doctype html>
+
+
+
+
+<html class="theme-next pisces" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="redis," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="dict介绍在redis之中，支撑字典的数据结构是链式hash。底层采用链式hash的字典如果发生rehash，如果字典中的数据量过多，rehash占用的时间会非常多。redis作为单线程事件循环工作模式的内存数据库，长时间的rehash会使得数据库出现短暂的卡顿，无法为所有用户提供及时的服务。因而，在redis中针对这种情况，rehash会分步执行。 下图是rehash结束的时候，描述dict结">
+<meta name="keywords" content="redis">
+<meta property="og:type" content="article">
+<meta property="og:title" content="redis 字典">
+<meta property="og:url" content="http://zhoudayang.github.io/2017/11/04/redis-字典/index.html">
+<meta property="og:site_name" content="zhouyang&#39;s blog">
+<meta property="og:description" content="dict介绍在redis之中，支撑字典的数据结构是链式hash。底层采用链式hash的字典如果发生rehash，如果字典中的数据量过多，rehash占用的时间会非常多。redis作为单线程事件循环工作模式的内存数据库，长时间的rehash会使得数据库出现短暂的卡顿，无法为所有用户提供及时的服务。因而，在redis中针对这种情况，rehash会分步执行。 下图是rehash结束的时候，描述dict结">
+<meta property="og:image" content="http://img.blog.csdn.net/20160410111750819">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tKfTcgy1fl6207rzcmj30g105jwf5.jpg">
+<meta property="og:image" content="https://ws2.sinaimg.cn/large/006tKfTcgy1fl6250k3pvj30g1081my8.jpg">
+<meta property="og:updated_time" content="2017-11-04T05:19:56.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="redis 字典">
+<meta name="twitter:description" content="dict介绍在redis之中，支撑字典的数据结构是链式hash。底层采用链式hash的字典如果发生rehash，如果字典中的数据量过多，rehash占用的时间会非常多。redis作为单线程事件循环工作模式的内存数据库，长时间的rehash会使得数据库出现短暂的卡顿，无法为所有用户提供及时的服务。因而，在redis中针对这种情况，rehash会分步执行。 下图是rehash结束的时候，描述dict结">
+<meta name="twitter:image" content="http://img.blog.csdn.net/20160410111750819">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: false,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://zhoudayang.github.io/2017/11/04/redis-字典/"/>
+
+
+
+
+
+  <title>redis 字典 | zhouyang's blog</title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">zhouyang's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  
+  <div class="algolia-popup popup search-popup">
+    <div class="algolia-search">
+      <div class="algolia-search-input-icon">
+        <i class="fa fa-search"></i>
+      </div>
+      <div class="algolia-search-input" id="algolia-search-input"></div>
+    </div>
+
+    <div class="algolia-results">
+      <div id="algolia-stats"></div>
+      <div id="algolia-hits"></div>
+      <div id="algolia-pagination" class="algolia-pagination"></div>
+    </div>
+
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+  </div>
+
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://zhoudayang.github.io/2017/11/04/redis-字典/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Zhou Yang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="zhouyang's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">redis 字典</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-04T13:19:56+08:00">
+                2017-11-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/redis/" itemprop="url" rel="index">
+                    <span itemprop="name">redis</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i>
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="dict介绍"><a href="#dict介绍" class="headerlink" title="dict介绍"></a>dict介绍</h1><p>在redis之中，支撑字典的数据结构是链式hash。底层采用链式hash的字典如果发生rehash，如果字典中的数据量过多，rehash占用的时间会非常多。redis作为单线程事件循环工作模式的内存数据库，长时间的rehash会使得数据库出现短暂的卡顿，无法为所有用户提供及时的服务。因而，在redis中针对这种情况，rehash会分步执行。</p>
+<p>下图是rehash结束的时候，描述dict结构的图片。</p>
+<p><img src="http://img.blog.csdn.net/20160410111750819" alt=""></p>
+<h1 id="dict结构通览"><a href="#dict结构通览" class="headerlink" title="dict结构通览"></a>dict结构通览</h1><h2 id="哈希表结点"><a href="#哈希表结点" class="headerlink" title="哈希表结点"></a>哈希表结点</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dictEntry</span> &#123;</span></div><div class="line">    </div><div class="line">    <span class="comment">// 键</span></div><div class="line">    <span class="keyword">void</span> *key;</div><div class="line"></div><div class="line">    <span class="comment">// 值</span></div><div class="line">    <span class="keyword">union</span> &#123;</div><div class="line">        <span class="keyword">void</span> *val;</div><div class="line">        <span class="keyword">uint64_t</span> u64;</div><div class="line">        <span class="keyword">int64_t</span> s64;</div><div class="line">    &#125; v;</div><div class="line"></div><div class="line">    <span class="comment">// 指向下个哈希表节点，形成链表</span></div><div class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">dictEntry</span> *<span class="title">next</span>;</span></div><div class="line"></div><div class="line">&#125; dictEntry;</div></pre></td></tr></table></figure>
+<h2 id="类定义"><a href="#类定义" class="headerlink" title="类定义"></a>类定义</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dictType</span> &#123;</span></div><div class="line"></div><div class="line">    <span class="comment">// 计算哈希值的函数</span></div><div class="line">    <span class="function"><span class="keyword">unsigned</span> <span class="title">int</span> <span class="params">(*hashFunction)</span><span class="params">(<span class="keyword">const</span> <span class="keyword">void</span> *key)</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">// 复制键的函数</span></div><div class="line">    <span class="keyword">void</span> *(*keyDup)(<span class="keyword">void</span> *privdata, <span class="keyword">const</span> <span class="keyword">void</span> *key);</div><div class="line"></div><div class="line">    <span class="comment">// 复制值的函数</span></div><div class="line">    <span class="keyword">void</span> *(*valDup)(<span class="keyword">void</span> *privdata, <span class="keyword">const</span> <span class="keyword">void</span> *obj);</div><div class="line"></div><div class="line">    <span class="comment">// 对比键的函数</span></div><div class="line">    <span class="keyword">int</span> (*keyCompare)(<span class="keyword">void</span> *privdata, <span class="keyword">const</span> <span class="keyword">void</span> *key1, <span class="keyword">const</span> <span class="keyword">void</span> *key2);</div><div class="line"></div><div class="line">    <span class="comment">// 销毁键的函数</span></div><div class="line">    <span class="keyword">void</span> (*keyDestructor)(<span class="keyword">void</span> *privdata, <span class="keyword">void</span> *key);</div><div class="line">    </div><div class="line">    <span class="comment">// 销毁值的函数</span></div><div class="line">    <span class="keyword">void</span> (*valDestructor)(<span class="keyword">void</span> *privdata, <span class="keyword">void</span> *obj);</div><div class="line"></div><div class="line">&#125; dictType;</div></pre></td></tr></table></figure>
+<h2 id="dict定义"><a href="#dict定义" class="headerlink" title="dict定义"></a>dict定义</h2><h3 id="hash表定义"><a href="#hash表定义" class="headerlink" title="hash表定义"></a>hash表定义</h3><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 哈希表</div><div class="line"> *</div><div class="line"> * 每个字典都使用两个哈希表，从而实现渐进式 rehash 。</div><div class="line"> */</div><div class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dictht</span> &#123;</span></div><div class="line">    </div><div class="line">    <span class="comment">// 哈希表数组</span></div><div class="line">    dictEntry **table;</div><div class="line"></div><div class="line">    <span class="comment">// 哈希表大小</span></div><div class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> size;</div><div class="line">    </div><div class="line">    <span class="comment">// 哈希表大小掩码，用于计算索引值</span></div><div class="line">    <span class="comment">// 总是等于 size - 1</span></div><div class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> sizemask;</div><div class="line"></div><div class="line">    <span class="comment">// 该哈希表已有节点的数量</span></div><div class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> used;</div><div class="line"></div><div class="line">&#125; dictht;</div></pre></td></tr></table></figure>
+<h3 id="字典定义"><a href="#字典定义" class="headerlink" title="字典定义"></a>字典定义</h3><figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dict</span> &#123;</span></div><div class="line"></div><div class="line">    <span class="comment">// 类型特定函数</span></div><div class="line">    dictType *type;</div><div class="line"></div><div class="line">    <span class="comment">// 私有数据</span></div><div class="line">    <span class="keyword">void</span> *privdata;</div><div class="line"></div><div class="line">    <span class="comment">// 哈希表</span></div><div class="line">    dictht ht[<span class="number">2</span>];</div><div class="line"></div><div class="line">    <span class="comment">// rehash 索引</span></div><div class="line">    <span class="comment">// 当 rehash 不在进行时，值为 -1</span></div><div class="line">    <span class="keyword">int</span> rehashidx; <span class="comment">/* rehashing not in progress if rehashidx == -1 */</span></div><div class="line"></div><div class="line">    <span class="comment">// 目前正在运行的安全迭代器的数量</span></div><div class="line">    <span class="keyword">int</span> iterators; <span class="comment">/* number of iterators currently running */</span></div><div class="line"></div><div class="line">&#125; dict;</div></pre></td></tr></table></figure>
+<h3 id="迭代器定义"><a href="#迭代器定义" class="headerlink" title="迭代器定义"></a>迭代器定义</h3><p>在C++之中，为了便于访问容器中的元素，提供了迭代器。在redis之中，也推出了仿照C++的迭代器实现，为上层应用提供统一的迭代接口提供了支持。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">dictIterator</span> &#123;</span></div><div class="line">        </div><div class="line">    <span class="comment">// 被迭代的字典</span></div><div class="line">    dict *d;</div><div class="line"></div><div class="line">    <span class="comment">// table ：正在被迭代的哈希表号码，值可以是 0 或 1 。</span></div><div class="line">    <span class="comment">// index ：迭代器当前所指向的哈希表索引位置。</span></div><div class="line">    <span class="comment">// safe ：标识这个迭代器是否安全</span></div><div class="line">    <span class="keyword">int</span> table, index, safe;</div><div class="line"></div><div class="line">    <span class="comment">// entry ：当前迭代到的节点的指针</span></div><div class="line">    <span class="comment">// nextEntry ：当前迭代节点的下一个节点</span></div><div class="line">    <span class="comment">//             因为在安全迭代器运作时， entry 所指向的节点可能会被修改，</span></div><div class="line">    <span class="comment">//             所以需要一个额外的指针来保存下一节点的位置，</span></div><div class="line">    <span class="comment">//             从而防止指针丢失</span></div><div class="line">    dictEntry *entry, *nextEntry;</div><div class="line"></div><div class="line">    <span class="keyword">long</span> <span class="keyword">long</span> fingerprint; <span class="comment">/* unsafe iterator fingerprint for misuse detection */</span></div><div class="line">&#125; dictIterator;</div></pre></td></tr></table></figure>
+<h2 id="基本实现"><a href="#基本实现" class="headerlink" title="基本实现"></a>基本实现</h2><p>hash函数</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="title">dictGenHashFunction</span><span class="params">(<span class="keyword">const</span> <span class="keyword">void</span> *key, <span class="keyword">int</span> len)</span></span></div><div class="line">&#123;</div><div class="line">  <span class="comment">/* 'm' and 'r' are mixing constants generated offline.</span></div><div class="line">   They're not really 'magic', they just happen to work well.  */</div><div class="line">  <span class="keyword">uint32_t</span> seed = dict_hash_function_seed;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> m = <span class="number">0x5bd1e995</span>;</div><div class="line">  <span class="keyword">const</span> <span class="keyword">int</span> r = <span class="number">24</span>;</div><div class="line"></div><div class="line">  <span class="comment">/* Initialize the hash to a 'random' value */</span></div><div class="line">  <span class="keyword">uint32_t</span> h = seed ^len;</div><div class="line"></div><div class="line">  <span class="comment">/* Mix 4 bytes at a time into the hash */</span></div><div class="line">  <span class="keyword">const</span> <span class="keyword">unsigned</span> <span class="keyword">char</span> *data = (<span class="keyword">const</span> <span class="keyword">unsigned</span> <span class="keyword">char</span> *) key;</div><div class="line"></div><div class="line">  <span class="keyword">while</span> (len &gt;= <span class="number">4</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">uint32_t</span> k = *(<span class="keyword">uint32_t</span> *) data;</div><div class="line"></div><div class="line">    k *= m;</div><div class="line">    k ^= k &gt;&gt; r;</div><div class="line">    k *= m;</div><div class="line"></div><div class="line">    h *= m;</div><div class="line">    h ^= k;</div><div class="line"></div><div class="line">    data += <span class="number">4</span>;</div><div class="line">    len -= <span class="number">4</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/* Handle the last few bytes of the input array  */</span></div><div class="line">  <span class="keyword">switch</span> (len)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">case</span> <span class="number">3</span>: h ^= data[<span class="number">2</span>] &lt;&lt; <span class="number">16</span>;</div><div class="line">    <span class="keyword">case</span> <span class="number">2</span>: h ^= data[<span class="number">1</span>] &lt;&lt; <span class="number">8</span>;</div><div class="line">    <span class="keyword">case</span> <span class="number">1</span>: h ^= data[<span class="number">0</span>];</div><div class="line">      h *= m;</div><div class="line">  &#125;;</div><div class="line"></div><div class="line">  <span class="comment">/* Do a few final mixes of the hash to ensure the last few</span></div><div class="line">   * bytes are well-incorporated. */</div><div class="line">  h ^= h &gt;&gt; <span class="number">13</span>;</div><div class="line">  h *= m;</div><div class="line">  h ^= h &gt;&gt; <span class="number">15</span>;</div><div class="line"></div><div class="line">  <span class="keyword">return</span> (<span class="keyword">unsigned</span> <span class="keyword">int</span>) h;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>大小写无关hash函数</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/// 因为统一转换成为了小写字母，所以此hash函数是大小写无关的实现版本</span></div><div class="line"><span class="comment">/* And a case insensitive hash function (based on djb hash) */</span></div><div class="line"><span class="function"><span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="title">dictGenCaseHashFunction</span><span class="params">(<span class="keyword">const</span> <span class="keyword">unsigned</span> <span class="keyword">char</span> *buf, <span class="keyword">int</span> len)</span></span></div><div class="line">&#123;</div><div class="line">  <span class="keyword">unsigned</span> <span class="keyword">int</span> hash = (<span class="keyword">unsigned</span> <span class="keyword">int</span>) dict_hash_function_seed;</div><div class="line"></div><div class="line">  <span class="keyword">while</span> (len--)</div><div class="line">  &#123;</div><div class="line">    hash = ((hash &lt;&lt; <span class="number">5</span>) + hash) + (<span class="built_in">tolower</span>(*buf++));</div><div class="line">  &#125; <span class="comment">/* hash * 33 + c */</span></div><div class="line">  <span class="keyword">return</span> hash;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>创建dict</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 重置（或初始化）给定哈希表的各项属性值</div><div class="line"> *</div><div class="line"> * p.s. 上面的英文注释已经过期</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">static void _dictReset(dictht *ht)</div><div class="line">&#123;</div><div class="line">  <span class="function"><span class="title">ht</span>-&gt;</span>table = NULL;</div><div class="line">  <span class="function"><span class="title">ht</span>-&gt;</span>size = <span class="number">0</span>;</div><div class="line">  <span class="function"><span class="title">ht</span>-&gt;</span>sizemask = <span class="number">0</span>;</div><div class="line">  <span class="function"><span class="title">ht</span>-&gt;</span>used = <span class="number">0</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 初始化哈希表</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">int _dictInit(dict *d, dictType *type,</div><div class="line">              void *privDataPtr)</div><div class="line">&#123;</div><div class="line">  <span class="comment">// 初始化两个哈希表的各项属性值</span></div><div class="line">  <span class="comment">// 但暂时还不分配内存给哈希表数组</span></div><div class="line">  _<span class="function"><span class="title">dictReset</span>(&amp;d-&gt;</span>ht[<span class="number">0</span>]);</div><div class="line">  _<span class="function"><span class="title">dictReset</span>(&amp;d-&gt;</span>ht[<span class="number">1</span>]);</div><div class="line"></div><div class="line">  <span class="comment">// 设置类型特定函数</span></div><div class="line">  <span class="function"><span class="title">d</span>-&gt;</span>type = type;</div><div class="line"></div><div class="line">  <span class="comment">// 设置私有数据</span></div><div class="line">  <span class="function"><span class="title">d</span>-&gt;</span>privdata = privDataPtr;</div><div class="line"></div><div class="line">  <span class="comment">// 设置哈希表 rehash 状态</span></div><div class="line">  <span class="function"><span class="title">d</span>-&gt;</span>rehashidx = -<span class="number">1</span>;</div><div class="line"></div><div class="line">  <span class="comment">// 设置字典的安全迭代器数量</span></div><div class="line">  <span class="function"><span class="title">d</span>-&gt;</span>iterators = <span class="number">0</span>;</div><div class="line"></div><div class="line">  return DICT_OK;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 创建一个新的字典</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">dict *dictCreate(dictType *type,</div><div class="line">                 void *privDataPtr)</div><div class="line">&#123;</div><div class="line">  <span class="comment">/// 创建dict结构体</span></div><div class="line">  dict *d = zmalloc(sizeof(*d));</div><div class="line"></div><div class="line">  <span class="comment">/// 初始化dict</span></div><div class="line">  _dictInit(d, type, privDataPtr);</div><div class="line"></div><div class="line">  return d;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>调整字典的大小</p>
+<figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 创建一个新的哈希表，并根据字典的情况，选择以下其中一个动作来进行：</div><div class="line"> *</div><div class="line"> * 1) 如果字典的 0 号哈希表为空，那么将新哈希表设置为 0 号哈希表</div><div class="line"> * 2) 如果字典的 0 号哈希表非空，那么将新哈希表设置为 1 号哈希表，</div><div class="line"> *    并打开字典的 rehash 标识，使得程序可以开始对字典进行 rehash</div><div class="line"> *</div><div class="line"> * size 参数不够大，或者 rehash 已经在进行时，返回 DICT_ERR 。</div><div class="line"> *</div><div class="line"> * 成功创建 0 号哈希表，或者 1 号哈希表时，返回 DICT_OK 。</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line"> */</div><div class="line"><span class="keyword">int</span> dictExpand(dict *d, <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="built_in">size</span>)</div><div class="line">&#123;</div><div class="line">  <span class="comment">// 新哈希表</span></div><div class="line">  dictht n; <span class="comment">/* the new hash table */</span></div><div class="line"></div><div class="line">  <span class="comment">// 根据 size 参数，计算哈希表的大小</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  <span class="keyword">unsigned</span> <span class="keyword">long</span> realsize = _dictNextPower(<span class="built_in">size</span>);</div><div class="line"></div><div class="line">  <span class="comment">/* the size is invalid if it is smaller than the number of</span></div><div class="line">   * elements already inside the hash table */</div><div class="line">  <span class="comment">// 不能在字典正在 rehash 时进行</span></div><div class="line">  <span class="comment">// size 的值也不能小于 0 号哈希表的当前已使用节点</span></div><div class="line">  <span class="built_in">if</span> (dictIsRehashing(d) || d-&gt;ht[<span class="number">0</span>].used &gt; <span class="built_in">size</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="built_in">return</span> DICT_ERR;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/* Allocate the new hash table and initialize all pointers to NULL */</span></div><div class="line">  <span class="comment">// 为哈希表分配空间，并将所有指针指向 NULL</span></div><div class="line">  n.<span class="built_in">size</span> = realsize;</div><div class="line">  n.sizemask = realsize - <span class="number">1</span>;</div><div class="line">  <span class="comment">// T = O(N)</span></div><div class="line">  n.table = zcalloc(realsize * <span class="keyword">sizeof</span>(dictEntry *));</div><div class="line">  n.used = <span class="number">0</span>;</div><div class="line"></div><div class="line">  <span class="comment">/* Is this the first initialization? If so it's not really a rehashing</span></div><div class="line">   * we just set the first hash table so that it can accept keys. */</div><div class="line">  <span class="comment">// 如果 0 号哈希表为空，那么这是一次初始化：</span></div><div class="line">  <span class="comment">// 程序将新哈希表赋给 0 号哈希表的指针，然后字典就可以开始处理键值对了。</span></div><div class="line">  <span class="built_in">if</span> (d-&gt;ht[<span class="number">0</span>].table == NULL)</div><div class="line">  &#123;</div><div class="line">    d-&gt;ht[<span class="number">0</span>] = n;</div><div class="line">    <span class="built_in">return</span> DICT_OK;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/* Prepare a second hash table for incremental rehashing */</span></div><div class="line">  <span class="comment">// 如果 0 号哈希表非空，那么这是一次 rehash ：</span></div><div class="line">  <span class="comment">// 程序将新哈希表设置为 1 号哈希表，</span></div><div class="line">  <span class="comment">// 并将字典的 rehash 标识打开，让程序可以开始对字典进行 rehash</span></div><div class="line">  d-&gt;ht[<span class="number">1</span>] = n;</div><div class="line">  d-&gt;rehashidx = <span class="number">0</span>;</div><div class="line">  <span class="built_in">return</span> DICT_OK;</div><div class="line"> &#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 缩小给定字典</div><div class="line"> * 让它的已用节点数和字典大小之间的比率接近 1:1</div><div class="line"> *</div><div class="line"> * 返回 DICT_ERR 表示字典已经在 rehash ，或者 dict_can_resize 为假。</div><div class="line"> *</div><div class="line"> * 成功创建体积更小的 ht[1] ，可以开始 resize 时，返回 DICT_OK。</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line"> */</div><div class="line"><span class="keyword">int</span> dictResize(dict *d)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">int</span> minimal;</div><div class="line"></div><div class="line">  <span class="comment">// 不能在关闭 rehash 或者正在 rehash 的时候调用</span></div><div class="line">  <span class="built_in">if</span> (!dict_can_resize || dictIsRehashing(d))</div><div class="line">  &#123;</div><div class="line">    <span class="built_in">return</span> DICT_ERR;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 计算让比率接近 1：1 所需要的最少节点数量</span></div><div class="line">  minimal = d-&gt;ht[<span class="number">0</span>].used;</div><div class="line">  <span class="built_in">if</span> (minimal &lt; DICT_HT_INITIAL_SIZE)</div><div class="line">  &#123;</div><div class="line">    <span class="comment">/// dict最小的大小</span></div><div class="line">    minimal = DICT_HT_INITIAL_SIZE;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 调整字典的大小</span></div><div class="line">  <span class="comment">// T = O(N)</span></div><div class="line">  <span class="built_in">return</span> dictExpand(d, minimal);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>执行n次rehash处理</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/* Performs N steps of incremental rehashing. Returns 1 if there are still</span></div><div class="line"> * keys to move from the old to the new hash table, otherwise 0 is returned.</div><div class="line"> *</div><div class="line"> * 执行 N 步渐进式 rehash 。</div><div class="line"> *</div><div class="line"> * 返回 1 表示仍有键需要从 0 号哈希表移动到 1 号哈希表，</div><div class="line"> * 返回 0 则表示所有键都已经迁移完毕。</div><div class="line"> *</div><div class="line"> * Note that a rehashing step consists in moving a bucket (that may have more</div><div class="line"> * than one key as we use chaining) from the old to the new hash table.</div><div class="line"> *</div><div class="line"> * 注意，每步 rehash 都是以一个哈希表索引（桶）作为单位的，</div><div class="line"> * 一个桶里可能会有多个节点，</div><div class="line"> * 被 rehash 的桶里的所有节点都会被移动到新哈希表。</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line"> */</div><div class="line">int dictRehash(dict *d, int n)</div><div class="line">&#123;</div><div class="line"></div><div class="line">  <span class="comment">// 只可以在 rehash 进行中时执行</span></div><div class="line">  <span class="keyword">if</span> (!dictIsRehashing(d))</div><div class="line">  &#123;</div><div class="line">    return <span class="number">0</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 进行 N 步迁移</span></div><div class="line">  <span class="comment">// T = O(N)</span></div><div class="line">  <span class="keyword">while</span> (n--)</div><div class="line">  &#123;</div><div class="line">    dictEntry *de, *nextde;</div><div class="line"></div><div class="line">    <span class="comment">/* Check if we already rehashed the whole table... */</span></div><div class="line">    <span class="comment">// 如果 0 号哈希表为空，那么表示 rehash 执行完毕</span></div><div class="line">    <span class="comment">// T = O(1)</span></div><div class="line">    <span class="function"><span class="title">if</span> (d-&gt;</span>ht[<span class="number">0</span>].used == <span class="number">0</span>)</div><div class="line">    &#123;</div><div class="line">      <span class="comment">// 释放 0 号哈希表</span></div><div class="line">      <span class="function"><span class="title">zfree</span>(d-&gt;</span>ht[<span class="number">0</span>].table);</div><div class="line">      <span class="comment">// 将原来的 1 号哈希表设置为新的 0 号哈希表</span></div><div class="line">      <span class="function"><span class="title">d</span>-&gt;</span><span class="function"><span class="title">ht</span>[0] = d-&gt;</span>ht[<span class="number">1</span>];</div><div class="line">      <span class="comment">// 重置旧的 1 号哈希表</span></div><div class="line">      _<span class="function"><span class="title">dictReset</span>(&amp;d-&gt;</span>ht[<span class="number">1</span>]);</div><div class="line">      <span class="comment">// 关闭 rehash 标识</span></div><div class="line">      <span class="function"><span class="title">d</span>-&gt;</span>rehashidx = -<span class="number">1</span>;</div><div class="line">      <span class="comment">// 返回 0 ，向调用者表示 rehash 已经完成</span></div><div class="line">      return <span class="number">0</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/* Note that rehashidx can't overflow as we are sure there are more</span></div><div class="line">     * elements because ht[0].used != 0 */</div><div class="line">    <span class="comment">// 确保 rehashidx 没有越界</span></div><div class="line">    <span class="function"><span class="title">assert</span>(d-&gt;</span><span class="function"><span class="title">ht</span>[0].size &gt; (unsigned) d-&gt;</span>rehashidx);</div><div class="line"></div><div class="line">    <span class="comment">// 略过数组中为空的索引，找到下一个非空索引</span></div><div class="line">    <span class="function"><span class="title">while</span> (d-&gt;</span><span class="function"><span class="title">ht</span>[0].table[d-&gt;</span>rehashidx] == NULL)</div><div class="line">    &#123;</div><div class="line">      <span class="function"><span class="title">d</span>-&gt;</span>rehashidx++;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 指向该索引的链表表头节点</span></div><div class="line">    <span class="function"><span class="title">de</span> = d-&gt;</span><span class="function"><span class="title">ht</span>[0].table[d-&gt;</span>rehashidx];</div><div class="line">    <span class="comment">/* Move all the keys in this bucket from the old to the new hash HT */</span></div><div class="line">    <span class="comment">// 将链表中的所有节点迁移到新哈希表</span></div><div class="line">    <span class="comment">// T = O(1)</span></div><div class="line">    <span class="keyword">while</span> (de)</div><div class="line">    &#123;</div><div class="line">      unsigned int h;</div><div class="line"></div><div class="line">      <span class="comment">// 保存下个节点的指针</span></div><div class="line">      <span class="function"><span class="title">nextde</span> = de-&gt;</span>next;</div><div class="line"></div><div class="line">      <span class="comment">/* Get the index in the new hash table */</span></div><div class="line">      <span class="comment">// 计算新哈希表的哈希值，以及节点插入的索引位置</span></div><div class="line">      <span class="function"><span class="title">h</span> = dictHashKey(d, de-&gt;</span><span class="function"><span class="title">key</span>) &amp; d-&gt;</span>ht[<span class="number">1</span>].sizemask;</div><div class="line"></div><div class="line">      <span class="comment">// 插入节点到新哈希表</span></div><div class="line">      <span class="function"><span class="title">de</span>-&gt;</span><span class="function"><span class="title">next</span> = d-&gt;</span>ht[<span class="number">1</span>].table[h];</div><div class="line">      <span class="function"><span class="title">d</span>-&gt;</span>ht[<span class="number">1</span>].table[h] = de;</div><div class="line"></div><div class="line">      <span class="comment">// 更新计数器</span></div><div class="line">      <span class="function"><span class="title">d</span>-&gt;</span>ht[<span class="number">0</span>].used--;</div><div class="line">      <span class="function"><span class="title">d</span>-&gt;</span>ht[<span class="number">1</span>].used++;</div><div class="line"></div><div class="line">      <span class="comment">// 继续处理下个节点</span></div><div class="line">      de = nextde;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// 将刚迁移完的哈希表索引的指针设为空</span></div><div class="line">    <span class="function"><span class="title">d</span>-&gt;</span><span class="function"><span class="title">ht</span>[0].table[d-&gt;</span>rehashidx] = NULL;</div><div class="line">    <span class="comment">// 更新 rehash 索引</span></div><div class="line">    <span class="function"><span class="title">d</span>-&gt;</span>rehashidx++;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  return <span class="number">1</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在限定时间内进行rehash</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 返回以毫秒为单位的 UNIX 时间戳</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line"><span class="function"><span class="keyword">long</span> <span class="keyword">long</span> <span class="title">timeInMilliseconds</span><span class="params">(<span class="keyword">void</span>)</span></span></div><div class="line">&#123;</div><div class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">timeval</span> <span class="title">tv</span>;</span></div><div class="line"></div><div class="line">  gettimeofday(&amp;tv, <span class="literal">NULL</span>);</div><div class="line">  <span class="keyword">return</span> (((<span class="keyword">long</span> <span class="keyword">long</span>) tv.tv_sec) * <span class="number">1000</span>) + (tv.tv_usec / <span class="number">1000</span>);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/* Rehash for an amount of time between ms milliseconds and ms+1 milliseconds */</span></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 在给定毫秒数内，以 100 步为单位，对字典进行 rehash 。</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line"> */</div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">dictRehashMilliseconds</span><span class="params">(dict *d, <span class="keyword">int</span> ms)</span></span></div><div class="line">&#123;</div><div class="line">  <span class="comment">// 记录开始时间</span></div><div class="line">  <span class="keyword">long</span> <span class="keyword">long</span> start = timeInMilliseconds();</div><div class="line">  <span class="keyword">int</span> rehashes = <span class="number">0</span>;</div><div class="line"></div><div class="line">  <span class="keyword">while</span> (dictRehash(d, <span class="number">100</span>))</div><div class="line">  &#123;</div><div class="line">    rehashes += <span class="number">100</span>;</div><div class="line">    <span class="comment">// 如果时间已过，跳出</span></div><div class="line">    <span class="keyword">if</span> (timeInMilliseconds() - start &gt; ms)</div><div class="line">    &#123;</div><div class="line">      <span class="keyword">break</span>;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">return</span> rehashes;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>向字典之中添加键值对</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 尝试将给定键值对添加到字典中</div><div class="line"> *</div><div class="line"> * 只有给定键 key 不存在于字典时，添加操作才会成功</div><div class="line"> *</div><div class="line"> * 添加成功返回 DICT_OK ，失败返回 DICT_ERR</div><div class="line"> *</div><div class="line"> * 最坏 T = O(N) ，平滩 O(1) </div><div class="line"> */</div><div class="line"><span class="built_in">int</span> dictAdd(dict *d, <span class="keyword">void</span> *<span class="built_in">key</span>, <span class="keyword">void</span> *val)</div><div class="line">&#123;</div><div class="line">  <span class="comment">// 尝试添加键到字典，并返回包含了这个键的新哈希节点</span></div><div class="line">  <span class="comment">// T = O(N)</span></div><div class="line">  dictEntry *entry = dictAddRaw(d, <span class="built_in">key</span>);</div><div class="line"></div><div class="line">  <span class="comment">// 键已存在，添加失败</span></div><div class="line">  <span class="keyword">if</span> (!entry)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">return</span> DICT_ERR;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 键不存在，设置节点的值</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  dictSetVal(d, entry, val);</div><div class="line"></div><div class="line">  <span class="comment">// 添加成功</span></div><div class="line">  <span class="keyword">return</span> DICT_OK;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/* Low level add. This function adds the entry but instead of setting</span></div><div class="line"> * a value returns the dictEntry structure to the user, that will make</div><div class="line"> * sure to fill the value field as he wishes.</div><div class="line"> *</div><div class="line"> * This function is also directly exposed to user API to be called</div><div class="line"> * mainly in order to store non-pointers inside the hash value, example:</div><div class="line"> *</div><div class="line"> * entry = dictAddRaw(dict,mykey);</div><div class="line"> * if (entry != NULL) dictSetSignedIntegerVal(entry,1000);</div><div class="line"> *</div><div class="line"> * Return values:</div><div class="line"> *</div><div class="line"> * If key already exists NULL is returned.</div><div class="line"> * If key was added, the hash entry is returned to be manipulated by the caller.</div><div class="line"> */</div><div class="line"><span class="comment">/*</span></div><div class="line"> * 尝试将键插入到字典中</div><div class="line"> *</div><div class="line"> * 如果键已经在字典存在，那么返回 NULL</div><div class="line"> *</div><div class="line"> * 如果键不存在，那么程序创建新的哈希节点，</div><div class="line"> * 将节点和键关联，并插入到字典，然后返回节点本身。</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line"> */</div><div class="line">dictEntry *dictAddRaw(dict *d, <span class="keyword">void</span> *<span class="built_in">key</span>)</div><div class="line">&#123;</div><div class="line">  <span class="built_in">int</span> index;</div><div class="line">  dictEntry *entry;</div><div class="line">  dictht *ht;</div><div class="line"></div><div class="line">  <span class="comment">// 如果条件允许的话，进行单步 rehash</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  <span class="keyword">if</span> (dictIsRehashing(d))</div><div class="line">  &#123;</div><div class="line">    _dictRehashStep(d);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/* Get the index of the new element, or -1 if</span></div><div class="line">   * the element already exists. */</div><div class="line">  <span class="comment">// 计算键在哈希表中的索引值</span></div><div class="line">  <span class="comment">// 如果值为 -1 ，那么表示键已经存在</span></div><div class="line">  <span class="comment">// T = O(N)</span></div><div class="line">  <span class="keyword">if</span> ((index = _dictKeyIndex(d, <span class="built_in">key</span>)) == <span class="number">-1</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">return</span> NULL;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  <span class="comment">/* Allocate the memory and store the new entry */</span></div><div class="line">  <span class="comment">// 如果字典正在 rehash ，那么将新键添加到 1 号哈希表</span></div><div class="line">  <span class="comment">// 否则，将新键添加到 0 号哈希表</span></div><div class="line">  ht = dictIsRehashing(d) ? &amp;d-&gt;ht[<span class="number">1</span>] : &amp;d-&gt;ht[<span class="number">0</span>];</div><div class="line">  <span class="comment">// 为新节点分配空间</span></div><div class="line">  entry = zmalloc(sizeof(*entry));</div><div class="line">  <span class="comment">// 将新节点插入到链表表头</span></div><div class="line">  entry-&gt;next = ht-&gt;table[index];</div><div class="line">  ht-&gt;table[index] = entry;</div><div class="line">  <span class="comment">// 更新哈希表已使用节点数量</span></div><div class="line">  ht-&gt;used++;</div><div class="line"></div><div class="line">  <span class="comment">/* Set the hash entry fields. */</span></div><div class="line">  <span class="comment">// 设置新节点的键</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  dictSetKey(d, entry, <span class="built_in">key</span>);</div><div class="line"></div><div class="line">  <span class="keyword">return</span> entry;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>添加给定键值对到字典之中，如果已经存在，就替换为给定的新的值。</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/* Add an element, discarding the old if the key already exists.</span></div><div class="line"> *</div><div class="line"> * 将给定的键值对添加到字典中，如果键已经存在，那么删除旧有的键值对。</div><div class="line"> *</div><div class="line"> * Return 1 if the key was added from scratch, 0 if there was already an</div><div class="line"> * element with such key and dictReplace() just performed a value update</div><div class="line"> * operation. </div><div class="line"> *</div><div class="line"> * 如果键值对为全新添加，那么返回 1 。</div><div class="line"> * 如果键值对是通过对原有的键值对更新得来的，那么返回 0 。</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line"> */</div><div class="line"><span class="built_in">int</span> dictReplace(dict *d, <span class="keyword">void</span> *<span class="built_in">key</span>, <span class="keyword">void</span> *val)</div><div class="line">&#123;</div><div class="line">  dictEntry *entry, auxentry;</div><div class="line"></div><div class="line">  <span class="comment">/* Try to add the element. If the key</span></div><div class="line">   * does not exists dictAdd will suceed. */</div><div class="line">  <span class="comment">// 尝试直接将键值对添加到字典</span></div><div class="line">  <span class="comment">// 如果键 key 不存在的话，添加会成功</span></div><div class="line">  <span class="comment">// T = O(N)</span></div><div class="line">  <span class="keyword">if</span> (dictAdd(d, <span class="built_in">key</span>, val) == DICT_OK)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">return</span> <span class="number">1</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/* It already exists, get the entry */</span></div><div class="line">  <span class="comment">// 运行到这里，说明键 key 已经存在，那么找出包含这个 key 的节点</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  entry = dictFind(d, <span class="built_in">key</span>);</div><div class="line">  <span class="comment">/* Set the new value and free the old one. Note that it is important</span></div><div class="line">   * to do that in this order, as the value may just be exactly the same</div><div class="line">   * as the previous one. In this context, think to reference counting,</div><div class="line">   * you want to increment (set), and then decrement (free), and not the</div><div class="line">   * reverse. */</div><div class="line">  <span class="comment">// 先保存原有的值的指针</span></div><div class="line">  auxentry = *entry;</div><div class="line">  <span class="comment">// 然后设置新的值</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  dictSetVal(d, entry, val);</div><div class="line">  <span class="comment">// 然后释放旧值</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  dictFreeVal(d, &amp;auxentry);</div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>返回给定key对应字典中的节点，如果key在字典之中不存在，就在字典之中创建这个节点。</p>
+<figure class="highlight q"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">/*</div><div class="line"> * dictAddRaw() 根据给定 <span class="built_in">key</span> 释放存在，执行以下动作：</div><div class="line"> *</div><div class="line"> * <span class="number">1</span>) <span class="built_in">key</span> 已经存在，返回包含该 <span class="built_in">key</span> 的字典节点</div><div class="line"> * <span class="number">2</span>) <span class="built_in">key</span> 不存在，那么将 <span class="built_in">key</span> 添加到字典</div><div class="line"> *</div><div class="line"> * 不论发生以上的哪一种情况，</div><div class="line"> * dictAddRaw() 都总是返回包含给定 <span class="built_in">key</span> 的字典节点。</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line"> */</div><div class="line">dictEntry *dictReplaceRaw(dict *d, void *<span class="built_in">key</span>)</div><div class="line">&#123;</div><div class="line"></div><div class="line">  <span class="comment">// 使用 key 在字典中查找节点</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  dictEntry *entry = dictFind(d, <span class="built_in">key</span>);</div><div class="line"></div><div class="line">  <span class="comment">// 如果节点找到了直接返回节点，否则添加并返回一个新节点</span></div><div class="line">  <span class="comment">// T = O(N)</span></div><div class="line">  return entry ? entry : dictAddRaw(d, <span class="built_in">key</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>查找并删除包含给定键的节点。</p>
+<figure class="highlight stata"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 查找并删除包含给定键的节点</div><div class="line"> *</div><div class="line"> * 参数 nofree 决定是否调用键和值的释放函数</div><div class="line"> * 0 表示调用，1 表示不调用</div><div class="line"> *</div><div class="line"> * 找到并成功删除返回 DICT_OK ，没找到则返回 DICT_ERR</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">static int dictGenericDelete(dict *<span class="keyword">d</span>, <span class="keyword">const</span> void *key, int nofree)</div><div class="line">&#123;</div><div class="line">  unsigned int <span class="keyword">h</span>, idx;</div><div class="line">  dictEntry *<span class="keyword">he</span>, *prevHe;</div><div class="line">  int <span class="keyword">table</span>;</div><div class="line"></div><div class="line">  <span class="comment">// 字典（的哈希表）为空</span></div><div class="line">  <span class="keyword">if</span> (<span class="keyword">d</span>-&gt;ht[0].size == 0)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">return</span> DICT_ERR;</div><div class="line">  &#125; <span class="comment">/* d-&gt;ht[0].table is NULL */</span></div><div class="line"></div><div class="line">  <span class="comment">// 进行单步 rehash ，T = O(1)</span></div><div class="line">  <span class="keyword">if</span> (dictIsRehashing(<span class="keyword">d</span>))</div><div class="line">  &#123;</div><div class="line">    _dictRehashStep(<span class="keyword">d</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 计算哈希值</span></div><div class="line">  <span class="keyword">h</span> = dictHashKey(<span class="keyword">d</span>, key);</div><div class="line"></div><div class="line">  <span class="comment">// 遍历哈希表</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  <span class="keyword">for</span> (<span class="keyword">table</span> = 0; <span class="keyword">table</span> &lt;= 1; <span class="keyword">table</span>++)</div><div class="line">  &#123;</div><div class="line"></div><div class="line">    <span class="comment">// 计算索引值</span></div><div class="line">    idx = <span class="keyword">h</span> &amp; <span class="keyword">d</span>-&gt;ht[<span class="keyword">table</span>].sizemask;</div><div class="line">    <span class="comment">// 指向该索引上的链表</span></div><div class="line">    <span class="keyword">he</span> = <span class="keyword">d</span>-&gt;ht[<span class="keyword">table</span>].<span class="keyword">table</span>[idx];</div><div class="line">    prevHe = NULL;</div><div class="line">    <span class="comment">// 遍历链表上的所有节点</span></div><div class="line">    <span class="comment">// T = O(1)</span></div><div class="line">    <span class="keyword">while</span> (<span class="keyword">he</span>)</div><div class="line">    &#123;</div><div class="line"></div><div class="line">      <span class="keyword">if</span> (dictCompareKeys(<span class="keyword">d</span>, key, <span class="keyword">he</span>-&gt;key))</div><div class="line">      &#123;</div><div class="line">        <span class="comment">// 超找目标节点</span></div><div class="line"></div><div class="line">        <span class="comment">/* Unlink the element from the list */</span></div><div class="line">        <span class="comment">// 从链表中删除</span></div><div class="line">        <span class="keyword">if</span> (prevHe)</div><div class="line">        &#123;</div><div class="line">          prevHe-&gt;next = <span class="keyword">he</span>-&gt;next;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">else</span></div><div class="line">        &#123;</div><div class="line">          <span class="keyword">d</span>-&gt;ht[<span class="keyword">table</span>].<span class="keyword">table</span>[idx] = <span class="keyword">he</span>-&gt;next;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="comment">// 释放调用键和值的释放函数？</span></div><div class="line">        <span class="keyword">if</span> (!nofree)</div><div class="line">        &#123;</div><div class="line">          dictFreeKey(<span class="keyword">d</span>, <span class="keyword">he</span>);</div><div class="line">          dictFreeVal(<span class="keyword">d</span>, <span class="keyword">he</span>);</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="comment">// 释放节点本身</span></div><div class="line">        zfree(<span class="keyword">he</span>);</div><div class="line"></div><div class="line">        <span class="comment">// 更新已使用节点数量</span></div><div class="line">        <span class="keyword">d</span>-&gt;ht[<span class="keyword">table</span>].used--;</div><div class="line"></div><div class="line">        <span class="comment">// 返回已找到信号</span></div><div class="line">        <span class="keyword">return</span> DICT_OK;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      prevHe = <span class="keyword">he</span>;</div><div class="line">      <span class="keyword">he</span> = <span class="keyword">he</span>-&gt;next;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 如果执行到这里，说明在 0 号哈希表中找不到给定键</span></div><div class="line">    <span class="comment">// 那么根据字典是否正在进行 rehash ，决定要不要查找 1 号哈希表</span></div><div class="line">    <span class="keyword">if</span> (!dictIsRehashing(<span class="keyword">d</span>))</div><div class="line">    &#123;</div><div class="line">      <span class="keyword">break</span>;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 没找到</span></div><div class="line">  <span class="keyword">return</span> DICT_ERR; <span class="comment">/* not found */</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 从字典中删除包含给定键的节点</div><div class="line"> * </div><div class="line"> * 并且调用键值的释放函数来删除键值</div><div class="line"> *</div><div class="line"> * 找到并成功删除返回 DICT_OK ，没找到则返回 DICT_ERR</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">int dictDelete(dict *ht, <span class="keyword">const</span> void *key)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">return</span> dictGenericDelete(ht, key, 0);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 从字典中删除包含给定键的节点</div><div class="line"> * </div><div class="line"> * 但不调用键值的释放函数来删除键值</div><div class="line"> *</div><div class="line"> * 找到并成功删除返回 DICT_OK ，没找到则返回 DICT_ERR</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">int dictDeleteNoFree(dict *ht, <span class="keyword">const</span> void *key)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">return</span> dictGenericDelete(ht, key, 1);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>释放整个字典</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 删除哈希表上的所有节点，并重置哈希表的各项属性</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line"> */</div><div class="line">int _dictClear(dict *d, dictht *ht, void(callback)(void *))</div><div class="line">&#123;</div><div class="line">  unsigned long i;</div><div class="line"></div><div class="line">  <span class="comment">/* Free all the elements */</span></div><div class="line">  <span class="comment">// 遍历整个哈希表</span></div><div class="line">  <span class="comment">// T = O(N)</span></div><div class="line">  <span class="function"><span class="title">for</span> (i = 0; i &lt; ht-&gt;</span><span class="function"><span class="title">size</span> &amp;&amp; ht-&gt;</span>used &gt; <span class="number">0</span>; i++)</div><div class="line">  &#123;</div><div class="line">    dictEntry *he, *nextHe;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (callback &amp;&amp; (i &amp; <span class="number">65535</span>) == <span class="number">0</span>)</div><div class="line">    &#123;</div><div class="line">      <span class="function"><span class="title">callback</span>(d-&gt;</span>privdata);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 跳过空索引</span></div><div class="line">    <span class="function"><span class="title">if</span> ((he = ht-&gt;</span>table[i]) == NULL)</div><div class="line">    &#123;</div><div class="line">      continue;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 遍历整个链表</span></div><div class="line">    <span class="comment">// T = O(1)</span></div><div class="line">    <span class="keyword">while</span> (he)</div><div class="line">    &#123;</div><div class="line">      <span class="function"><span class="title">nextHe</span> = he-&gt;</span>next;</div><div class="line">      <span class="comment">// 删除键</span></div><div class="line">      dictFreeKey(d, he);</div><div class="line">      <span class="comment">// 删除值</span></div><div class="line">      dictFreeVal(d, he);</div><div class="line">      <span class="comment">// 释放节点</span></div><div class="line">      zfree(he);</div><div class="line"></div><div class="line">      <span class="comment">// 更新已使用节点计数</span></div><div class="line">      <span class="function"><span class="title">ht</span>-&gt;</span>used--;</div><div class="line"></div><div class="line">      <span class="comment">// 处理下个节点</span></div><div class="line">      he = nextHe;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/* Free the table and the allocated cache structure */</span></div><div class="line">  <span class="comment">// 释放哈希表结构</span></div><div class="line">  <span class="function"><span class="title">zfree</span>(ht-&gt;</span>table);</div><div class="line"></div><div class="line">  <span class="comment">/* Re-initialize the table */</span></div><div class="line">  <span class="comment">// 重置哈希表属性</span></div><div class="line">  _dictReset(ht);</div><div class="line"></div><div class="line">  return DICT_OK; <span class="comment">/* never fails */</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/* Clear &amp; Release the hash table */</span></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 删除并释放整个字典</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line"> */</div><div class="line">void dictRelease(dict *d)</div><div class="line">&#123;</div><div class="line">  <span class="comment">// 删除并清空两个哈希表</span></div><div class="line">  _<span class="function"><span class="title">dictClear</span>(d, &amp;d-&gt;</span>ht[<span class="number">0</span>], NULL);</div><div class="line">  _<span class="function"><span class="title">dictClear</span>(d, &amp;d-&gt;</span>ht[<span class="number">1</span>], NULL);</div><div class="line">  <span class="comment">// 释放节点结构</span></div><div class="line">  zfree(d);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>在字典之中查找指定的key</p>
+<figure class="highlight stata"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 返回字典中包含键 key 的节点</div><div class="line"> *</div><div class="line"> * 找到返回节点，找不到返回 NULL</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">dictEntry *dictFind(dict *<span class="keyword">d</span>, <span class="keyword">const</span> void *key)</div><div class="line">&#123;</div><div class="line">  dictEntry *<span class="keyword">he</span>;</div><div class="line">  unsigned int <span class="keyword">h</span>, idx, <span class="keyword">table</span>;</div><div class="line"></div><div class="line">  <span class="comment">// 字典（的哈希表）为空</span></div><div class="line">  <span class="keyword">if</span> (<span class="keyword">d</span>-&gt;ht[0].size == 0)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">return</span> NULL;</div><div class="line">  &#125; <span class="comment">/* We don't have a table at all */</span></div><div class="line"></div><div class="line">  <span class="comment">// 如果条件允许的话，进行单步 rehash</span></div><div class="line">  <span class="keyword">if</span> (dictIsRehashing(<span class="keyword">d</span>))</div><div class="line">  &#123;</div><div class="line">    _dictRehashStep(<span class="keyword">d</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 计算键的哈希值</span></div><div class="line">  <span class="keyword">h</span> = dictHashKey(<span class="keyword">d</span>, key);</div><div class="line">  <span class="comment">// 在字典的哈希表中查找这个键</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  <span class="keyword">for</span> (<span class="keyword">table</span> = 0; <span class="keyword">table</span> &lt;= 1; <span class="keyword">table</span>++)</div><div class="line">  &#123;</div><div class="line"></div><div class="line">    <span class="comment">// 计算索引值</span></div><div class="line">    idx = <span class="keyword">h</span> &amp; <span class="keyword">d</span>-&gt;ht[<span class="keyword">table</span>].sizemask;</div><div class="line"></div><div class="line">    <span class="comment">// 遍历给定索引上的链表的所有节点，查找 key</span></div><div class="line">    <span class="keyword">he</span> = <span class="keyword">d</span>-&gt;ht[<span class="keyword">table</span>].<span class="keyword">table</span>[idx];</div><div class="line">    <span class="comment">// T = O(1)</span></div><div class="line">    <span class="keyword">while</span> (<span class="keyword">he</span>)</div><div class="line">    &#123;</div><div class="line"></div><div class="line">      <span class="keyword">if</span> (dictCompareKeys(<span class="keyword">d</span>, key, <span class="keyword">he</span>-&gt;key))</div><div class="line">      &#123;</div><div class="line">        <span class="keyword">return</span> <span class="keyword">he</span>;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="keyword">he</span> = <span class="keyword">he</span>-&gt;next;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 如果程序遍历完 0 号哈希表，仍然没找到指定的键的节点</span></div><div class="line">    <span class="comment">// 那么程序会检查字典是否在进行 rehash ，</span></div><div class="line">    <span class="comment">// 然后才决定是直接返回 NULL ，还是继续查找 1 号哈希表</span></div><div class="line">    <span class="keyword">if</span> (!dictIsRehashing(<span class="keyword">d</span>))</div><div class="line">    &#123;</div><div class="line">      <span class="keyword">return</span> NULL;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 进行到这里时，说明两个哈希表都没找到</span></div><div class="line">  <span class="keyword">return</span> NULL;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 获取包含给定键的节点的值</div><div class="line"> *</div><div class="line"> * 如果节点不为空，返回节点的值</div><div class="line"> * 否则返回 NULL</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">void *dictFetchValue(dict *<span class="keyword">d</span>, <span class="keyword">const</span> void *key)</div><div class="line">&#123;</div><div class="line">  dictEntry *<span class="keyword">he</span>;</div><div class="line"></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  <span class="keyword">he</span> = dictFind(<span class="keyword">d</span>, key);</div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="keyword">he</span> ? dictGetVal(<span class="keyword">he</span>) : NULL;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>迭代器相关</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 创建并返回给定字典的不安全迭代器</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">dictIterator *dictGetIterator(dict *d)</div><div class="line">&#123;</div><div class="line">  dictIterator *iter = zmalloc(sizeof(*iter));</div><div class="line"></div><div class="line">  <span class="function"><span class="title">iter</span>-&gt;</span>d = d;</div><div class="line">  <span class="function"><span class="title">iter</span>-&gt;</span>table = <span class="number">0</span>;</div><div class="line">  <span class="function"><span class="title">iter</span>-&gt;</span>index = -<span class="number">1</span>;</div><div class="line">  <span class="function"><span class="title">iter</span>-&gt;</span>safe = <span class="number">0</span>;</div><div class="line">  <span class="function"><span class="title">iter</span>-&gt;</span>entry = NULL;</div><div class="line">  <span class="function"><span class="title">iter</span>-&gt;</span>nextEntry = NULL;</div><div class="line"></div><div class="line">  return iter;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 创建并返回给定节点的安全迭代器</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">dictIterator *dictGetSafeIterator(dict *d)</div><div class="line">&#123;</div><div class="line">  dictIterator *i = dictGetIterator(d);</div><div class="line"></div><div class="line">  <span class="comment">// 设置安全迭代器标识</span></div><div class="line">  <span class="function"><span class="title">i</span>-&gt;</span>safe = <span class="number">1</span>;</div><div class="line"></div><div class="line">  return i;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 返回迭代器指向的当前节点</div><div class="line"> *</div><div class="line"> * 字典迭代完毕时，返回 NULL</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">dictEntry *dictNext(dictIterator *iter)</div><div class="line">&#123;</div><div class="line">  <span class="keyword">while</span> (<span class="number">1</span>)</div><div class="line">  &#123;</div><div class="line"></div><div class="line">    <span class="comment">// 进入这个循环有两种可能：</span></div><div class="line">    <span class="comment">// 1) 这是迭代器第一次运行</span></div><div class="line">    <span class="comment">// 2) 当前索引链表中的节点已经迭代完（NULL 为链表的表尾）</span></div><div class="line">    <span class="function"><span class="title">if</span> (iter-&gt;</span>entry == NULL)</div><div class="line">    &#123;</div><div class="line"></div><div class="line">      <span class="comment">// 指向被迭代的哈希表</span></div><div class="line">      <span class="function"><span class="title">dictht</span> *ht = &amp;iter-&gt;</span><span class="function"><span class="title">d</span>-&gt;</span><span class="function"><span class="title">ht</span>[iter-&gt;</span>table];</div><div class="line"></div><div class="line">      <span class="comment">// 初次迭代时执行</span></div><div class="line">      <span class="function"><span class="title">if</span> (iter-&gt;</span><span class="function"><span class="title">index</span> == -1 &amp;&amp; iter-&gt;</span>table == <span class="number">0</span>)</div><div class="line">      &#123;</div><div class="line">        <span class="comment">// 如果是安全迭代器，那么更新安全迭代器计数器</span></div><div class="line">        <span class="function"><span class="title">if</span> (iter-&gt;</span>safe)</div><div class="line">        &#123;</div><div class="line">          <span class="function"><span class="title">iter</span>-&gt;</span><span class="function"><span class="title">d</span>-&gt;</span>iterators++;</div><div class="line">          <span class="comment">// 如果是不安全迭代器，那么计算指纹</span></div><div class="line">        &#125;</div><div class="line">        <span class="keyword">else</span></div><div class="line">        &#123;</div><div class="line">          <span class="function"><span class="title">iter</span>-&gt;</span><span class="function"><span class="title">fingerprint</span> = dictFingerprint(iter-&gt;</span>d);</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">      <span class="comment">// 更新索引</span></div><div class="line">      <span class="function"><span class="title">iter</span>-&gt;</span>index++;</div><div class="line"></div><div class="line">      <span class="comment">// 如果迭代器的当前索引大于当前被迭代的哈希表的大小</span></div><div class="line">      <span class="comment">// 那么说明这个哈希表已经迭代完毕</span></div><div class="line">      <span class="function"><span class="title">if</span> (iter-&gt;</span><span class="function"><span class="title">index</span> &gt;= (signed) ht-&gt;</span>size)</div><div class="line">      &#123;</div><div class="line">        <span class="comment">// 如果正在 rehash 的话，那么说明 1 号哈希表也正在使用中</span></div><div class="line">        <span class="comment">// 那么继续对 1 号哈希表进行迭代</span></div><div class="line">        <span class="function"><span class="title">if</span> (dictIsRehashing(iter-&gt;</span><span class="function"><span class="title">d</span>) &amp;&amp; iter-&gt;</span>table == <span class="number">0</span>)</div><div class="line">        &#123;</div><div class="line">          <span class="function"><span class="title">iter</span>-&gt;</span>table++;</div><div class="line">          <span class="function"><span class="title">iter</span>-&gt;</span>index = <span class="number">0</span>;</div><div class="line">          <span class="function"><span class="title">ht</span> = &amp;iter-&gt;</span><span class="function"><span class="title">d</span>-&gt;</span>ht[<span class="number">1</span>];</div><div class="line">          <span class="comment">// 如果没有 rehash ，那么说明迭代已经完成</span></div><div class="line">        &#125;</div><div class="line">        <span class="keyword">else</span></div><div class="line">        &#123;</div><div class="line">          break;</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="comment">// 如果进行到这里，说明这个哈希表并未迭代完</span></div><div class="line">      <span class="comment">// 更新节点指针，指向下个索引链表的表头节点</span></div><div class="line">      <span class="function"><span class="title">iter</span>-&gt;</span><span class="function"><span class="title">entry</span> = ht-&gt;</span><span class="function"><span class="title">table</span>[iter-&gt;</span>index];</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span></div><div class="line">    &#123;</div><div class="line">      <span class="comment">// 执行到这里，说明程序正在迭代某个链表</span></div><div class="line">      <span class="comment">// 将节点指针指向链表的下个节点</span></div><div class="line">      <span class="function"><span class="title">iter</span>-&gt;</span><span class="function"><span class="title">entry</span> = iter-&gt;</span>nextEntry;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 如果当前节点不为空，那么也记录下该节点的下个节点</span></div><div class="line">    <span class="comment">// 因为安全迭代器有可能会将迭代器返回的当前节点删除</span></div><div class="line">    <span class="function"><span class="title">if</span> (iter-&gt;</span>entry)</div><div class="line">    &#123;</div><div class="line">      <span class="comment">/* We need to save the 'next' here, the iterator user</span></div><div class="line">       * may delete the entry we are returning. */</div><div class="line">      <span class="function"><span class="title">iter</span>-&gt;</span><span class="function"><span class="title">nextEntry</span> = iter-&gt;</span><span class="function"><span class="title">entry</span>-&gt;</span>next;</div><div class="line">      <span class="function"><span class="title">return</span> iter-&gt;</span>entry;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 迭代完毕</span></div><div class="line">  return NULL;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 释放给定字典迭代器</div><div class="line"> *</div><div class="line"> * T = O(1)</div><div class="line"> */</div><div class="line">void dictReleaseIterator(dictIterator *iter)</div><div class="line">&#123;</div><div class="line"></div><div class="line">  <span class="function"><span class="title">if</span> (!(iter-&gt;</span><span class="function"><span class="title">index</span> == -1 &amp;&amp; iter-&gt;</span>table == <span class="number">0</span>))</div><div class="line">  &#123;</div><div class="line">    <span class="comment">// 释放安全迭代器时，安全迭代器计数器减一</span></div><div class="line">    <span class="function"><span class="title">if</span> (iter-&gt;</span>safe)</div><div class="line">    &#123;</div><div class="line">      <span class="function"><span class="title">iter</span>-&gt;</span><span class="function"><span class="title">d</span>-&gt;</span>iterators--;</div><div class="line">      <span class="comment">// 释放不安全迭代器时，验证指纹是否有变化</span></div><div class="line">    &#125;</div><div class="line">    <span class="keyword">else</span></div><div class="line">      <span class="function"><span class="title">assert</span>(iter-&gt;</span><span class="function"><span class="title">fingerprint</span> == dictFingerprint(iter-&gt;</span>d));</div><div class="line">  &#125;</div><div class="line">  zfree(iter);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>随机返回字典中的key</p>
+<figure class="highlight stata"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 随机返回字典中任意一个节点。</div><div class="line"> *</div><div class="line"> * 可用于实现随机化算法。</div><div class="line"> *</div><div class="line"> * 如果字典为空，返回 NULL 。</div><div class="line"> *</div><div class="line"> * T = O(N)</div><div class="line">*/</div><div class="line">dictEntry *dictGetRandomKey(dict *<span class="keyword">d</span>)</div><div class="line">&#123;</div><div class="line">  dictEntry *<span class="keyword">he</span>, *orighe;</div><div class="line">  unsigned int <span class="keyword">h</span>;</div><div class="line">  int listlen, listele;</div><div class="line"></div><div class="line">  <span class="comment">// 字典为空</span></div><div class="line">  <span class="keyword">if</span> (dictSize(<span class="keyword">d</span>) == 0)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">return</span> NULL;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 进行单步 rehash</span></div><div class="line">  <span class="keyword">if</span> (dictIsRehashing(<span class="keyword">d</span>))</div><div class="line">  &#123;</div><div class="line">    _dictRehashStep(<span class="keyword">d</span>);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 如果正在 rehash ，那么将 1 号哈希表也作为随机查找的目标</span></div><div class="line">  <span class="keyword">if</span> (dictIsRehashing(<span class="keyword">d</span>))</div><div class="line">  &#123;</div><div class="line">    <span class="comment">// T = O(N)</span></div><div class="line">    <span class="keyword">do</span></div><div class="line">    &#123;</div><div class="line">      <span class="keyword">h</span> = random() % (<span class="keyword">d</span>-&gt;ht[0].size + <span class="keyword">d</span>-&gt;ht[1].size);</div><div class="line">      <span class="keyword">he</span> = (<span class="keyword">h</span> &gt;= <span class="keyword">d</span>-&gt;ht[0].size) ? <span class="keyword">d</span>-&gt;ht[1].<span class="keyword">table</span>[<span class="keyword">h</span> - <span class="keyword">d</span>-&gt;ht[0].size] :</div><div class="line">           <span class="keyword">d</span>-&gt;ht[0].<span class="keyword">table</span>[<span class="keyword">h</span>];</div><div class="line">    &#125; <span class="keyword">while</span> (<span class="keyword">he</span> == NULL);</div><div class="line">    <span class="comment">// 否则，只从 0 号哈希表中查找节点</span></div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line">    <span class="comment">// T = O(N)</span></div><div class="line">    <span class="keyword">do</span></div><div class="line">    &#123;</div><div class="line">      <span class="keyword">h</span> = random() &amp; <span class="keyword">d</span>-&gt;ht[0].sizemask;</div><div class="line">      <span class="keyword">he</span> = <span class="keyword">d</span>-&gt;ht[0].<span class="keyword">table</span>[<span class="keyword">h</span>];</div><div class="line">    &#125; <span class="keyword">while</span> (<span class="keyword">he</span> == NULL);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/* Now we found a non empty bucket, but it is a linked</span></div><div class="line">   * list and we need to get a random element from the list.</div><div class="line">   * The only sane way to do so is counting the elements and</div><div class="line">   * select a random index. */</div><div class="line">  <span class="comment">// 目前 he 已经指向一个非空的节点链表</span></div><div class="line">  <span class="comment">// 程序将从这个链表随机返回一个节点</span></div><div class="line">  listlen = 0;</div><div class="line">  orighe = <span class="keyword">he</span>;</div><div class="line">  <span class="comment">// 计算节点数量, T = O(1)</span></div><div class="line">  <span class="keyword">while</span> (<span class="keyword">he</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">he</span> = <span class="keyword">he</span>-&gt;next;</div><div class="line">    listlen++;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 取模，得出随机节点的索引</span></div><div class="line">  listele = random() % listlen;</div><div class="line">  <span class="keyword">he</span> = orighe;</div><div class="line">  <span class="comment">// 按索引查找节点</span></div><div class="line">  <span class="comment">// T = O(1)</span></div><div class="line">  <span class="keyword">while</span> (listele--)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">he</span> = <span class="keyword">he</span>-&gt;next;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 返回随机节点</span></div><div class="line">  <span class="keyword">return</span> <span class="keyword">he</span>;</div><div class="line">&#125;</div><div class="line"><span class="comment">/* This is a version of dictGetRandomKey() that is modified in order to</span></div><div class="line"> * return multiple entries by jumping at a random place of the hash table</div><div class="line"> * and scanning linearly for entries.</div><div class="line"> *</div><div class="line"> * Returned pointers to hash table entries are stored into 'des' that</div><div class="line"> * points to an array of dictEntry pointers. The array must have room for</div><div class="line"> * at least 'count' elements, that is the argument we pass to the function</div><div class="line"> * to tell how many random elements we need.</div><div class="line"> *</div><div class="line"> * The function returns the number of items stored into 'des', that may</div><div class="line"> * be less than 'count' if the hash table has less than 'count' elements</div><div class="line"> * inside.</div><div class="line"> *</div><div class="line"> * Note that this function is not suitable when you need a good distribution</div><div class="line"> * of the returned items, but only when you need to "sample" a given number</div><div class="line"> * of continuous elements to run some kind of algorithm or to produce</div><div class="line"> * statistics. However the function is much faster than dictGetRandomKey()</div><div class="line"> * at producing N elements, and the elements are guaranteed to be non</div><div class="line"> * repeating. */</div><div class="line">int dictGetRandomKeys(dict *<span class="keyword">d</span>, dictEntry **<span class="keyword">des</span>, int <span class="keyword">count</span>)</div><div class="line">&#123;</div><div class="line">  int j; <span class="comment">/* internal hash table id, 0 or 1. */</span></div><div class="line">  int stored = 0;</div><div class="line"></div><div class="line">  <span class="keyword">if</span> (dictSize(<span class="keyword">d</span>) &lt; <span class="keyword">count</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">count</span> = dictSize(<span class="keyword">d</span>);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">while</span> (stored &lt; <span class="keyword">count</span>)</div><div class="line">  &#123;</div><div class="line">    <span class="keyword">for</span> (j = 0; j &lt; 2; j++)</div><div class="line">    &#123;</div><div class="line">      <span class="comment">/* Pick a random point inside the hash table 0 or 1. */</span></div><div class="line">      unsigned int i = random() &amp; <span class="keyword">d</span>-&gt;ht[j].sizemask;</div><div class="line">      int size = <span class="keyword">d</span>-&gt;ht[j].size;</div><div class="line"></div><div class="line">      <span class="comment">/* Make sure to visit every bucket by iterating 'size' times. */</span></div><div class="line">      <span class="keyword">while</span> (size--)</div><div class="line">      &#123;</div><div class="line">        dictEntry *<span class="keyword">he</span> = <span class="keyword">d</span>-&gt;ht[j].<span class="keyword">table</span>[i];</div><div class="line">        <span class="keyword">while</span> (<span class="keyword">he</span>)</div><div class="line">        &#123;</div><div class="line">          <span class="comment">/* Collect all the elements of the buckets found non</span></div><div class="line">           * empty while iterating. */</div><div class="line"><span class="comment">          *des = he;</span></div><div class="line">          <span class="keyword">des</span>++;</div><div class="line">          <span class="keyword">he</span> = <span class="keyword">he</span>-&gt;next;</div><div class="line">          stored++;</div><div class="line">          <span class="keyword">if</span> (stored == <span class="keyword">count</span>)</div><div class="line">          &#123;</div><div class="line">            <span class="keyword">return</span> stored;</div><div class="line">          &#125;</div><div class="line">        &#125;</div><div class="line">        i = (i + 1) &amp; <span class="keyword">d</span>-&gt;ht[j].sizemask;</div><div class="line">      &#125;</div><div class="line">      <span class="comment">/* If there is only one table and we iterated it all, we should</span></div><div class="line">       * already have 'count' elements. Assert this condition. */</div><div class="line">      <span class="keyword">assert</span>(dictIsRehashing(<span class="keyword">d</span>) != 0);</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">/// 不会到达此处</span></div><div class="line">  <span class="keyword">return</span> stored; <span class="comment">/* Never reached. */</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="dictScan"><a href="#dictScan" class="headerlink" title="dictScan"></a>dictScan</h2><h3 id="用法"><a href="#用法" class="headerlink" title="用法"></a>用法</h3><figure class="highlight arduino"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">int</span> <span class="built_in">cursor</span> = <span class="number">0</span>;</div><div class="line"><span class="built_in">do</span> &#123;  </div><div class="line">    <span class="built_in">cursor</span> = dictScan(ht, <span class="built_in">cursor</span>, scanCallback, privdata);  </div><div class="line">&#125; <span class="built_in">while</span> (<span class="built_in">cursor</span> &amp;&amp;  </div><div class="line">      maxiterations-- &amp;&amp;  </div><div class="line">      listLength(keys) &lt; (<span class="keyword">unsigned</span> <span class="keyword">long</span>)count);</div></pre></td></tr></table></figure>
+<p>dictScan函数用于迭代给定字典中的所有元素，函数保证，在迭代从开始到结束期间，一致存在于字典中的元素肯定会被迭代到，但是同一个元素可能会被返回多次。每一个元素返回的时候，会执行输入的回调函数fn，fn函数的第一个参数是privdata，第二个参数是字典结点de。dictScan函数能够应对迭代过程之中，字典中桶的数目发生改变的情况。因而，cursor采用的是高位向低位加1的算法实现，这种算法能够保证迭代过程之中，若字典的桶的大小发生改变，需要重复访问的字典之中的元素数目最小。</p>
+<h3 id="扩容"><a href="#扩容" class="headerlink" title="扩容"></a>扩容</h3><p>假设字典中桶的数目为8，在执行第7次迭代的时候字典大小扩容为16，此时cursor为11对应的遍历会重复hash值为3的桶中的元素，之后的遍历便不会再重复了。</p>
+<p><img src="https://ws3.sinaimg.cn/large/006tKfTcgy1fl6207rzcmj30g105jwf5.jpg" alt=""></p>
+<h3 id="缩容"><a href="#缩容" class="headerlink" title="缩容"></a>缩容</h3><p>假设字典的桶的数目原本为16，在进行第14次遍历的时候，字典的桶的数目缩容为8，此时cursor值为7，并不会产生重复访问的情况。</p>
+<p><img src="https://ws2.sinaimg.cn/large/006tKfTcgy1fl6250k3pvj30g1081my8.jpg" alt=""></p>
+<p>更多情况参见 <a href="http://blog.csdn.net/breaksoftware/article/details/53509986" target="_blank" rel="external">csdn博客</a></p>
+<h3 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h3><p>cursor值每次加1，从高位向低位进位。首先处理桶数目较小的hash表，在大表中遍历的hash值是一个组合数序列，假设这些数为Vi，有 Vi &amp; m1 == cursor &amp; m0 (m1为大hash表的sizemask，m1为小hash表的sizemask)。</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/// http://blog.csdn.net/breaksoftware/article/details/53509986</span></div><div class="line">unsigned long dictScan(dict *d,</div><div class="line">                       unsigned long v,</div><div class="line">                       dictScanFunction *fn,</div><div class="line">                       void *privdata)</div><div class="line">&#123;</div><div class="line">  dictht *t0, *t1;</div><div class="line">  const dictEntry *de;</div><div class="line">  unsigned long m0, m1;</div><div class="line"></div><div class="line">  <span class="comment">// 跳过空字典</span></div><div class="line">  <span class="keyword">if</span> (dictSize(d) == <span class="number">0</span>)</div><div class="line">  &#123;</div><div class="line">    return <span class="number">0</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 迭代只有一个哈希表的字典</span></div><div class="line">  <span class="comment">/// 直接顺序迭代所有的元素</span></div><div class="line">  <span class="keyword">if</span> (!dictIsRehashing(d))</div><div class="line">  &#123;</div><div class="line"></div><div class="line">    <span class="comment">// 指向哈希表</span></div><div class="line">    <span class="function"><span class="title">t0</span> = &amp;(d-&gt;</span>ht[<span class="number">0</span>]);</div><div class="line"></div><div class="line">    <span class="comment">// 记录 mask</span></div><div class="line">    <span class="function"><span class="title">m0</span> = t0-&gt;</span>sizemask;</div><div class="line"></div><div class="line">    <span class="comment">/* Emit entries at cursor */</span></div><div class="line">    <span class="comment">// 指向哈希桶</span></div><div class="line">    <span class="comment">// hash值从v开始</span></div><div class="line">    <span class="function"><span class="title">de</span> = t0-&gt;</span>table[v &amp; m0];</div><div class="line">    <span class="comment">// 遍历桶中的所有节点</span></div><div class="line">    <span class="keyword">while</span> (de)</div><div class="line">    &#123;</div><div class="line">      fn(privdata, de);</div><div class="line">      <span class="function"><span class="title">de</span> = de-&gt;</span>next;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 迭代有两个哈希表的字典</span></div><div class="line">  &#125;</div><div class="line">  <span class="keyword">else</span></div><div class="line">  &#123;</div><div class="line"></div><div class="line">    <span class="comment">// 指向两个哈希表</span></div><div class="line">    <span class="function"><span class="title">t0</span> = &amp;d-&gt;</span>ht[<span class="number">0</span>];</div><div class="line">    <span class="function"><span class="title">t1</span> = &amp;d-&gt;</span>ht[<span class="number">1</span>];</div><div class="line"></div><div class="line">    <span class="comment">/* Make sure t0 is the smaller and t1 is the bigger table */</span></div><div class="line">    <span class="comment">// 确保 t0 比 t1 要小</span></div><div class="line">    <span class="function"><span class="title">if</span> (t0-&gt;</span><span class="function"><span class="title">size</span> &gt; t1-&gt;</span>size)</div><div class="line">    &#123;</div><div class="line">      <span class="function"><span class="title">t0</span> = &amp;d-&gt;</span>ht[<span class="number">1</span>];</div><div class="line">      <span class="function"><span class="title">t1</span> = &amp;d-&gt;</span>ht[<span class="number">0</span>];</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 记录掩码</span></div><div class="line">    <span class="function"><span class="title">m0</span> = t0-&gt;</span>sizemask;</div><div class="line">    <span class="function"><span class="title">m1</span> = t1-&gt;</span>sizemask;</div><div class="line"></div><div class="line">    <span class="comment">/// 处理完小的hash桶</span></div><div class="line">    <span class="comment">/* Emit entries at cursor */</span></div><div class="line">    <span class="comment">// 指向桶，并迭代桶中的所有节点</span></div><div class="line">    <span class="function"><span class="title">de</span> = t0-&gt;</span>table[v &amp; m0];</div><div class="line">    <span class="keyword">while</span> (de)</div><div class="line">    &#123;</div><div class="line">      fn(privdata, de);</div><div class="line">      <span class="function"><span class="title">de</span> = de-&gt;</span>next;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/* Iterate over indices in larger table that are the expansion</span></div><div class="line">     * of the index pointed to by the cursor in the smaller table */</div><div class="line">    <span class="comment">// Iterate over indices in larger table             // 迭代大表中的桶</span></div><div class="line">    <span class="comment">// that are the expansion of the index pointed to   // 这些桶被索引的 expansion 所指向</span></div><div class="line">    <span class="comment">// by the cursor in the smaller table               //</span></div><div class="line">    <span class="keyword">do</span></div><div class="line">    &#123;</div><div class="line">      <span class="comment">/* Emit entries at cursor */</span></div><div class="line">      <span class="comment">// 指向桶，并迭代桶中的所有节点</span></div><div class="line">      <span class="function"><span class="title">de</span> = t1-&gt;</span>table[v &amp; m1];</div><div class="line">      <span class="keyword">while</span> (de)</div><div class="line">      &#123;</div><div class="line">        fn(privdata, de);</div><div class="line">        <span class="function"><span class="title">de</span> = de-&gt;</span>next;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="comment">/// 低位和v一致，高位按照所有可能的组合进行变动</span></div><div class="line">      <span class="comment">/* Increment bits not covered by the smaller mask */</span></div><div class="line">      v = (((v | m0) + <span class="number">1</span>) &amp; ~m0) | (v &amp; m0);</div><div class="line"></div><div class="line">      <span class="comment">/* Continue while bits covered by mask difference is non-zero */</span></div><div class="line">    &#125; <span class="keyword">while</span> (v &amp; (m0 ^ m1)); <span class="comment">// 相差的bit各种组合的数目之和</span></div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/// 加法，施加在高位上，向低位进位</span></div><div class="line">  <span class="comment">/* Set unmasked bits so incrementing the reversed cursor</span></div><div class="line">   * operates on the masked bits of the smaller table */</div><div class="line">  v |= ~m0;</div><div class="line"></div><div class="line">  <span class="comment">/* Increment the reverse cursor */</span></div><div class="line">  v = rev(v);</div><div class="line">  v++;</div><div class="line">  v = rev(v);</div><div class="line"></div><div class="line">  return v;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/redis/" rel="tag"># redis</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/11/04/redis-链表/" rel="next" title="redis 链表">
+                <i class="fa fa-chevron-left"></i> redis 链表
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8yODk5Ny81NTY2"></div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="http://or5t01ef4.bkt.clouddn.com/12538446.jpeg"
+               alt="Zhou Yang" />
+          <p class="site-author-name" itemprop="name">Zhou Yang</p>
+           
+              <p class="site-description motion-element" itemprop="description">乐观的终生学习者</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">47</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">4</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">6</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/zhoudayang" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/zhoudayang" target="_blank" title="知乎">
+                  
+                    <i class="fa fa-fw fa-知乎"></i>
+                  
+                  知乎
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://weibo.com/zyiam" target="_blank" title="Weibo">
+                  
+                    <i class="fa fa-fw fa-weibo"></i>
+                  
+                  Weibo
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#dict介绍"><span class="nav-text">dict介绍</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#dict结构通览"><span class="nav-text">dict结构通览</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#哈希表结点"><span class="nav-text">哈希表结点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#类定义"><span class="nav-text">类定义</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#dict定义"><span class="nav-text">dict定义</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#hash表定义"><span class="nav-text">hash表定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#字典定义"><span class="nav-text">字典定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#迭代器定义"><span class="nav-text">迭代器定义</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#基本实现"><span class="nav-text">基本实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#dictScan"><span class="nav-text">dictScan</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#用法"><span class="nav-text">用法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#扩容"><span class="nav-text">扩容</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#缩容"><span class="nav-text">缩容</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#实现"><span class="nav-text">实现</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhou Yang</span>
+</div>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.1"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+  
+  <link rel="stylesheet" href="/lib/algolia-instant-search/instantsearch.min.css">
+
+  
+  
+  <script src="/lib/algolia-instant-search/instantsearch.min.js"></script>
+  
+
+  <script src="/js/src/algolia-search.js?v=5.1.1"></script>
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
